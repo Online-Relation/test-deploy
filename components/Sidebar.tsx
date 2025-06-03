@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useXp } from '../context/XpContext';
+import { useXp } from '@/context/XpContext';
 import {
   LayoutDashboard,
   Heart,
