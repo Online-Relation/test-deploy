@@ -3,6 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import { useXp } from '@/context/XpContext';
 import {
   LayoutDashboard,
@@ -13,6 +14,8 @@ import {
   Briefcase,
   Backpack,
   Brain,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 
 const navItems = [
@@ -28,6 +31,7 @@ const navItems = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { xp } = useXp();
+  const [settingsOpen, setSettingsOpen] = useState(pathname.startsWith('/settings'));
 
   return (
     <div className="h-screen w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
@@ -46,20 +50,55 @@ export default function Sidebar() {
               {item.label}
             </Link>
           ))}
+
+          {/* Dropdown for Indstillinger */}
+          <div>
+            <button
+              onClick={() => setSettingsOpen(!settingsOpen)}
+              className={`w-full flex items-center justify-between gap-2 px-4 py-2 rounded hover:bg-gray-800 transition ${
+                pathname.startsWith('/settings') ? 'bg-gray-700 font-semibold' : ''
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <Settings size={20} />
+                Indstillinger
+              </span>
+              {settingsOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </button>
+
+            {settingsOpen && (
+              <div className="ml-6 mt-1 space-y-1">
+                <Link
+                  href="/settings/points"
+                  className={`block px-3 py-1 rounded hover:bg-gray-800 transition ${
+                    pathname === '/settings/points' ? 'bg-gray-700 font-semibold' : ''
+                  }`}
+                >
+                  Points
+                </Link>
+                <Link
+                  href="/settings/rewards"
+                  className={`block px-3 py-1 rounded hover:bg-gray-800 transition ${
+                    pathname === '/settings/rewards' ? 'bg-gray-700 font-semibold' : ''
+                  }`}
+                >
+                  Rewards
+                </Link>
+                <Link
+                  href="/settings/categories"
+                  className={`block px-3 py-1 rounded hover:bg-gray-800 transition ${
+                    pathname === '/settings/categories' ? 'bg-gray-700 font-semibold' : ''
+                  }`}
+                >
+                  Categories
+                </Link>
+              </div>
+            )}
+          </div>
         </nav>
       </div>
 
-      <div className="mb-6 px-4 space-y-3">
-        <Link
-          href="/settings"
-          className={`flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition ${
-            pathname === '/settings' ? 'bg-gray-700 font-semibold' : ''
-          }`}
-        >
-          <Settings size={20} />
-          Indstillinger
-        </Link>
-
+      <div className="mb-6 px-4">
         <div className="text-center bg-purple-600 text-white py-1 px-3 rounded-full text-sm font-semibold">
           🎯 XP: {xp}
         </div>
