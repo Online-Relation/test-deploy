@@ -41,28 +41,38 @@ export default function Sidebar() {
   const [allowedMenuKeys, setAllowedMenuKeys] = useState<string[]>([]);
 
   const isAdmin = user?.email === 'mads@onlinerelation.dk';
+  
 
-  // 🔧 FIX: Flyttet useEffect så den altid kører
-  useEffect(() => {
-    if (!user) return;
+useEffect(() => {
+  if (!user) return;
 
+  const isAdmin = user.email === 'mads@onlinerelation.dk';
+
+  const fetchAccess = async () => {
     if (isAdmin) {
       setAllowedMenuKeys(allNavItems.map((item) => item.key));
       return;
     }
 
-    const fetchAccess = async () => {
-      const { data } = await supabase
-        .from('profile_access')
-        .select('menu_key')
-        .eq('user_id', user.id);
+    const { data, error } = await supabase
+      .from('access_control')
+      .select('menu_key')
+      .eq('user_id', user.id)
+      .eq('allowed', true);
 
-      const keys = data?.map((item) => item.menu_key) || [];
-      setAllowedMenuKeys(keys);
-    };
+    if (error) {
+      console.error('Fejl ved hentning af adgang:', error.message);
+      return;
+    }
 
-    fetchAccess();
-  }, [user?.id]);
+    const keys = data?.map((row) => row.menu_key) || [];
+    setAllowedMenuKeys(keys);
+  };
+
+  fetchAccess();
+}, [user?.id]);
+
+
 
   if (!hasMounted || loading || !user) return null;
 

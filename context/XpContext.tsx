@@ -3,61 +3,53 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { useUserContext } from './UserContext';
 
 interface XpContextType {
   xp: number;
-  setXp: (value: number) => void;
-  addXp: (value: number) => void;
+  addXp: (amount: number) => void;
+  fetchXp: () => void;
 }
 
 const XpContext = createContext<XpContextType>({
   xp: 0,
-  setXp: () => {},
   addXp: () => {},
+  fetchXp: () => {},
 });
 
+export const useXp = () => useContext(XpContext);
+
 export const XpProvider = ({ children }: { children: React.ReactNode }) => {
-  const [xp, setXpState] = useState<number>(0);
+  const { user } = useUserContext();
+  const [xp, setXp] = useState(0);
+
+  const fetchXp = async () => {
+    if (!user?.id) return;
+    const { data, error } = await supabase
+      .from('xp_log')
+      .select('change')
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Fejl ved hentning af XP-log:', error.message);
+      return;
+    }
+
+    const total = data?.reduce((sum, entry) => sum + entry.change, 0) || 0;
+    setXp(total);
+  };
+
+  const addXp = (amount: number) => {
+    setXp((prev) => prev + amount);
+  };
 
   useEffect(() => {
-    const loadXp = async () => {
-      const { data, error } = await supabase.from('xp').select('*').limit(1).maybeSingle();
-      if (error) {
-        console.error('Fejl ved hentning af XP:', error.message);
-      } else if (data) {
-        setXpState(data.value);
-      } else {
-        const { error: insertError } = await supabase.from('xp').insert([{ value: 0 }]);
-        if (insertError) console.error('Fejl ved oprettelse af XP-række:', insertError.message);
-      }
-    };
-    loadXp();
-  }, []);
-
-  const setXp = async (value: number) => {
-    const { error } = await supabase.from('xp').update({ value }).neq('value', value);
-    if (error) {
-      console.error('Fejl ved opdatering af XP:', error.message);
-    } else {
-      setXpState(value);
-    }
-  };
-
-  const addXp = async (value: number) => {
-    const newXp = xp + value;
-    const { error } = await supabase.from('xp').update({ value: newXp }).neq('value', newXp);
-    if (error) {
-      console.error('Fejl ved tilføjelse af XP:', error.message);
-    } else {
-      setXpState(newXp);
-    }
-  };
+    fetchXp();
+  }, [user?.id]);
 
   return (
-    <XpContext.Provider value={{ xp, setXp, addXp }}>
+    <XpContext.Provider value={{ xp, addXp, fetchXp }}>
       {children}
     </XpContext.Provider>
   );
 };
-
-export const useXp = () => useContext(XpContext);

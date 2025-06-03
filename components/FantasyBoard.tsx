@@ -1,3 +1,4 @@
+// components/FantasyBoard.tsx
 'use client';
 
 import { useCategory } from '@/context/CategoryContext';
@@ -14,6 +15,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Tag, Zap } from 'lucide-react';
 import Modal from '@/components/ui/modal';
+import { useUserContext } from '@/context/UserContext';
 
 const effortLevels = ['Low', 'Medium', 'High'];
 
@@ -42,9 +44,6 @@ function DraggableCard({ fantasy, onView }: { fantasy: Fantasy; onView: () => vo
     transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
     opacity: isDragging ? 0.5 : 1,
   };
-
-  const truncate = (str: string, n: number) =>
-    str.length > n ? str.substring(0, n).trimEnd() + '…' : str;
 
   const effortBadgeColor = {
     Low: 'bg-green-100 text-green-800',
@@ -121,6 +120,7 @@ function DroppableColumn({ status, fantasies, onCardClick }: { status: string; f
 export default function FantasyBoard() {
   const { fantasyCategories } = useCategory();
   const { addXp } = useXp();
+  const { user, role } = useUserContext();
   const [fantasies, setFantasies] = useState<Fantasy[]>([]);
   const [newFantasy, setNewFantasy] = useState<Omit<Fantasy, 'id'>>({ title: '', description: '', image_url: '', category: '', effort: '', status: 'idea' });
   const [selectedFantasy, setSelectedFantasy] = useState<Fantasy | null>(null);
@@ -136,17 +136,86 @@ export default function FantasyBoard() {
     fetchFantasies();
   }, []);
 
-  const addFantasy = async () => {
-    if (!newFantasy.title.trim()) return;
-    const { data, error } = await supabase.from('fantasies').insert([{ ...newFantasy, xp_granted: false }]).select();
-    if (error) return console.error('Fejl ved tilføjelse:', error.message);
-    if (data) {
-      setFantasies(prev => [...prev, data[0]]);
-      setNewFantasy({ title: '', description: '', image_url: '', category: '', effort: '', status: 'idea' });
-      setShowAddModal(false);
-      addXp(5);
-    }
-  };
+  const logXp = async (receiver: 'mads' | 'stine', action: string, effort?: string) => {
+  console.log('[logXp] KALDT MED:', { receiver, action, effort });
+
+  const { data: setting, error: settingError } = await supabase
+    .from('xp_settings')
+    .select('xp')
+    .eq('role', receiver)
+    .eq('action', action)
+    .eq('effort', effort || '')
+    .maybeSingle();
+
+    console.log('[logXp] HENTET setting:', setting);
+
+    if (settingError) {
+    console.error('[logXp] Fejl ved hentning af xp_settings:', settingError);
+    return;
+  }
+
+  if (!setting?.xp) {
+    console.warn('[logXp] Ingen xp fundet i settings til:', { receiver, action, effort });
+    return;
+  }
+
+  const { data: receiverProfile, error: profileError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('role', receiver)
+    .maybeSingle();
+
+  if (profileError) {
+    console.error('[logXp] Fejl ved hentning af profil:', profileError);
+    return;
+  }
+
+  if (!receiverProfile?.id) {
+    console.error('[logXp] Ingen profil fundet til:', receiver);
+    return;
+  }
+
+  const { error: insertError } = await supabase.from('xp_log').insert({
+    user_id: receiverProfile.id,
+    change: setting.xp,
+    description: `${receiver} – ${action}`,
+    role: receiver,
+  });
+
+  if (insertError) {
+    console.error('[logXp] Fejl ved indsættelse i xp_log:', insertError);
+  } else {
+    console.log('[logXp] XP logget!', { receiver, action, xp: setting.xp });
+  }
+
+  if (user?.id === receiverProfile.id) {
+    addXp(setting.xp);
+  }
+};
+
+
+
+const addFantasy = async () => {
+  if (!newFantasy.title.trim()) return;
+
+  const { data, error } = await supabase.from('fantasies').insert([{
+    ...newFantasy,
+    effort: newFantasy.effort?.toLowerCase() || '',  // 💡 Tving effort til lowercase
+    xp_granted: false,
+    user_id: user?.id,
+  }]).select();
+
+  if (error) return console.error('Fejl ved tilføjelse:', error.message);
+
+  if (data) {
+    setFantasies(prev => [...prev, data[0]]);
+    setNewFantasy({ title: '', description: '', image_url: '', category: '', effort: '', status: 'idea' });
+    setShowAddModal(false);
+    if (role === 'mads') logXp('mads', 'add_fantasy', data[0].effort);
+    if (role === 'stine') logXp('stine', 'add_fantasy', data[0].effort);
+  }
+};
+
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -162,12 +231,33 @@ export default function FantasyBoard() {
       const { error } = await supabase.from('fantasies').update({ status: newStatus, fulfilled_date, xp_granted: true }).eq('id', fantasy.id);
       if (error) return console.error('Fejl ved opdatering til fulfilled:', error.message);
       setFantasies(prev => prev.map(f => f.id === fantasy.id ? { ...f, status: newStatus, fulfilled_date, xp_granted: true } : f));
-      addXp(10);
-    } else {
-      const { error } = await supabase.from('fantasies').update({ status: newStatus }).eq('id', fantasy.id);
-      if (error) return console.error('Fejl ved opdatering af status:', error.message);
-      setFantasies(prev => prev.map(f => f.id === fantasy.id ? { ...f, status: newStatus } : f));
+      logXp('stine', 'complete_fantasy', fantasy.effort);
+      return;
     }
+
+    if (fantasy.status === 'idea' && newStatus === 'planned') {
+  const { error } = await supabase
+    .from('fantasies')
+    .update({ status: newStatus })
+    .eq('id', fantasy.id);
+
+  if (error) return console.error('Fejl ved opdatering til planlagt:', error.message);
+
+  setFantasies(prev =>
+    prev.map(f =>
+      f.id === fantasy.id ? { ...f, status: newStatus } : f
+    )
+  );
+
+  if (role === 'stine') logXp('stine', 'plan_fantasy', fantasy.effort);
+
+  return;
+}
+
+
+    const { error } = await supabase.from('fantasies').update({ status: newStatus }).eq('id', fantasy.id);
+    if (error) return console.error('Fejl ved status-opdatering:', error.message);
+    setFantasies(prev => prev.map(f => f.id === fantasy.id ? { ...f, status: newStatus } : f));
   };
 
   const filteredFantasies = filterCategory

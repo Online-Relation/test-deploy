@@ -10,14 +10,15 @@ type AccessEntry = {
 };
 
 export default function AccessPage() {
-  const [users, setUsers] = useState<{ id: string; email: string }[]>([]);
+  const [users, setUsers] = useState<{ id: string; display_name: string }[]>([]);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [accessList, setAccessList] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const fetchUsers = async () => {
-      const { data, error } = await supabase.from('profiles').select('id, email');
-      if (data) setUsers(data);
+      const { data, error } = await supabase.from('profiles').select('id, display_name');
+      console.log('Profiles hentet:', data);
+      setUsers(data || []);
     };
     fetchUsers();
   }, []);
@@ -75,7 +76,7 @@ export default function AccessPage() {
           <option value="">-- Vælg --</option>
           {users.map((u) => (
             <option key={u.id} value={u.id}>
-              {u.email}
+              {u.display_name}
             </option>
           ))}
         </select>

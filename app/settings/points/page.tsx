@@ -1,52 +1,92 @@
-// app/settings/points/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
-type XPLog = {
+interface XPSetting {
   id: number;
-  change: number;
-  reason: string;
-  created_at: string;
-};
+  role: string;
+  action: string;
+  effort: string | null;
+  xp: number;
+}
 
 export default function PointsPage() {
-  const [xpLog, setXpLog] = useState<XPLog[]>([]);
+  const [settings, setSettings] = useState<XPSetting[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-  const fetchXpLog = async () => {
-    const { data, error } = await supabase
-      .from('xp_log')
-      .select('id, change, description, created_at');
+    const fetchSettings = async () => {
+      const { data, error } = await supabase
+        .from("xp_settings")
+        .select("*")
+        .order("role", { ascending: true });
 
-    if (!error && data) {
-      setXpLog(
-  data.map((entry) => ({
-    ...entry,
-    reason: entry.description,
-  }))
-);
+      if (!error && data) {
+        setSettings(data);
+      }
 
+      setLoading(false);
+    };
+
+    fetchSettings();
+  }, []);
+
+  const updateXP = async (id: number, xp: number) => {
+    const { error } = await supabase
+      .from("xp_settings")
+      .update({ xp })
+      .eq("id", id);
+
+    if (!error) {
+      setSettings((prev) =>
+        prev.map((entry) => (entry.id === id ? { ...entry, xp } : entry))
+      );
     }
   };
 
-  fetchXpLog();
-}, []);
+  const renderTable = (title: string, role: string) => (
+    <div className="mb-10">
+      <h2 className="text-xl font-semibold mb-4">{title}</h2>
+      <table className="w-full border text-sm">
+        <thead className="bg-gray-100">
+          <tr>
+            <th className="border px-4 py-2 text-left">Handling</th>
+            <th className="border px-4 py-2 text-left">Effort</th>
+            <th className="border px-4 py-2 text-left">XP</th>
+          </tr>
+        </thead>
+        <tbody>
+          {settings
+            .filter((s) => s.role === role)
+            .map((setting) => (
+              <tr key={setting.id}>
+                <td className="border px-4 py-2">{setting.action}</td>
+                <td className="border px-4 py-2">{setting.effort || '-'}</td>
+                <td className="border px-4 py-2">
+                  <input
+                    type="number"
+                    value={setting.xp}
+                    onChange={(e) =>
+                      updateXP(setting.id, parseInt(e.target.value))
+                    }
+                    className="w-20 border px-2 py-1 text-right"
+                  />
+                </td>
+              </tr>
+            ))}
+        </tbody>
+      </table>
+    </div>
+  );
 
+  if (loading) return <p>Indlæser...</p>;
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-4">XP Log</h1>
-      <ul className="space-y-4">
-        {xpLog.map((entry) => (
-          <li key={entry.id} className="border p-4 rounded shadow">
-            <div className="text-sm text-gray-600">{new Date(entry.created_at).toLocaleString()}</div>
-            <div className="font-semibold">+{entry.change} XP</div>
-            <div className="text-sm">{entry.reason}</div>
-          </li>
-        ))}
-      </ul>
+    <div className="max-w-4xl mx-auto py-8">
+      <h1 className="text-2xl font-bold mb-8">XP-indstillinger</h1>
+      {renderTable("Stine", "stine")}
+      {renderTable("Mads", "mads")}
     </div>
   );
 }

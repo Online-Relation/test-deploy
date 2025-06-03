@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Tag, Zap, Calendar } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
-import useHasMounted from '@/hooks/useHasMounted';
+import { useHasMounted } from '@/hooks/useHasMounted';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 
 interface Fantasy {
