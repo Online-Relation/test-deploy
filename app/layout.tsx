@@ -1,5 +1,5 @@
-import './globals.css';
-import Sidebar from '../components/Sidebar';
+import '@/globals.css';
+import Sidebar from '@/components/Sidebar';
 import { Poppins } from 'next/font/google';
 import { XpProvider } from '@/context/XpContext';
 import { CategoryProvider } from '@/context/CategoryContext';
