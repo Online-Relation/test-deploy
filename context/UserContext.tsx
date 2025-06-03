@@ -6,21 +6,32 @@ import { supabase } from '@/lib/supabaseClient';
 
 type UserContextType = {
   user: any;
+  role: string;
   loading: boolean;
 };
 
 const UserContext = createContext<UserContextType>({
   user: null,
+  role: '',
   loading: true,
 });
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any>(null);
+  const [role, setRole] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       setUser(data.user);
+      if (data.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .maybeSingle();
+        setRole(profile?.role || '');
+      }
       setLoading(false);
     });
 
@@ -34,10 +45,11 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <UserContext.Provider value={{ user, loading }}>
+    <UserContext.Provider value={{ user, role, loading }}>
       {children}
     </UserContext.Provider>
   );
 };
 
-export const useUser = () => useContext(UserContext);
+// ✅ NYT NAVN
+export const useUserContext = () => useContext(UserContext);

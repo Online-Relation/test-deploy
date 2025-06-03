@@ -1,13 +1,13 @@
 // components/UserStatus.tsx
 'use client';
 
-import { useUser } from '@/context/UserContext';
+import { useUserContext } from '@/context/UserContext';
 import { supabase } from '@/lib/supabaseClient';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function UserStatus() {
-  const { user, loading } = useUser();
+  const { user, role, loading } = useUserContext();
   const [name, setName] = useState('');
   const router = useRouter();
 

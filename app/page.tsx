@@ -96,7 +96,13 @@ export default function DashboardPage() {
       {!displayName ? (
         <div className="text-center mt-20 text-gray-500">
           <p className="text-xl font-semibold">Velkommen til dashboardet</p>
-          <p className="mt-2">Log ind for at se dit indhold.</p>
+          <p className="mt-2 mb-6">Log ind for at se dit indhold og følge din udvikling.</p>
+          <a
+            href="/login"
+            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+          >
+            Log ind
+          </a>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
