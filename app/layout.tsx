@@ -1,16 +1,32 @@
-// app/layout.tsx
 import './globals.css';
-import { ReactNode } from 'react';
+import Sidebar from '../components/Sidebar';
+import { Poppins } from 'next/font/google';
+import { XpProvider } from '@/context/XpContext';
+import { CategoryProvider } from '@/context/CategoryContext';
+
+const poppins = Poppins({
+  subsets: ['latin'],
+  weight: ['400', '500', '700'],
+});
 
 export const metadata = {
-  title: 'Test Deploy',
-  description: 'Mit testprojekt på Railway',
+  title: 'Mit Dashboard',
+  description: 'Personligt overblik med gamification',
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="da">
-      <body>{children}</body>
+    <html lang="da" className={poppins.className} suppressHydrationWarning>
+      <body className="flex bg-gray-100">
+        <XpProvider>
+          <CategoryProvider>
+            <Sidebar />
+            <div className="flex-1 min-h-screen p-6 bg-white shadow-inner">
+              {children}
+            </div>
+          </CategoryProvider>
+        </XpProvider>
+      </body>
     </html>
   );
 }
