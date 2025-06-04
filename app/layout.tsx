@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <XpProvider>
             <CategoryProvider>
               <ClientSidebarWrapper />
-              <main className="flex-1 min-h-screen p-6 bg-white shadow-inner">
+              <main className="flex-1 min-h-screen p-6 bg-white shadow-inner pt-[56px] md:pt-6">
                 {children}
               </main>
             </CategoryProvider>
