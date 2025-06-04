@@ -28,14 +28,24 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         if (error) {
           console.error('Fejl ved hentning af profil:', error.message);
         } else {
-         setUser({
-  id: authUser.id,
-  email: authUser.email,
-  role: profile.role,
-  display_name: profile.display_name,
-  avatar_url: profile.avatar_url,
-});
+          const { data: accessData, error: accessError } = await supabase
+            .from('access_control')
+            .select('menu_key, allowed')
+            .eq('user_id', authUser.id);
 
+          const accessMap: Record<string, boolean> = {};
+          accessData?.forEach((row) => {
+            accessMap[row.menu_key] = row.allowed;
+          });
+
+          setUser({
+            id: authUser.id,
+            email: authUser.email,
+            role: profile.role,
+            display_name: profile.display_name,
+            avatar_url: profile.avatar_url,
+            access: accessMap, // ← her er adgangen
+          });
         }
       } else {
         setUser(null);

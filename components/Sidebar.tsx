@@ -47,34 +47,7 @@ export default function Sidebar() {
 
   const isAdmin = user?.email === 'mads@onlinerelation.dk';
 
-  useEffect(() => {
-    if (!user) return;
 
-    const isAdmin = user.email === 'mads@onlinerelation.dk';
-
-    const fetchAccess = async () => {
-      if (isAdmin) {
-        setAllowedMenuKeys(allNavItems.map((item) => item.key).concat(['settings']));
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('access_control')
-        .select('menu_key')
-        .eq('user_id', user.id)
-        .eq('allowed', true);
-
-      if (error) {
-        console.error('Fejl ved hentning af adgang:', error.message);
-        return;
-      }
-
-      const keys = data?.map((row) => row.menu_key) || [];
-      setAllowedMenuKeys(keys);
-    };
-
-    fetchAccess();
-  }, [user?.id]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -92,9 +65,12 @@ export default function Sidebar() {
     };
   }, [mobileOpen]);
 
-  if (!hasMounted || loading || !user) return null;
+if (!hasMounted || loading || !user || user.access == null) return null;
 
-  const navItems = allNavItems.filter((item) => allowedMenuKeys.includes(item.key));
+
+ const navItems = allNavItems.filter((item) =>
+  isAdmin || user.access?.[item.key] === true
+);
 
   const navContent = (
     <>

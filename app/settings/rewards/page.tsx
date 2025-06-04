@@ -22,32 +22,59 @@ export default function RewardsPage() {
   const [description, setDescription] = useState('');
   const [requiredXp, setRequiredXp] = useState(0);
   const [assignedTo, setAssignedTo] = useState('mads');
-  const [category, setCategory] = useState('fantasy');
-  const [type, setType] = useState('ting');
+  const [category, setCategory] = useState('');
+  const [type, setType] = useState('');
+  const [types, setTypes] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const user = useUser();
 
   useEffect(() => {
     if (!user) return;
-
-    const fetchRewards = async () => {
-      const { data, error } = await supabase
-        .from('rewards')
-        .select('*')
-        .eq('redeemed', false)
-        .eq('user_id', user.id);
-
-      if (!error && data) {
-        setRewards(data);
-      } else {
-        console.error('Error fetching rewards:', error);
-      }
-    };
-
     fetchRewards();
+    fetchTypes();
+    fetchCategories();
   }, [user]);
 
+  const fetchRewards = async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('rewards')
+      .select('*')
+      .eq('redeemed', false)
+      .eq('user_id', user?.id);
+
+    if (!error && data) {
+      setRewards(data);
+    } else {
+      console.error('Error fetching rewards:', error);
+    }
+  };
+
+  const fetchTypes = async () => {
+    const { data, error } = await supabase.from('fantasy_types').select('name');
+    if (error) {
+      console.error('Fejl ved hentning af typer:', error.message);
+    } else {
+      const names = data.map((entry) => entry.name);
+      setTypes(names);
+      if (names.length > 0) setType(names[0]);
+    }
+  };
+
+  const fetchCategories = async () => {
+    const { data, error } = await supabase.from('gift_categories').select('name');
+    if (error) {
+      console.error('Fejl ved hentning af gavekategorier:', error.message);
+    } else {
+      const names = data.map((entry) => entry.name);
+      setCategories(names);
+      if (names.length > 0) setCategory(names[0]);
+    }
+  };
+
   const handleCreateReward = async () => {
-    if (!title || !requiredXp || !assignedTo || !category || !type || !user) return;
+    if (!user) return;
+    if (!title || !requiredXp || !assignedTo || !category || !type) return;
 
     const { error } = await supabase.from('rewards').insert([
       {
@@ -69,16 +96,9 @@ export default function RewardsPage() {
       setDescription('');
       setRequiredXp(0);
       setAssignedTo('mads');
-      setCategory('fantasy');
-      setType('ting');
-
-          const { data: updated } = await supabase
-        .from('rewards')
-        .select('*')
-        .eq('redeemed', false)
-        .eq('user_id', user.id);
-
-      setRewards(updated || []);
+      if (categories.length > 0) setCategory(categories[0]);
+      if (types.length > 0) setType(types[0]);
+      fetchRewards();
     }
   };
 
@@ -119,17 +139,22 @@ export default function RewardsPage() {
           onChange={(e) => setCategory(e.target.value)}
           className="w-full border p-2 rounded"
         >
-          <option value="fantasy">Kategori: Fantasy (relation/følelse)</option>
-          <option value="todo">Kategori: To-do (praktisk opgave)</option>
+          {categories.map((cat) => (
+            <option key={cat} value={cat}>
+              Kategori: {cat.charAt(0).toUpperCase() + cat.slice(1)}
+            </option>
+          ))}
         </select>
         <select
           value={type}
           onChange={(e) => setType(e.target.value)}
           className="w-full border p-2 rounded"
         >
-          <option value="ting">Type: Ting (fx tøj, gave, genstand)</option>
-          <option value="oplevelse">Type: Oplevelse (fx spa, biograf)</option>
-          <option value="tjeneste">Type: Tjeneste (fx massage, rengøring)</option>
+          {types.map((t) => (
+            <option key={t} value={t}>
+              Type: {t.charAt(0).toUpperCase() + t.slice(1)}
+            </option>
+          ))}
         </select>
         <button
           onClick={handleCreateReward}
@@ -137,7 +162,7 @@ export default function RewardsPage() {
         >
           Opret gave
         </button>
-            </div>
+      </div>
 
       <h2 className="text-xl font-semibold mb-2">Uindløste gaver</h2>
       <ul className="space-y-4">
@@ -157,4 +182,3 @@ export default function RewardsPage() {
     </div>
   );
 }
-
