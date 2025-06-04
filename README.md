@@ -115,174 +115,132 @@ XP Settings (settings/points)
 
 ## 🧱 Database-struktur
 
-### Table: `fantasies`
-| Navn          | Type    | Beskrivelse                         |
-|---------------|---------|-------------------------------------|
-| id            | uuid    | Unik ID                             |
-| title         | text    | Titel                               |
-| description   | text    | HTML-beskrivelse                    |
-| status        | text    | idea/planned/fulfilled              |
-| effort        | text    | low / medium / high                 |
-| category      | text    | Valgfri kategori                    |
-| image_url     | text    | Valgfrit billede                    |
-| user_id       | uuid    | Reference til bruger                |
-| xp_granted    | boolean | Har brugeren allerede fået XP?     |
-| fulfilled_date| date    | Dato for opfyldelse                 |
-
-### Table: `xp_log`
-| Navn        | Type     | Beskrivelse                   |
-|-------------|----------|-------------------------------|
-| id          | int8     | Primærnøgle                   |
-| user_id     | uuid     | Reference til bruger          |
-| role        | text     | mads eller stine              |
-| action      | text     | add_fantasy, plan_fantasy ... |
-| effort      | text     | low / medium / high / null    |
-| xp          | int4     | Antal XP                      |
-| description | text     | Beskrivelse                   |
-| created_at  | timestamptz | Timestamp                   |
-
-### Table: `xp_settings`
-| Navn   | Type   | Beskrivelse                                |
-|--------|--------|---------------------------------------------|
-| id     | int4   | Primærnøgle                                 |
-| role   | text   | mads eller stine                            |
-| action | text   | add_fantasy, plan_fantasy, complete_fantasy|
-| effort | text   | low / medium / high / null                 |
-| xp     | int4   | XP der gives                                |
-
-### Table: `profiles`
-| Navn         | Type | Beskrivelse               |
-|--------------|------|---------------------------|
-| id           | uuid | ID fra Supabase auth      |
-| role         | text | mads eller stine          |
-| display_name | text | Visningsnavn              |
-
-### Table: `access_control`
-| Navn     | Type | Beskrivelse                       |
-|----------|------|------------------------------------|
-| user_id  | uuid | Reference til bruger               |
-| menu_key | text | fx: fantasy, dashboard, rewards... |
-| allowed  | bool | true/false adgang                 |
-
-Database Struktur
-
-1. fantasies
-
-Gemmer fantasier oprettet af Mads eller Stine.
-
-id (uuid)
-
-title, description, image_url, category
-
-effort: low, medium, high
-
-status: idea, planned, fulfilled
-
-xp_granted: boolean (for fulfilled XP)
-
-fulfilled_date: ISO dato
-
-user_id: reference til profil
-
-2. xp_settings
-
-Definerer hvor mange XP der gives ved forskellige handlinger.
-
-id
-
-role: mads / stine
-
-action: fx add_fantasy, plan_fantasy, complete_fantasy
-
-effort: low, medium, high eller '' (for actions uden effort)
-
-xp: integer antal XP der gives
-
-3. xp_log
-
-Gemmer hver gang en XP-hændelse sker.
-
-id
-
-user_id: reference til profil
-
-change: XP antal
-
-description: forklaring, fx "stine – plan_fantasy"
-
-role: mads / stine
-
-created_at: timestamp
-
-4. profiles
-
-Brugerprofiler.
-
-id
-
-email
-
-role: mads / stine / admin
-
-5. access_control
-
-Bruger-specifik adgangsstyring til menupunkter.
-
-user_id
-
-menu_key: fx "fantasy", "todo", "settings"
-
-allowed: boolean
-
-6. rewards
-
-Definerer mulige belønninger.
-
-id
-
-title, description
-
-xp_cost: hvor meget det koster
-
-assigned_to: mads/stine
-
-redeemed: boolean
-
-redeemed_at: timestamp
-
-7. reward_log
-
-Logger hver gang en belønning er indløst.
-
-id
-
-reward_id
-
-user_id
-
-timestamp
-
-8. fantasy_categories
-
-Kategorier brugt til fantasier.
-
-id, name
-
-9. tasks
-
-Bruges til personlig to-do-liste.
-
-id, user_id, title, completed
-
-10. bucketlist
-
-Gemmer individuelle ønsker og livsprojekter.
-
-id, user_id, title, completed
-
-11. xp
-
-Oversigtstabel over akkumuleret XP per bruger (redundant i ny version med log).
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.access_control (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  user_id uuid DEFAULT gen_random_uuid(),
+  menu_key text,
+  allowed boolean,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT access_control_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.bucketlist (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  type text,
+  imageUrl text,
+  goals jsonb,
+  created_at timestamp without time zone,
+  CONSTRAINT bucketlist_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.date_categories (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT date_categories_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.fantasies (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  title text,
+  description text,
+  image_url text,
+  category text,
+  effort text,
+  status text,
+  xp_granted boolean,
+  fulfilled_date date,
+  user_id uuid,
+  CONSTRAINT fantasies_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.fantasy_categories (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT fantasy_categories_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.fantasy_types (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT fantasy_types_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.profile_access (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  menu_key text NOT NULL,
+  CONSTRAINT profile_access_pkey PRIMARY KEY (id),
+  CONSTRAINT profile_access_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  role text DEFAULT 'user'::text,
+  display_name text,
+  avatar_url text,
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.reward_log (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  title text,
+  required_xp smallint,
+  claimed_at timestamp without time zone,
+  source text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  timestamp timestamp without time zone,
+  rewards_id uuid DEFAULT gen_random_uuid(),
+  CONSTRAINT reward_log_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.rewards (
+  title text,
+  required_xp smallint,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  type text,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  redeemed boolean DEFAULT false,
+  redeemed_at timestamp without time zone,
+  user_id uuid DEFAULT gen_random_uuid(),
+  assigned_to text,
+  category text,
+  CONSTRAINT rewards_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.tasks (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  title text,
+  deadline date,
+  done boolean,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT tasks_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.xp (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  value smallint,
+  updated_at timestamp without time zone DEFAULT now(),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT xp_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.xp_log (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  change smallint,
+  description text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  timestamp timestamp without time zone,
+  user_id uuid,
+  role text,
+  CONSTRAINT xp_log_pkey PRIMARY KEY (id),
+  CONSTRAINT xp_log_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.xp_settings (
+  id integer NOT NULL DEFAULT nextval('xp_settings_id_seq'::regclass),
+  created_at timestamp with time zone DEFAULT now(),
+  role text NOT NULL,
+  action text NOT NULL,
+  effort text,
+  xp integer NOT NULL,
+  CONSTRAINT xp_settings_pkey PRIMARY KEY (id)
+);
 ---
 
 ## 🚀 Flow og Point-tildeling
@@ -330,3 +288,44 @@ Oversigtstabel over akkumuleret XP per bruger (redundant i ny version med log).
 - [ ] Drag 'n' drop feedback animation
 - [ ] Mulighed for at redigere fantasier
 
+
+Udviklingslog d.4/6 - 2025
+1. XP-systemet forenklet:
+
+Vi har fjernet feltet xp_cost og bruger nu kun required_xp til at styre, hvornår en gave kan indløses.
+
+Det gør XP-økonomien mere overskuelig og minimerer kompleksiteten i både visning og indløsning.
+
+2. Oprettelse af gaver:
+
+På siden /settings/rewards kan man nu oprette gaver med følgende felter:
+
+Titel og beskrivelse
+
+XP-krav (required_xp)
+
+Modtager (assigned_to: Mads eller Stine)
+
+Kategori (category: fantasy eller todo)
+
+Type (type: ting, oplevelse eller tjeneste)
+
+Alt gemmes i Supabase, og listen opdateres automatisk efter indsendelse.
+
+3. Dynamisk oprettelse af kategorier og typer:
+
+Vi har lavet en side, hvor man kan tilføje og slette både fantasikategorier og fantasityper direkte fra frontend.
+
+Kategorier gemmes i tabellen fantasy_categories, og typer i fantasy_types.
+
+🔜 Næste skridt
+Vi skal arbejde videre på siden
+📍 http://localhost:3000/settings/categories
+
+Målet er at:
+
+Tilføje en formular, hvor man kan oprette gave-kategorier og typer direkte fra frontend
+
+Gemme dem i databasen (fx i fantasy_categories og fantasy_types)
+
+Vise og administrere dem med samme UI-struktur som fantasikategorier

@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabaseClient';
 import { Card, CardContent } from '@/components/ui/card';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
-import UserStatus from '@/components/UserStatus';
 
 export default function DashboardPage() {
   const [xpLog, setXpLog] = useState<{ change: number }[]>([]);
@@ -91,8 +90,6 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <UserStatus />
-
       {!displayName ? (
         <div className="text-center mt-20 text-gray-500">
           <p className="text-xl font-semibold">Velkommen til dashboardet</p>
