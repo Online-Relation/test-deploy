@@ -318,14 +318,166 @@ Vi har lavet en side, hvor man kan tilføje og slette både fantasikategorier og
 
 Kategorier gemmes i tabellen fantasy_categories, og typer i fantasy_types.
 
-🔜 Næste skridt
-Vi skal arbejde videre på siden
-📍 http://localhost:3000/settings/categories
+Opdatering d.4/6 - 2025:
+README – XP-baseret Dashboard for Par
 
-Målet er at:
+Dette projekt er et interaktivt React-dashboard bygget med Supabase, hvor to brugere – Mads og Stine – kan optjene og bruge XP-point gennem "fantasier" og gaver. Systemet er designet med fokus på gamification og relationsudvikling.
 
-Tilføje en formular, hvor man kan oprette gave-kategorier og typer direkte fra frontend
+Funktioner
 
-Gemme dem i databasen (fx i fantasy_categories og fantasy_types)
+1. Fantasier
 
-Vise og administrere dem med samme UI-struktur som fantasikategorier
+Fantasier kan tilføjes af begge brugere.
+
+Har felter som titel, beskrivelse, billede, kategori, effort (Low, Medium, High) og status (idea, planned, fulfilled).
+
+Træk-og-slip mellem kolonner med dnd-kit.
+
+XP gives baseret på handling og effort-niveau:
+
+Add fantasy → XP til den der tilføjer
+
+Plan fantasy → XP til modparten
+
+Complete fantasy → XP til modparten
+
+XP gemmes i xp_log-tabellen.
+
+Hvis en fantasi slettes, fjernes også den tilhørende add_fantasy XP-entry fra xp_log.
+
+2. Dashboard / Forside
+
+Viser total XP som cirkeldiagram.
+
+Viser næste gave, som er oprettet til brugeren og ikke er indløst endnu.
+
+Knap til at indløse gaven (aktiveres når XP er nok).
+
+Indløsning trækker XP og markerer gaven som "redeemed".
+
+Viser hvor mange fantasier der er klar til opfyldelse og det samlede XP-potentiale.
+
+3. Gaver (Rewards)
+
+Gaver kan oprettes af brugeren via /settings/rewards.
+
+Gaven tildeles til enten Mads eller Stine via assigned_to + user_id.
+
+Har felter: titel, beskrivelse, required_xp, kategori, type.
+
+Gaver vises i en liste over uindløste gaver på siden.
+
+Mulighed for at redigere eller slette gaver.
+
+Indløste gaver vises i bunden.
+
+4. XP-system (Context)
+
+XpContext giver adgang til nuværende XP og funktioner til at hente/opdatere det.
+
+Automatisk opdatering når bruger logger ind eller point tildeles/fratrækkes.
+
+Teknologi
+
+React + TypeScript
+
+Supabase (auth, database)
+
+dnd-kit (drag & drop fantasier)
+
+react-circular-progressbar (XP-visualisering)
+
+TailwindCSS til styling
+
+Mappestruktur
+
+app/
+  ├─ dates/
+  ├─ fantasy/
+  ├─ login/
+  ├─ manifestation/
+  ├─ profile/
+  ├─ settings/
+  ├─ todo/
+  ├─ layout.tsx
+  ├─ page.tsx
+
+components/
+  ├─ ui/
+  │   ├─ badge.tsx
+  │   ├─ button.tsx
+  │   ├─ card.tsx
+  │   ├─ input.tsx
+  │   ├─ label.tsx
+  │   ├─ modal.tsx
+  │   ├─ progress.tsx
+  │   ├─ RichTextEditor.tsx
+  │   ├─ tabs.tsx
+  │   └─ tiptap.css
+  ├─ AppShell.tsx
+  ├─ BucketBoard.tsx
+  ├─ ClientSidebarWrapper.tsx
+  ├─ DateIdeasBoard.tsx
+  ├─ FantasyBoard.tsx
+  ├─ RewardClaim.tsx
+  ├─ SettingsPage.tsx
+  ├─ Sidebar.tsx
+  └─ UserStatus.tsx
+
+context/
+  ├─ CategoryContext.tsx
+  ├─ UserContext.tsx
+  └─ XpContext.tsx
+
+hooks/
+  └─ useHasMounted.ts
+
+lib/
+  ├─ db.ts
+  ├─ getXpSettings.ts
+  ├─ navItems.tsx
+  ├─ supabaseClient.ts
+  └─ utils.ts
+
+Database-tabeller
+
+fantasies: Alle fantasier med status og effort
+
+xp_log: Logger alle XP-tildelinger og fratræk
+
+xp_settings: Opsætning af XP pr. rolle, handling og effort
+
+profiles: Indeholder brugerinfo, rolle og display_name
+
+rewards: Gaver med required XP og redeem-status
+
+gift_categories + fantasy_types: Brugt som dropdown-options til oprettelse
+
+Vigtige regler
+
+XP for fantasier gives kun én gang pr. handling
+
+XP fjernes automatisk, hvis en fantasien slettes (kun for add_fantasy)
+
+Gaver knyttes til en bestemt bruger og bliver kun synlige for denne
+
+En bruger kan kun indløse gave hvis XP >= required_xp
+
+Forfatter
+
+Udviklet i samarbejde med ChatGPT og brugeren, med fokus på at bygge et motiverende og sjovt gamification-system for parforhold.
+
+Videreudvikling
+
+Badges og niveauer
+
+Historik og statistik-visning
+
+Skema over indløste fantasier og præmier
+
+Notifikationer og XP-animationer
+
+Mobiloptimering
+
+Klar til overlevering. Næste udvikler kan nu sætte sig ind i hele systemets struktur, arkitektur og funktioner.
+

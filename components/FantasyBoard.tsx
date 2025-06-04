@@ -144,7 +144,7 @@ export default function FantasyBoard() {
     .select('xp')
     .eq('role', receiver)
     .eq('action', action)
-    .eq('effort', effort || '')
+    .eq('effort', effort?.toLowerCase() || '')
     .maybeSingle();
 
     console.log('[logXp] HENTET setting:', setting);
@@ -211,10 +211,17 @@ const addFantasy = async () => {
     setFantasies(prev => [...prev, data[0]]);
     setNewFantasy({ title: '', description: '', image_url: '', category: '', effort: '', status: 'idea' });
     setShowAddModal(false);
-    if (role === 'mads') logXp('mads', 'add_fantasy', data[0].effort);
-    if (role === 'stine') logXp('stine', 'add_fantasy', data[0].effort);
+
+    // 🔧 Ny korrekt logik
+    if (user?.role) {
+      console.log('[addFantasy] Logger XP for:', user.role, 'Effort:', data[0].effort);
+      logXp(user.role, 'add_fantasy', data[0].effort);
+    } else {
+      console.warn('[addFantasy] user.role er ikke defineret!');
+    }
   }
 };
+
 
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -249,10 +256,16 @@ const addFantasy = async () => {
     )
   );
 
-  if (role === 'stine') logXp('stine', 'plan_fantasy', fantasy.effort);
+  if (user?.role) {
+    console.log('[drag] Logger XP for:', user.role, 'Effort:', fantasy.effort);
+    logXp(user.role, 'plan_fantasy', fantasy.effort);
+  } else {
+    console.warn('[drag] user.role er ikke defineret!');
+  }
 
   return;
 }
+
 
 
     const { error } = await supabase.from('fantasies').update({ status: newStatus }).eq('id', fantasy.id);
@@ -321,7 +334,32 @@ const addFantasy = async () => {
             setFantasies(prev => prev.map(f => f.id === updated.id ? updated : f));
             setSelectedFantasy(null);
           }}
-          onDelete={(id) => setFantasies(prev => prev.filter(f => f.id !== id))}
+          onDelete={async (id) => {
+  const fantasy = fantasies.find((f) => f.id === id);
+  if (!fantasy) return;
+
+  // 1. Slet XP-log (kun for add_fantasy og denne fantasi)
+const { data: xpEntry } = await supabase
+  .from('xp_log')
+  .select('id')
+  .eq('description', `${role} – add_fantasy`)
+  .order('id', { ascending: false })
+  .limit(1);
+
+
+  if (xpEntry && xpEntry.length > 0) {
+    await supabase.from('xp_log').delete().eq('id', xpEntry[0].id);
+  }
+
+  // 2. Slet fra Supabase
+  await supabase.from('fantasies').delete().eq('id', id);
+
+  // 3. Fjern fra state
+  setFantasies((prev) => prev.filter((f) => f.id !== id));
+}}
+
+
+
         />
       )}
     </div>

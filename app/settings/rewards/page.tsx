@@ -14,10 +14,12 @@ type Reward = {
   category: string;
   type: string;
   redeemed: boolean;
+  redeemed_at?: string;
 };
 
 export default function RewardsPage() {
   const [rewards, setRewards] = useState<Reward[]>([]);
+  const [redeemedRewards, setRedeemedRewards] = useState<Reward[]>([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [requiredXp, setRequiredXp] = useState(0);
@@ -26,6 +28,7 @@ export default function RewardsPage() {
   const [type, setType] = useState('');
   const [types, setTypes] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const [editingReward, setEditingReward] = useState<Reward | null>(null);
   const user = useUser();
 
   useEffect(() => {
@@ -39,12 +42,11 @@ export default function RewardsPage() {
     if (!user) return;
     const { data, error } = await supabase
       .from('rewards')
-      .select('*')
-      .eq('redeemed', false)
-      .eq('user_id', user?.id);
+      .select('*');
 
     if (!error && data) {
-      setRewards(data);
+      setRewards(data.filter(r => !r.redeemed));
+      setRedeemedRewards(data.filter(r => r.redeemed));
     } else {
       console.error('Error fetching rewards:', error);
     }
@@ -72,110 +74,122 @@ export default function RewardsPage() {
     }
   };
 
-  const handleCreateReward = async () => {
-    if (!user) return;
+  const startEdit = (reward: Reward) => {
+    setEditingReward(reward);
+    setTitle(reward.title);
+    setDescription(reward.description || '');
+    setRequiredXp(reward.required_xp);
+    setAssignedTo(reward.assigned_to);
+    setCategory(reward.category);
+    setType(reward.type);
+  };
+
+  const handleSaveReward = async () => {
     if (!title || !requiredXp || !assignedTo || !category || !type) return;
 
-    const { error } = await supabase.from('rewards').insert([
-      {
+    if (editingReward) {
+      const { error } = await supabase.from('rewards').update({
         title,
         description,
         required_xp: requiredXp,
         assigned_to: assignedTo,
         category,
         type,
-        redeemed: false,
-        user_id: user.id,
-      },
-    ]);
+      }).eq('id', editingReward.id);
 
-    if (error) {
-      console.error('Fejl ved oprettelse:', error.message);
+      if (error) {
+        console.error('Fejl ved opdatering:', error.message);
+      }
     } else {
-      setTitle('');
-      setDescription('');
-      setRequiredXp(0);
-      setAssignedTo('mads');
-      if (categories.length > 0) setCategory(categories[0]);
-      if (types.length > 0) setType(types[0]);
-      fetchRewards();
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', assignedTo)
+        .maybeSingle();
+
+      if (profileError || !profile) {
+        console.error('Kunne ikke finde bruger til rollen:', assignedTo);
+        return;
+      }
+
+      const { error: insertError } = await supabase.from('rewards').insert([
+        {
+          title,
+          description,
+          required_xp: requiredXp,
+          assigned_to: assignedTo,
+          category,
+          type,
+          redeemed: false,
+          user_id: profile.id,
+        },
+      ]);
+
+      if (insertError) {
+        console.error('Fejl ved oprettelse:', insertError.message);
+      }
     }
+
+    setTitle('');
+    setDescription('');
+    setRequiredXp(0);
+    setAssignedTo('mads');
+    setEditingReward(null);
+    fetchRewards();
   };
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">Opret gave</h1>
+      <h1 className="text-2xl font-bold mb-4">{editingReward ? 'Rediger gave' : 'Opret gave'}</h1>
       <div className="space-y-2 mb-6 max-w-md">
-        <input
-          type="text"
-          placeholder="F.eks. 'Ny kjole', 'Spa-dag'"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="w-full border p-2 rounded"
-        />
-        <textarea
-          placeholder="Kort beskrivelse af gaven (valgfri)"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="w-full border p-2 rounded"
-        />
-        <input
-          type="number"
-          placeholder="XP krav for at kunne indløse gaven (fx 300)"
-          value={requiredXp}
-          onChange={(e) => setRequiredXp(Number(e.target.value))}
-          className="w-full border p-2 rounded"
-        />
-        <select
-          value={assignedTo}
-          onChange={(e) => setAssignedTo(e.target.value)}
-          className="w-full border p-2 rounded"
-        >
-          <option value="mads">Gaven gives til: Mads</option>
-          <option value="stine">Gaven gives til: Stine</option>
+        <input type="text" placeholder="F.eks. 'Ny kjole'" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full border p-2 rounded" />
+        <textarea placeholder="Beskrivelse (valgfri)" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full border p-2 rounded" />
+        <input type="number" placeholder="XP krav" value={requiredXp} onChange={(e) => setRequiredXp(Number(e.target.value))} className="w-full border p-2 rounded" />
+        <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className="w-full border p-2 rounded">
+          <option value="mads">Mads</option>
+          <option value="stine">Stine</option>
         </select>
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="w-full border p-2 rounded"
-        >
+        <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full border p-2 rounded">
           {categories.map((cat) => (
-            <option key={cat} value={cat}>
-              Kategori: {cat.charAt(0).toUpperCase() + cat.slice(1)}
-            </option>
+            <option key={cat} value={cat}>Kategori: {cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
           ))}
         </select>
-        <select
-          value={type}
-          onChange={(e) => setType(e.target.value)}
-          className="w-full border p-2 rounded"
-        >
+        <select value={type} onChange={(e) => setType(e.target.value)} className="w-full border p-2 rounded">
           {types.map((t) => (
-            <option key={t} value={t}>
-              Type: {t.charAt(0).toUpperCase() + t.slice(1)}
-            </option>
+            <option key={t} value={t}>Type: {t.charAt(0).toUpperCase() + t.slice(1)}</option>
           ))}
         </select>
-        <button
-          onClick={handleCreateReward}
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-        >
-          Opret gave
+        <button onClick={handleSaveReward} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+          {editingReward ? 'Gem ændringer' : 'Opret gave'}
         </button>
       </div>
 
       <h2 className="text-xl font-semibold mb-2">Uindløste gaver</h2>
-      <ul className="space-y-4">
+      <ul className="space-y-4 mb-6">
         {rewards.map((reward) => (
           <li key={reward.id} className="border p-4 rounded shadow">
             <div className="font-semibold">{reward.title}</div>
-            {reward.description && (
-              <div className="text-sm text-gray-500 mb-1">{reward.description}</div>
-            )}
+            {reward.description && <div className="text-sm text-gray-500 mb-1">{reward.description}</div>}
             <div className="text-sm text-gray-500">XP-krav: {reward.required_xp} XP</div>
             <div className="text-sm text-gray-500">Tildelt til: {reward.assigned_to}</div>
             <div className="text-sm text-gray-500">Kategori: {reward.category}</div>
             <div className="text-sm text-gray-400 italic">Type: {reward.type}</div>
+            <button onClick={() => startEdit(reward)} className="text-sm text-blue-600 hover:underline mt-2">Rediger</button>
+          </li>
+        ))}
+      </ul>
+
+      <h2 className="text-xl font-semibold mb-2">🎉 Indløste gaver</h2>
+      <ul className="space-y-4">
+        {redeemedRewards.map((reward) => (
+          <li key={reward.id} className="border p-4 rounded shadow bg-gray-50">
+            <div className="font-semibold">{reward.title}</div>
+            {reward.description && <div className="text-sm text-gray-500 mb-1">{reward.description}</div>}
+            <div className="text-sm text-gray-500">XP-krav: {reward.required_xp} XP</div>
+            <div className="text-sm text-gray-500">Tildelt til: {reward.assigned_to}</div>
+            <div className="text-sm text-gray-500">Kategori: {reward.category}</div>
+            <div className="text-sm text-gray-400 italic">Type: {reward.type}</div>
+            {reward.redeemed_at && <div className="text-xs text-gray-400 mt-1">Indløst: {new Date(reward.redeemed_at).toLocaleDateString()}</div>}
           </li>
         ))}
       </ul>

@@ -66,15 +66,32 @@ export default function Modal(props: ModalProps) {
   };
 
   const handleDelete = async () => {
-    if (!fantasy?.id || !onDelete) return;
-    const { error } = await supabase.from('fantasies').delete().eq('id', fantasy.id);
-    if (!error) {
-      onDelete(fantasy.id);
-      onClose();
-    } else {
-      console.error('Fejl ved sletning:', error.message);
-    }
-  };
+  if (!fantasy?.id || !onDelete) return;
+
+  // Trin 1: Slet fantasi
+  const { error: deleteError } = await supabase.from('fantasies').delete().eq('id', fantasy.id);
+  if (deleteError) {
+    console.error('Fejl ved sletning:', deleteError.message);
+    return;
+  }
+
+  // Trin 2: Slet XP-log for tilføjelsen af denne fantasi
+  const { error: xpError } = await supabase
+    .from('xp_log')
+    .delete()
+    .eq('description', `stine – add_fantasy`)
+    .order('created_at', { ascending: false })
+    .limit(1); // slet kun den nyeste "add_fantasy" for stine
+
+  if (xpError) {
+    console.error('Fejl ved sletning af XP:', xpError.message);
+  }
+
+  // Opdater lokal state
+  onDelete(fantasy.id);
+  onClose();
+};
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">

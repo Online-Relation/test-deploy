@@ -8,12 +8,14 @@ import { useUserContext } from './UserContext';
 interface XpContextType {
   xp: number;
   addXp: (amount: number) => void;
+  removeXp: (amount: number) => void;
   fetchXp: () => void;
 }
 
 const XpContext = createContext<XpContextType>({
   xp: 0,
   addXp: () => {},
+  removeXp: () => {},
   fetchXp: () => {},
 });
 
@@ -43,12 +45,16 @@ export const XpProvider = ({ children }: { children: React.ReactNode }) => {
     setXp((prev) => prev + amount);
   };
 
+  const removeXp = (amount: number) => {
+    setXp((prev) => Math.max(prev - amount, 0));
+  };
+
   useEffect(() => {
     fetchXp();
   }, [user?.id]);
 
   return (
-    <XpContext.Provider value={{ xp, addXp, fetchXp }}>
+    <XpContext.Provider value={{ xp, addXp, removeXp, fetchXp }}>
       {children}
     </XpContext.Provider>
   );
