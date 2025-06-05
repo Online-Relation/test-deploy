@@ -219,49 +219,55 @@ const CheckinPage = () => {
     );
   };
 
-  return (
-  <div className="p-4 max-w-7xl mx-auto">
+ return (
+  <div className="pt-4 pb-10 px-0 max-w-7xl mx-auto">
     <h1 className="text-3xl font-bold mb-10 text-center">Ugentlig Check-in</h1>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Mads' kort */}
-      <div className="bg-white rounded-2xl shadow-lg px-4 py-5 sm:px-6 sm:py-6 space-y-8">
-        <h2 className="text-2xl font-bold text-blue-700">Mads</h2>
-
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Mine behov</h3>
-          {madsNeeds.map((need, index) => (
-            <input
-              key={index}
-              type="text"
-              value={need}
-              onChange={(e) => {
-                if (currentUserRole !== "mads") return;
-                const updated = [...madsNeeds];
-                updated[index] = e.target.value;
-                setMadsNeeds(updated);
-              }}
-              className="mb-2 w-full p-2 border rounded bg-white disabled:bg-gray-100"
-              placeholder={`Behov ${index + 1}`}
-              disabled={currentUserRole !== "mads"}
-            />
-          ))}
-          {currentUserRole === "mads" && dataLoaded && (
-            <button
-              onClick={() => handleSubmit("mads")}
-              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded"
-            >
-              Gem behov
-            </button>
-          )}
+      <div className="grid grid-rows-[auto,1fr,auto] h-full bg-white rounded-2xl shadow-lg px-4 py-5 sm:px-6 sm:py-6">
+        {/* Top */}
+        <div className="space-y-6">
+          <h2 className="text-2xl font-bold text-blue-700">Mads</h2>
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Mine behov</h3>
+            {madsNeeds.map((need, index) => (
+              <input
+                key={index}
+                type="text"
+                value={need}
+                onChange={(e) => {
+                  if (currentUserRole !== "mads") return;
+                  const updated = [...madsNeeds];
+                  updated[index] = e.target.value;
+                  setMadsNeeds(updated);
+                }}
+                className="mb-2 w-full p-2 border rounded bg-white disabled:bg-gray-100"
+                placeholder={`Behov ${index + 1}`}
+                disabled={currentUserRole !== "mads"}
+              />
+            ))}
+            {currentUserRole === "mads" && dataLoaded && (
+              <button
+                onClick={() => handleSubmit("mads")}
+                className="mt-2 px-4 py-2 bg-blue-600 text-white rounded"
+              >
+                Gem behov
+              </button>
+            )}
+          </div>
         </div>
 
-        <div>
+        {/* Midte: flex-grow sektion */}
+        <div className="mt-6 flex flex-col flex-grow">
           <h3 className="text-lg font-semibold mb-2">Ugens behov</h3>
-          {madsCheckins && renderCheckins(madsCheckins, "mads")}
+          <div className="flex-grow">
+            {madsCheckins && renderCheckins(madsCheckins, "mads")}
+          </div>
         </div>
 
-        <div>
+        {/* Bund */}
+        <div className="mt-6">
           <h3 className="text-lg font-semibold mb-2">Historik</h3>
           {stineCheckins &&
             renderHistoryBox(
@@ -272,43 +278,49 @@ const CheckinPage = () => {
       </div>
 
       {/* Stines kort */}
-      <div className="bg-white rounded-2xl shadow-lg px-4 py-5 sm:px-6 sm:py-6 space-y-8">
-        <h2 className="text-2xl font-bold text-purple-700">Stine</h2>
-
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Mine behov</h3>
-          {stineNeeds.map((need, index) => (
-            <input
-              key={index}
-              type="text"
-              value={need}
-              onChange={(e) => {
-                if (currentUserRole !== "stine") return;
-                const updated = [...stineNeeds];
-                updated[index] = e.target.value;
-                setStineNeeds(updated);
-              }}
-              className="mb-2 w-full p-2 border rounded bg-white disabled:bg-gray-100"
-              placeholder={`Behov ${index + 1}`}
-              disabled={currentUserRole !== "stine"}
-            />
-          ))}
-          {currentUserRole === "stine" && dataLoaded && (
-            <button
-              onClick={() => handleSubmit("stine")}
-              className="mt-2 px-4 py-2 bg-purple-600 text-white rounded"
-            >
-              Gem behov
-            </button>
-          )}
+      <div className="grid grid-rows-[auto,1fr,auto] h-full bg-white rounded-2xl shadow-lg px-4 py-5 sm:px-6 sm:py-6">
+        {/* Top */}
+        <div className="space-y-6">
+          <h2 className="text-2xl font-bold text-purple-700">Stine</h2>
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Mine behov</h3>
+            {stineNeeds.map((need, index) => (
+              <input
+                key={index}
+                type="text"
+                value={need}
+                onChange={(e) => {
+                  if (currentUserRole !== "stine") return;
+                  const updated = [...stineNeeds];
+                  updated[index] = e.target.value;
+                  setStineNeeds(updated);
+                }}
+                className="mb-2 w-full p-2 border rounded bg-white disabled:bg-gray-100"
+                placeholder={`Behov ${index + 1}`}
+                disabled={currentUserRole !== "stine"}
+              />
+            ))}
+            {currentUserRole === "stine" && dataLoaded && (
+              <button
+                onClick={() => handleSubmit("stine")}
+                className="mt-2 px-4 py-2 bg-purple-600 text-white rounded"
+              >
+                Gem behov
+              </button>
+            )}
+          </div>
         </div>
 
-        <div>
+        {/* Midte: flex-grow sektion */}
+        <div className="mt-6 flex flex-col flex-grow">
           <h3 className="text-lg font-semibold mb-2">Ugens behov</h3>
-          {stineCheckins && renderCheckins(stineCheckins, "stine")}
+          <div className="flex-grow">
+            {stineCheckins && renderCheckins(stineCheckins, "stine")}
+          </div>
         </div>
 
-        <div>
+        {/* Bund */}
+        <div className="mt-6">
           <h3 className="text-lg font-semibold mb-2">Historik</h3>
           {madsCheckins &&
             renderHistoryBox(
@@ -320,6 +332,7 @@ const CheckinPage = () => {
     </div>
   </div>
 );
+
 
 };
 

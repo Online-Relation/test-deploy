@@ -135,6 +135,19 @@ CREATE TABLE public.bucketlist (
   created_at timestamp without time zone,
   CONSTRAINT bucketlist_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.checkin (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  week_number integer,
+  year integer,
+  need_text text,
+  status text,
+  xp_awarded smallint,
+  evaluator_id uuid,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT checkin_pkey PRIMARY KEY (id),
+  CONSTRAINT checkin_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
 CREATE TABLE public.date_categories (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   name text,
@@ -166,6 +179,12 @@ CREATE TABLE public.fantasy_types (
   name text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT fantasy_types_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.gift_categories (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  name text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT gift_categories_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.profile_access (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -204,6 +223,7 @@ CREATE TABLE public.rewards (
   user_id uuid DEFAULT gen_random_uuid(),
   assigned_to text,
   category text,
+  description text,
   CONSTRAINT rewards_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.tasks (
@@ -498,3 +518,40 @@ Klar til overlevering. Næste udvikler kan nu sætte sig ind i hele systemets st
   - Felter: `id`, `user_id`, `need_text`, `week_number`, `year`, `status`, `xp_awarded`, `evaluator_id`
 - Tabel: `xp_log`
   - Nye entries logges med rolle og beskrivelse af evaluering (f.eks. "Check-in behov: fulfilled")
+
+✅ Check-in funktion (opdatering)
+Beskrivelse
+Checkin-siden giver Mads og Stine mulighed for at indtaste op til 3 behov hver uge. Den anden part evaluerer behovene, og tildeler XP via knapper med tre vurderingsmuligheder: godkendt, middel, eller ikke godkendt.
+
+Funktioner implementeret
+Inputfelter til ugentlige behov for Mads og Stine
+
+Gem-funktion, der indsætter behov i checkin-tabellen med status pending
+
+Visning af aktive behov for indeværende uge
+
+Evalueringsknapper vises kun for den anden person (ikke ens egne behov)
+
+Ved evaluering:
+
+XP tildeles baseret på handlingstype (trukket fra xp_settings)
+
+En række tilføjes i xp_log tabellen
+
+Status og XP opdateres i checkin-tabellen
+
+Historik vises med farver og point for tidligere evaluerede behov
+
+Alt data vises pr. bruger
+
+Database-tabeller opdateret
+xp_settings
+
+Tilføjet tre handlingstyper til rollen common:
+
+evaluate_fulfilled
+
+evaluate_partial
+
+evaluate_rejected
+
