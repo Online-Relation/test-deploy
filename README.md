@@ -401,6 +401,7 @@ app/
   ├─ todo/
   ├─ layout.tsx
   ├─ page.tsx
+  ├─ checkin.tsx
 
 components/
   ├─ ui/
@@ -481,3 +482,19 @@ Mobiloptimering
 
 Klar til overlevering. Næste udvikler kan nu sætte sig ind i hele systemets struktur, arkitektur og funktioner.
 
+## Check-in system (5 juni 2025)
+
+- Oprettet side: `/checkin` til ugentligt check-in mellem Mads og Stine
+- Hver person kan angive op til 3 behov per uge
+- Den anden part evaluerer behovene søndag (✅ Opfyldt, ⚖️ Middel, ❌ Ikke opfyldt)
+- Point tildeles: ✅ = 30 XP, ⚖️ = 20 XP, ❌ = 10 XP – logges i `xp_log`
+- Evaluering er kun tilladt på modpartens behov
+- Evaluationsknapper vises kun for modparten og fjernes helt for én selv
+- Historik vises opdelt for Mads og Stine, kun for tidligere uger
+- Brugerrolle fastlægges via `supabase.auth.getSession()`
+
+### Databaseændringer
+- Ny tabel: `checkin`
+  - Felter: `id`, `user_id`, `need_text`, `week_number`, `year`, `status`, `xp_awarded`, `evaluator_id`
+- Tabel: `xp_log`
+  - Nye entries logges med rolle og beskrivelse af evaluering (f.eks. "Check-in behov: fulfilled")

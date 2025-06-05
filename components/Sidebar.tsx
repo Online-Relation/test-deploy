@@ -8,9 +8,10 @@ import { useXp } from '@/context/XpContext';
 import { useHasMounted } from '@/hooks/useHasMounted';
 import { useUserContext } from '@/context/UserContext';
 import { supabase } from '@/lib/supabaseClient';
+import { LayoutDashboard, HeartHandshake } from "lucide-react";
+
 
 import {
-  LayoutDashboard,
   Heart,
   Sparkles,
   Settings,
@@ -25,10 +26,11 @@ import {
 } from 'lucide-react';
 
 const allNavItems = [
-  { key: 'dashboard', href: '/', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+  { key: 'dashboard', href: '/', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },   
   { key: 'todo', href: '/todo', label: 'To-Do List', icon: <ListTodo size={20} /> },
   { key: 'dates', href: '/dates', label: 'Date Ideas', icon: <Heart size={20} /> },
   { key: 'fantasy', href: '/fantasy', label: 'Parforhold', icon: <Sparkles size={20} /> },
+  { key: 'checkin', href: '/checkin', label: 'Check-in', icon: <HeartHandshake size={20} /> },
   { key: 'manifestation', href: '/manifestation', label: 'Manifestation', icon: <Brain size={20} /> },
   { key: 'career', href: '/career', label: 'Karriere', icon: <Briefcase size={20} /> },
   { key: 'bucketlist', href: '/bucketlist', label: 'Bucketlist', icon: <Backpack size={20} /> },
