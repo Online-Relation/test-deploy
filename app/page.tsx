@@ -16,90 +16,100 @@ export default function DashboardPage() {
     assigned_to: string;
     redeemed: boolean;
   }[]>([]);
-
-  const [settings, setSettings] = useState({
-    add_fantasy_xp: 0,
-    complete_fantasy_xp_low: 0,
-    complete_fantasy_xp_medium: 0,
-    complete_fantasy_xp_high: 0,
-  });
   const [fantasyCount, setFantasyCount] = useState<number>(0);
   const [potentialXp, setPotentialXp] = useState<number>(0);
   const [displayName, setDisplayName] = useState<string>('');
   const [role, setRole] = useState<string>('');
 
   useEffect(() => {
-    const fetchData = async () => {
-      const user = (await supabase.auth.getUser()).data.user;
-      if (!user) return;
+const fetchData = async () => {
+  const user = (await supabase.auth.getUser()).data.user;
+  if (!user) return;
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('display_name, role')
-        .eq('id', user.id)
-        .maybeSingle();
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, display_name, role')
+    .eq('id', user.id)
+    .maybeSingle();
 
-      setDisplayName(profile?.display_name || user.email || '');
-      setRole(profile?.role || '');
+  if (!profile) return;
 
-      const { data: logData } = await supabase
-        .from('xp_log')
-        .select('change')
-        .eq('user_id', user.id);
+  setDisplayName(profile.display_name || user.email || '');
+  setRole(profile.role || '');
 
-      const { data: rewardData } = await supabase
-        .from('rewards')
-        .select('*')
-        .eq('redeemed', false)
-        .eq('user_id', user.id);
+  const { data: logData } = await supabase
+    .from('xp_log')
+    .select('change')
+    .eq('user_id', user.id);
 
-      const { data: otherProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('role', profile?.role === 'mads' ? 'stine' : 'mads')
-        .maybeSingle();
+  const { data: rewardData } = await supabase
+    .from('rewards')
+    .select('*')
+    .eq('redeemed', false)
+    .eq('user_id', user.id);
 
-      const { data: fantasies } = await supabase
-        .from('fantasies')
-        .select('effort, status')
-        .in('status', ['idea', 'planned'])
-        .in('user_id', [user.id, otherProfile?.id]);
+  const { data: otherProfile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('role', profile.role === 'mads' ? 'stine' : 'mads')
+    .maybeSingle();
 
-      const { data: xpSettings } = await supabase
-        .from('xp_settings')
-        .select('*')
-        .eq('role', profile?.role)
-        .in('action', ['plan_fantasy', 'complete_fantasy']);
+  const { data: fantasies } = await supabase
+    .from('fantasies')
+    .select('effort, status, xp_granted')
+    .in('status', ['idea', 'planned'])
+    .in('user_id', [user.id, otherProfile?.id]);
 
-      const xpMap: Record<string, number> = {};
-      xpSettings?.forEach((s) => {
-        if (s.action && s.effort) {
-          const key = `${s.action}_${s.effort.toLowerCase()}`;
-          xpMap[key] = s.xp;
+  const { data: pendingCheckins } = await supabase
+    .from('checkin')
+    .select('id')
+    .eq('status', 'pending')
+    .eq('evaluator_id', profile.id);
+
+  const { data: xpSettings } = await supabase
+    .from('xp_settings')
+    .select('action, effort, xp')
+    .eq('role', profile.role)
+    .in('action', ['plan_fantasy', 'complete_fantasy', 'evaluate_partial']);
+
+  const xpMap: Record<string, number> = {};
+  xpSettings?.forEach((s) => {
+    const key = `${s.action}_${s.effort?.toLowerCase() || ''}`;
+    xpMap[key] = s.xp;
+  });
+
+  let fantasyXp = 0;
+  if (profile.role === 'stine') {
+    fantasyXp = fantasies?.reduce((sum, f) => {
+      const effort = f.effort?.toLowerCase();
+      let xp = 0;
+
+      if (effort) {
+        // ✅ Giv point for planlægning allerede i 'idea'
+        if (f.status === 'idea' || f.status === 'planned') {
+          xp += xpMap[`plan_fantasy_${effort}`] || 0;
         }
-      });
 
-      const total = fantasies?.reduce((sum, f) => {
-        let xp = 0;
-        const effort = f.effort?.toLowerCase();
-
-        if (effort) {
-          if (f.status === 'idea' || f.status === 'planned') {
-            xp += xpMap[`plan_fantasy_${effort}`] || 0;
-          }
-          if (f.status === 'planned') {
-            xp += xpMap[`complete_fantasy_${effort}`] || 0;
-          }
+        // ✅ Giv point for fuldførelse KUN hvis den er 'planned' og ikke tidligere givet
+        if (f.status === 'planned' && f.xp_granted !== true) {
+          xp += xpMap[`complete_fantasy_${effort}`] || 0;
         }
+      }
 
-        return sum + xp;
-      }, 0) || 0;
+      return sum + xp;
+    }, 0) || 0;
+  }
 
-      setXpLog(logData || []);
-      setRewards(rewardData || []);
-      setFantasyCount(fantasies?.length || 0);
-      setPotentialXp(total);
-    };
+  const checkinXp =
+    (pendingCheckins?.length || 0) * (xpMap['evaluate_partial_'] || 0);
+
+  setXpLog(logData || []);
+  setRewards(rewardData || []);
+  setFantasyCount(fantasies?.length || 0);
+  setPotentialXp(fantasyXp + checkinXp);
+};
+
+
 
     fetchData();
   }, []);

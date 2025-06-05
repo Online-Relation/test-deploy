@@ -1,3 +1,4 @@
+// components/ui/modal.tsx
 'use client';
 
 import { useCategory } from '@/context/CategoryContext';
@@ -66,32 +67,58 @@ export default function Modal(props: ModalProps) {
   };
 
   const handleDelete = async () => {
-  if (!fantasy?.id || !onDelete) return;
+    if (!fantasy?.id || !onDelete) return;
 
-  // Trin 1: Slet fantasi
-  const { error: deleteError } = await supabase.from('fantasies').delete().eq('id', fantasy.id);
-  if (deleteError) {
-    console.error('Fejl ved sletning:', deleteError.message);
-    return;
-  }
+    const { error: deleteError } = await supabase.from('fantasies').delete().eq('id', fantasy.id);
+    if (deleteError) {
+      console.error('Fejl ved sletning:', deleteError.message);
+      return;
+    }
 
-  // Trin 2: Slet XP-log for tilføjelsen af denne fantasi
-  const { error: xpError } = await supabase
-    .from('xp_log')
-    .delete()
-    .eq('description', `stine – add_fantasy`)
-    .order('created_at', { ascending: false })
-    .limit(1); // slet kun den nyeste "add_fantasy" for stine
+    const { error: xpError } = await supabase
+      .from('xp_log')
+      .delete()
+      .eq('description', `stine – add_fantasy`)
+      .order('created_at', { ascending: false })
+      .limit(1);
 
-  if (xpError) {
-    console.error('Fejl ved sletning af XP:', xpError.message);
-  }
+    if (xpError) {
+      console.error('Fejl ved sletning af XP:', xpError.message);
+    }
 
-  // Opdater lokal state
-  onDelete(fantasy.id);
-  onClose();
-};
+    onDelete(fantasy.id);
+    onClose();
+  };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}.${fileExt}`;
+    const filePath = `fantasies/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('fantasies')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      console.error('Fejl ved upload:', uploadError.message);
+      return;
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from('fantasies')
+      .getPublicUrl(filePath);
+
+    const imageUrl = publicUrlData?.publicUrl;
+
+    if (isCreateMode && newFantasy && setNewFantasy && imageUrl) {
+      setNewFantasy({ ...newFantasy, image_url: imageUrl });
+    } else if (edited && imageUrl) {
+      setEdited({ ...edited, image_url: imageUrl });
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
@@ -120,15 +147,16 @@ export default function Modal(props: ModalProps) {
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onloadend = () => setNewFantasy({ ...newFantasy, image_url: reader.result as string });
-                reader.readAsDataURL(file);
-              }}
+              onChange={handleImageUpload}
               className="w-full"
             />
+            {newFantasy.image_url && (
+              <img
+                src={newFantasy.image_url}
+                alt=""
+                className="rounded w-full max-h-[300px] object-cover mb-4"
+              />
+            )}
             <select
               value={newFantasy.category || ''}
               onChange={(e) => setNewFantasy({ ...newFantasy, category: e.target.value })}
@@ -172,15 +200,7 @@ export default function Modal(props: ModalProps) {
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                  setEdited({ ...edited!, image_url: reader.result as string });
-                };
-                reader.readAsDataURL(file);
-              }}
+              onChange={handleImageUpload}
               className="w-full"
             />
             {edited?.image_url && (

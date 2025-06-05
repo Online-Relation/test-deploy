@@ -555,3 +555,93 @@ evaluate_partial
 
 evaluate_rejected
 
+##### Opdatering 5/6 - 2025 #####
+
+✅ Mads tilføjer fantasi → får 1 XP
+
+✅ Stine får korrekt XP afhængigt af effort ved planlægning (idea og planned) og fuldførelse (planned → fulfilled)
+
+✅ Potentielle XP vises korrekt baseret på fantasier og behov
+
+✅ XP for fantasier læses fra xp_settings afhængigt af rolle, action og effort
+
+✅ XP for checkins afhænger af evaluator_id og handlingstype (evaluate_*)
+
+✅ Checkins tildeles automatisk til modparten ved oprettelse
+
+✅ Admin kan redigere XP-værdier pr. handling og effort via /settings/points
+
+📦 Supabase Features Bruges
+
+Auth (login/session)
+
+Realtime disabled
+
+insert, select, update, eq, maybeSingle, in, or
+
+Custom tabeller: xp_log, xp_settings, fantasies, checkin, access_control
+
+RLS er deaktiveret (admin only)
+
+📊 Databaseændringer (opdateret 5. juni 2025)
+
+Tabel xp_settings:
+
+XP pr. rolle (mads, stine) + action (plan_fantasy, evaluate_partial, etc.) + effort (low/medium/high/null)
+
+Dobbeltopførte eller forkerte værdier ryddet ud for at sikre korrekt xpMap
+
+Tabel checkin:
+
+Tilføjet evaluator_id for at kende hvem der skal evaluere behovet
+
+Evaluering foretages kun af modpart
+
+XP for behov beregnes på dashboardet ud fra forventet handlingstype (evaluate_partial_)
+
+Tabel fantasies:
+
+Fantasier kan tilføjes af Mads eller Stine
+
+XP gives kun til Stine for plan_fantasy og complete_fantasy
+
+Status bruges til at beregne potentiel XP på forsiden
+
+📌 Logik i dashboardet (page.tsx)
+
+Henter brugerens profil og rolle
+
+Henter relevante fantasier og checkins for begge parter
+
+Henter XP-settings for brugerens rolle
+
+Beregner potentielle point:
+
+Checkin XP = antal pending behov * evaluate_partial_
+
+Fantasy XP:
+
+Hvis rolle = stine:
+
+Alle fantasier i status idea og planned → plan_fantasy_{effort}
+
+Hvis planned og xp_granted !== true → complete_fantasy_{effort}
+
+XP vises som cirkeldiagram + næste gave
+
+Indløsning trækker XP og markerer reward som redeemed
+
+✅ Afsluttet
+
+Projektet afspejler nu korrekt gamification-logik:
+
+Rigtig XP-beregning
+
+Tydelig rollefordeling
+
+Korrekt potentielle point på forsiden
+
+Administrerbare XP-indstillinger
+
+Klar til udvidelse med niveauer, statistik og historik
+

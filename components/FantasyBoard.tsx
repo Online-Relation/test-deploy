@@ -13,7 +13,7 @@ import {
   DragEndEvent,
 } from '@dnd-kit/core';
 import { Badge } from '@/components/ui/badge';
-import { Tag, Zap } from 'lucide-react';
+import { Tag, Zap, Star } from 'lucide-react';
 import Modal from '@/components/ui/modal';
 import { useUserContext } from '@/context/UserContext';
 
@@ -35,9 +35,18 @@ interface Fantasy {
   status: 'idea' | 'planned' | 'fulfilled';
   xp_granted?: boolean;
   fulfilled_date?: string;
+  user_id?: string;
 }
 
-function DraggableCard({ fantasy, onView }: { fantasy: Fantasy; onView: () => void }) {
+interface ProfileMap {
+  [userId: string]: string;
+}
+
+interface XpMap {
+  [effort: string]: number;
+}
+
+function DraggableCard({ fantasy, onView, profileMap, xpMap }: { fantasy: Fantasy; onView: () => void; profileMap: ProfileMap; xpMap: XpMap }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: fantasy.id });
 
   const style = {
@@ -50,6 +59,8 @@ function DraggableCard({ fantasy, onView }: { fantasy: Fantasy; onView: () => vo
     Medium: 'bg-yellow-100 text-yellow-800',
     High: 'bg-red-100 text-red-800',
   };
+
+  const xpPoints = fantasy.effort ? xpMap[fantasy.effort.toLowerCase()] : null;
 
   return (
     <div
@@ -95,6 +106,16 @@ function DraggableCard({ fantasy, onView }: { fantasy: Fantasy; onView: () => vo
               <Zap size={14} /> {fantasy.effort}
             </Badge>
           )}
+          {xpPoints && (
+            <Badge variant="outline" className="bg-yellow-100 text-yellow-800 gap-1">
+              <Star size={14} /> Fuldførelse: +{xpPoints} XP
+            </Badge>
+          )}
+          {fantasy.user_id && profileMap[fantasy.user_id] && (
+            <Badge variant="outline" className="bg-gray-100 text-gray-800 gap-1">
+              {profileMap[fantasy.user_id]}
+            </Badge>
+          )}
         </div>
 
         {fantasy.fulfilled_date && (
@@ -105,13 +126,13 @@ function DraggableCard({ fantasy, onView }: { fantasy: Fantasy; onView: () => vo
   );
 }
 
-function DroppableColumn({ status, fantasies, onCardClick }: { status: string; fantasies: Fantasy[]; onCardClick: (f: Fantasy) => void }) {
+function DroppableColumn({ status, fantasies, onCardClick, profileMap, xpMap }: { status: string; fantasies: Fantasy[]; onCardClick: (f: Fantasy) => void; profileMap: ProfileMap; xpMap: XpMap }) {
   const { isOver, setNodeRef } = useDroppable({ id: status });
   return (
     <div ref={setNodeRef} style={{ backgroundColor: isOver ? '#fde2e4' : undefined }} className="bg-gray-50 p-4 rounded shadow min-h-[300px]">
       <h2 className="text-xl font-semibold mb-4">{fantasyStatuses.find(s => s.key === status)?.label || status}</h2>
       {fantasies.map((fantasy) => (
-        <DraggableCard key={fantasy.id} fantasy={fantasy} onView={() => onCardClick(fantasy)} />
+        <DraggableCard key={fantasy.id} fantasy={fantasy} onView={() => onCardClick(fantasy)} profileMap={profileMap} xpMap={xpMap} />
       ))}
     </div>
   );
@@ -122,6 +143,8 @@ export default function FantasyBoard() {
   const { addXp } = useXp();
   const { user, role } = useUserContext();
   const [fantasies, setFantasies] = useState<Fantasy[]>([]);
+  const [profileMap, setProfileMap] = useState<ProfileMap>({});
+  const [xpMap, setXpMap] = useState<XpMap>({});
   const [newFantasy, setNewFantasy] = useState<Omit<Fantasy, 'id'>>({ title: '', description: '', image_url: '', category: '', effort: '', status: 'idea' });
   const [selectedFantasy, setSelectedFantasy] = useState<Fantasy | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -133,7 +156,37 @@ export default function FantasyBoard() {
       if (error) console.error('Fejl ved hentning:', error.message);
       else setFantasies(data);
     };
+
+    const fetchProfiles = async () => {
+      const { data, error } = await supabase.from('profiles').select('id, display_name');
+      if (error) console.error('Fejl ved hentning af profiler:', error.message);
+      else {
+        const map: ProfileMap = {};
+        data.forEach((p) => (map[p.id] = p.display_name));
+        setProfileMap(map);
+      }
+    };
+
+    const fetchXpSettings = async () => {
+      const { data, error } = await supabase
+        .from('xp_settings')
+        .select('effort, xp')
+        .eq('action', 'complete_fantasy')
+        .eq('role', 'stine');
+
+      if (error) console.error('Fejl ved hentning af xp_settings:', error.message);
+      else {
+        const map: XpMap = {};
+        data.forEach((s) => {
+          if (s.effort) map[s.effort.toLowerCase()] = s.xp;
+        });
+        setXpMap(map);
+      }
+    };
+
     fetchFantasies();
+    fetchProfiles();
+    fetchXpSettings();
   }, []);
 
   const logXp = async (receiver: 'mads' | 'stine', action: string, effort?: string) => {
@@ -303,17 +356,20 @@ const addFantasy = async () => {
       </div>
 
       <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {fantasyStatuses.map(({ key }) => (
-            <DroppableColumn
-              key={key}
-              status={key}
-              fantasies={filteredFantasies.filter(f => f.status === key)}
-              onCardClick={(f) => setSelectedFantasy(f)}
-            />
-          ))}
-        </div>
-      </DndContext>
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    {fantasyStatuses.map(({ key }) => (
+      <DroppableColumn
+        key={key}
+        status={key}
+        fantasies={filteredFantasies.filter(f => f.status === key)}
+        onCardClick={(f) => setSelectedFantasy(f)}
+        profileMap={profileMap}
+        xpMap={xpMap}
+      />
+    ))}
+  </div>
+</DndContext>
+
 
       {showAddModal && (
         <Modal

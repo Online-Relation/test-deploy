@@ -1,3 +1,4 @@
+// app/settings/points/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -45,47 +46,97 @@ export default function PointsPage() {
     }
   };
 
-  const renderTable = (title: string, roleFilter: string) => (
-    <div className="mb-10">
-      <h2 className="text-xl font-semibold mb-4">{title}</h2>
-      <table className="w-full border text-sm">
-        <thead className="bg-gray-100">
-          <tr>
-            <th className="border px-4 py-2 text-left">Handling</th>
-            <th className="border px-4 py-2 text-left">Effort</th>
-            <th className="border px-4 py-2 text-left">XP</th>
-          </tr>
-        </thead>
-        <tbody>
-          {settings
-            .filter((s) => s.role === roleFilter)
-            .map((setting) => (
-              <tr key={setting.id}>
-                <td className="border px-4 py-2">{setting.action}</td>
-                <td className="border px-4 py-2">{setting.effort || '-'}</td>
-                <td className="border px-4 py-2">
-                  <input
-                    type="number"
-                    value={setting.xp}
-                    onChange={(e) =>
-                      updateXP(setting.id, parseInt(e.target.value))
-                    }
-                    className="w-20 border px-2 py-1 text-right"
-                  />
-                </td>
-              </tr>
-            ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  const renderTable = (title: string, roleFilter: string) => {
+    const roleSettings = settings.filter((s) => s.role === roleFilter);
+    const fantasySettings = roleSettings.filter((s) =>
+      s.action.startsWith('add_fantasy') ||
+      s.action.startsWith('plan_fantasy') ||
+      s.action.startsWith('complete_fantasy')
+    );
+    const evaluationSettings = roleSettings.filter((s) =>
+      s.action.startsWith('evaluate_')
+    );
+
+    return (
+      <div className="mb-10">
+        <h2 className="text-xl font-semibold mb-4">{title}</h2>
+
+        {/* Fantasi-points */}
+        {fantasySettings.length > 0 && (
+          <>
+            <h3 className="font-semibold mb-2">Fantasier</h3>
+            <table className="w-full border text-sm mb-6">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="border px-4 py-2 text-left">Handling</th>
+                  <th className="border px-4 py-2 text-left">Effort</th>
+                  <th className="border px-4 py-2 text-left">XP</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fantasySettings.map((setting) => (
+                  <tr key={setting.id}>
+                    <td className="border px-4 py-2">{setting.action}</td>
+                    <td className="border px-4 py-2">{setting.effort || '-'}</td>
+                    <td className="border px-4 py-2">
+                      <input
+                        type="number"
+                        value={setting.xp}
+                        onChange={(e) =>
+                          updateXP(setting.id, parseInt(e.target.value))
+                        }
+                        className="w-20 border px-2 py-1 text-right"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {/* Evaluering-points */}
+        {evaluationSettings.length > 0 && (
+          <>
+            <h3 className="font-semibold mb-2">Evaluering</h3>
+            <table className="w-full border text-sm">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="border px-4 py-2 text-left">Handling</th>
+                  <th className="border px-4 py-2 text-left">Effort</th>
+                  <th className="border px-4 py-2 text-left">XP</th>
+                </tr>
+              </thead>
+              <tbody>
+                {evaluationSettings.map((setting) => (
+                  <tr key={setting.id}>
+                    <td className="border px-4 py-2">{setting.action}</td>
+                    <td className="border px-4 py-2">{setting.effort || '-'}</td>
+                    <td className="border px-4 py-2">
+                      <input
+                        type="number"
+                        value={setting.xp}
+                        onChange={(e) =>
+                          updateXP(setting.id, parseInt(e.target.value))
+                        }
+                        className="w-20 border px-2 py-1 text-right"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+      </div>
+    );
+  };
 
   if (loading) return <p>Indlæser...</p>;
 
   return (
     <div className="max-w-4xl mx-auto py-8">
       <h1 className="text-2xl font-bold mb-8">XP-indstillinger</h1>
-      {renderTable("Fælles evaluering", "common")}
       {renderTable("Stine", "stine")}
       {renderTable("Mads", "mads")}
     </div>
