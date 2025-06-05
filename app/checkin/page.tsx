@@ -7,38 +7,29 @@ import { supabase } from "@/lib/supabaseClient";
 const CheckinPage = () => {
   const [madsNeeds, setMadsNeeds] = useState(["", "", ""]);
   const [stineNeeds, setStineNeeds] = useState(["", "", ""]);
-  const [madsCheckins, setMadsCheckins] = useState<any[]>([]);
-  const [stineCheckins, setStineCheckins] = useState<any[]>([]);
-  const [history, setHistory] = useState<{ mads: any[]; stine: any[] }>({ mads: [], stine: [] });
-  const [evaluatorId, setEvaluatorId] = useState<string | null>(null);
+  const [madsCheckins, setMadsCheckins] = useState<any[] | null>(null);
+  const [stineCheckins, setStineCheckins] = useState<any[] | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<"mads" | "stine" | null>(null);
+  const [evaluatorId, setEvaluatorId] = useState<string | null>(null);
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [xpMap, setXpMap] = useState<Record<string, number>>({});
 
-const userIdMads = "190a3151-97bc-43be-9daf-1f3b3062f97f";
+  const userIdMads = "190a3151-97bc-43be-9daf-1f3b3062f97f";
   const userIdStine = "5687c342-1a13-441c-86ca-f7e87e1edbd5";
 
-  const handleSubmit = async (who: "mads" | "stine") => {
-    const needs = who === "mads" ? madsNeeds : stineNeeds;
-    const userId = who === "mads" ? userIdMads : userIdStine;
+  const fetchXPSettings = async () => {
+    const { data } = await supabase
+      .from("xp_settings")
+      .select("*")
+      .eq("role", "common");
 
-    const today = new Date();
-    const weekNumber = getWeekNumber(today);
-    const year = today.getFullYear();
-
-    for (const need of needs) {
-      if (need.trim() === "") continue;
-
-      await supabase.from("checkin").insert({
-        user_id: userId,
-        need_text: need,
-        week_number: weekNumber,
-        year,
+    if (data) {
+      const map: Record<string, number> = {};
+      data.forEach((row) => {
+        map[row.action] = row.xp;
       });
+      setXpMap(map);
     }
-
-    alert(`${who === "mads" ? "Mads'" : "Stines"} behov er gemt ✅`);
-    who === "mads" ? setMadsNeeds(["", "", ""]) : setStineNeeds(["", "", ""]);
-    fetchNeeds();
-    fetchHistory();
   };
 
   const fetchNeeds = async () => {
@@ -60,71 +51,45 @@ const userIdMads = "190a3151-97bc-43be-9daf-1f3b3062f97f";
       .eq("year", year)
       .eq("user_id", userIdStine);
 
-    if (madsData) setMadsCheckins(madsData);
-    if (stineData) setStineCheckins(stineData);
+    setMadsCheckins(madsData ?? []);
+    setStineCheckins(stineData ?? []);
+    setDataLoaded(true);
   };
 
-  const fetchHistory = async () => {
+  const handleSubmit = async (who: "mads" | "stine") => {
+    const needs = who === "mads" ? madsNeeds : stineNeeds;
+    const userId = who === "mads" ? userIdMads : userIdStine;
+
     const today = new Date();
-    const currentWeek = getWeekNumber(today);
-    const currentYear = today.getFullYear();
+    const weekNumber = getWeekNumber(today);
+    const year = today.getFullYear();
 
-    const { data, error } = await supabase
-      .from("checkin")
-      .select("*")
-      .lt("week_number", currentWeek)
-      .eq("year", currentYear)
-      .order("week_number", { ascending: false });
+    for (const need of needs) {
+      if (need.trim() === "") continue;
 
-    if (!error && data) {
-      const mads = data.filter((x) => x.user_id === userIdMads);
-      const stine = data.filter((x) => x.user_id === userIdStine);
-      setHistory({ mads, stine });
+      await supabase.from("checkin").insert({
+        user_id: userId,
+        need_text: need,
+        week_number: weekNumber,
+        year,
+        status: "pending",
+      });
     }
-  };
 
-  useEffect(() => {
-    const getSessionUser = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const id = session?.user?.id ?? null;
-      setEvaluatorId(id);
-      if (id === userIdMads) setCurrentUserRole("mads");
-      else if (id === userIdStine) setCurrentUserRole("stine");
-    };
-
-    getSessionUser();
+    who === "mads" ? setMadsNeeds(["", "", ""]) : setStineNeeds(["", "", ""]);
     fetchNeeds();
-    fetchHistory();
-  }, []);
+  };
 
   const handleEvaluation = async (
-    id: string,
-    status: "fulfilled" | "partial" | "not_fulfilled",
+    id: number,
+    status: "evaluate_fulfilled" | "evaluate_partial" | "evaluate_rejected",
     target: "mads" | "stine"
   ) => {
     if (!evaluatorId) return;
 
-    const xpMap = {
-      fulfilled: 30,
-      partial: 20,
-      not_fulfilled: 10,
-    };
-
-    const xp = xpMap[status];
-    const userId = target === "mads" ? userIdMads : userIdStine;
-    const role = target;
-
-    const updateCheckins = (list: any[], setter: any) => {
-      const updated = list.map((item) =>
-        item.id === id ? { ...item, status, xp_awarded: xp } : item
-      );
-      setter(updated);
-    };
-
-    if (target === "mads") updateCheckins(madsCheckins, setMadsCheckins);
-    else updateCheckins(stineCheckins, setStineCheckins);
+    const xp = xpMap[status] ?? 0;
+    const receiverId = target === "mads" ? userIdStine : userIdMads;
+    const receiverRole = target === "mads" ? "stine" : "mads";
 
     await supabase
       .from("checkin")
@@ -136,48 +101,152 @@ const userIdMads = "190a3151-97bc-43be-9daf-1f3b3062f97f";
       .eq("id", id);
 
     await supabase.from("xp_log").insert({
-      user_id: userId,
+      user_id: receiverId,
       change: xp,
-      role,
-      description: `Check-in behov: ${status}`,
+      role: receiverRole,
+      description: `Check-in behov: ${status.replace("evaluate_", "")}`,
     });
+
+    fetchNeeds();
   };
 
-  
+  useEffect(() => {
+    const getSessionUser = async () => {
+      const { data } = await supabase.auth.getSession();
+      const id = data.session?.user.id ?? null;
+      setEvaluatorId(id);
+      if (id === userIdMads) setCurrentUserRole("mads");
+      else if (id === userIdStine) setCurrentUserRole("stine");
+    };
 
+    getSessionUser();
+    fetchXPSettings();
+  }, []);
 
+  useEffect(() => {
+    if (currentUserRole) {
+      fetchNeeds();
+    }
+  }, [currentUserRole]);
 
-function getWeekNumber(d: Date) {
-  d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d as any) - (yearStart as any)) / 86400000 + 1) / 7);
-}
+  const getWeekNumber = (d: Date) => {
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d as any) - (yearStart as any)) / 86400000 + 1) / 7);
+  };
+
+  const getBgColor = (status: string) => {
+    if (status === "evaluate_fulfilled") return "bg-green-100 border-green-400";
+    if (status === "evaluate_partial") return "bg-yellow-100 border-yellow-400";
+    if (status === "evaluate_rejected") return "bg-red-100 border-red-400";
+    return "bg-gray-100";
+  };
+
+  const renderCheckins = (list: any[], target: "mads" | "stine") => {
+    const isOwn = currentUserRole === target;
+    const active = list.filter((item) => item.status === "pending");
+
+    return (
+      <div className="space-y-2 mb-6">
+        {active.map((item) => {
+          const canEvaluate = isOwn && item.status === "pending";
+          return (
+            <div
+              key={item.id}
+              className="p-3 border rounded bg-green-50 flex justify-between items-center"
+            >
+              <span>{item.need_text}</span>
+              {canEvaluate && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEvaluation(item.id, "evaluate_fulfilled", target)}
+                    className="px-2 py-1 rounded bg-green-500 text-white"
+                  >
+                    ✅
+                  </button>
+                  <button
+                    onClick={() => handleEvaluation(item.id, "evaluate_partial", target)}
+                    className="px-2 py-1 rounded bg-yellow-500 text-white"
+                  >
+                    ⚖️
+                  </button>
+                  <button
+                    onClick={() => handleEvaluation(item.id, "evaluate_rejected", target)}
+                    className="px-2 py-1 rounded bg-red-500 text-white"
+                  >
+                    ❌
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderHistoryBox = (
+    items: any[],
+    recipient: "mads" | "stine",
+    showTitle = false
+  ) => {
+    return (
+      <div>
+        {showTitle && <h3 className="font-semibold mb-2">Historik</h3>}
+        <div className="space-y-2">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className={`p-3 border rounded ${getBgColor(item.status)}`}
+            >
+              <div className="font-medium">{item.need_text}</div>
+              <div className="text-sm mt-1">
+                {recipient.charAt(0).toUpperCase() + recipient.slice(1)} fik tildelt{" "}
+                <span className="font-semibold">{item.xp_awarded}</span> point
+                <span className="ml-2 text-gray-500">
+                  Uge {item.week_number}
+                  {item.updated_at
+                    ? ` – ${new Date(item.updated_at).toLocaleDateString("da-DK")}`
+                    : ""}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-6">Ugentlig Check-in</h1>
+  <div className="p-4 max-w-7xl mx-auto">
+    <h1 className="text-3xl font-bold mb-10 text-center">Ugentlig Check-in</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Mads */}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {/* Mads' kort */}
+      <div className="bg-white rounded-2xl shadow-lg p-6 space-y-8">
+        <h2 className="text-2xl font-bold text-blue-700">Mads</h2>
+
         <div>
-          <h2 className="text-xl font-semibold mb-2">Mads</h2>
+          <h3 className="text-lg font-semibold mb-2">Mine behov</h3>
           {madsNeeds.map((need, index) => (
             <input
               key={index}
               type="text"
               value={need}
               onChange={(e) => {
+                if (currentUserRole !== "mads") return;
                 const updated = [...madsNeeds];
                 updated[index] = e.target.value;
                 setMadsNeeds(updated);
               }}
-              className="mb-2 w-full p-2 border rounded"
+              className="mb-2 w-full p-2 border rounded bg-white disabled:bg-gray-100"
               placeholder={`Behov ${index + 1}`}
+              disabled={currentUserRole !== "mads"}
             />
           ))}
-          {madsCheckins.length < 3 && (
+          {currentUserRole === "mads" && dataLoaded && (
             <button
               onClick={() => handleSubmit("mads")}
               className="mt-2 px-4 py-2 bg-blue-600 text-white rounded"
@@ -185,60 +254,46 @@ function getWeekNumber(d: Date) {
               Gem behov
             </button>
           )}
-
-          <div className="mt-6">
-            <h3 className="font-semibold mb-2">Mads' behov denne uge</h3>
-            {madsCheckins.map((item) => {
-              const canEvaluate = item.status === "pending" && currentUserRole === "stine";
-              return (
-                <div
-                  key={item.id}
-                  className={`flex justify-between items-center p-2 rounded mb-2 ${
-                    !canEvaluate ? "bg-gray-200" : "bg-gray-100"
-                  }`}
-                >
-                  <span>{item.need_text}</span>
-                 {currentUserRole === "stine" && (
-  <div className="flex gap-2">
-    <button className="px-2 py-1 bg-green-500 text-white rounded" onClick={() => handleEvaluation(item.id, "fulfilled", "mads")}>✅</button>
-    <button className="px-2 py-1 bg-yellow-500 text-white rounded" onClick={() => handleEvaluation(item.id, "partial", "mads")}>⚖️</button>
-    <button className="px-2 py-1 bg-red-500 text-white rounded" onClick={() => handleEvaluation(item.id, "not_fulfilled", "mads")}>❌</button>
-  </div>
-)}
-
-  {currentUserRole === "mads" && (
-  <div className="flex gap-2">
-    <button className="px-2 py-1 bg-green-500 text-white rounded" onClick={() => handleEvaluation(item.id, "fulfilled", "stine")}>✅</button>
-    <button className="px-2 py-1 bg-yellow-500 text-white rounded" onClick={() => handleEvaluation(item.id, "partial", "stine")}>⚖️</button>
-    <button className="px-2 py-1 bg-red-500 text-white rounded" onClick={() => handleEvaluation(item.id, "not_fulfilled", "stine")}>❌</button>
-  </div>
-)}
-
-
-                </div>
-              );
-            })}
-          </div>
         </div>
 
-        {/* Stine */}
         <div>
-          <h2 className="text-xl font-semibold mb-2">Stine</h2>
+          <h3 className="text-lg font-semibold mb-2">Ugens behov</h3>
+          {madsCheckins && renderCheckins(madsCheckins, "mads")}
+        </div>
+
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Historik</h3>
+          {stineCheckins &&
+            renderHistoryBox(
+              stineCheckins.filter((item) => item.status && item.status !== "pending"),
+              "mads"
+            )}
+        </div>
+      </div>
+
+      {/* Stines kort */}
+      <div className="bg-white rounded-2xl shadow-lg p-6 space-y-8">
+        <h2 className="text-2xl font-bold text-purple-700">Stine</h2>
+
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Mine behov</h3>
           {stineNeeds.map((need, index) => (
             <input
               key={index}
               type="text"
               value={need}
               onChange={(e) => {
+                if (currentUserRole !== "stine") return;
                 const updated = [...stineNeeds];
                 updated[index] = e.target.value;
                 setStineNeeds(updated);
               }}
-              className="mb-2 w-full p-2 border rounded"
+              className="mb-2 w-full p-2 border rounded bg-white disabled:bg-gray-100"
               placeholder={`Behov ${index + 1}`}
+              disabled={currentUserRole !== "stine"}
             />
           ))}
-          {stineCheckins.length < 3 && (
+          {currentUserRole === "stine" && dataLoaded && (
             <button
               onClick={() => handleSubmit("stine")}
               className="mt-2 px-4 py-2 bg-purple-600 text-white rounded"
@@ -246,58 +301,26 @@ function getWeekNumber(d: Date) {
               Gem behov
             </button>
           )}
+        </div>
 
-          <div className="mt-6">
-            <h3 className="font-semibold mb-2">Stines behov denne uge</h3>
-            {stineCheckins.map((item) => {
-              const canEvaluate = item.status === "pending" && currentUserRole === "mads";
-              return (
-                <div
-                  key={item.id}
-                  className={`flex justify-between items-center p-2 rounded mb-2 ${
-                    !canEvaluate ? "bg-gray-200" : "bg-gray-100"
-                  }`}
-                >
-                  <span>{item.need_text}</span>
-                  <div className="flex gap-2">
-                    <button
-                      className="px-2 py-1 bg-green-500 text-white rounded"
-                      onClick={() => handleEvaluation(item.id, "fulfilled", "stine")}
-                      disabled={!canEvaluate}
-                    >
-                      ✅
-                    </button>
-                    <button
-                      className="px-2 py-1 bg-yellow-500 text-white rounded"
-                      onClick={() => handleEvaluation(item.id, "partial", "stine")}
-                      disabled={!canEvaluate}
-                    >
-                      ⚖️
-                    </button>
-                    <button
-                      className="px-2 py-1 bg-red-500 text-white rounded"
-                      onClick={() => handleEvaluation(item.id, "not_fulfilled", "stine")}
-                      disabled={!canEvaluate}
-                    >
-                      ❌
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Ugens behov</h3>
+          {stineCheckins && renderCheckins(stineCheckins, "stine")}
+        </div>
+
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Historik</h3>
+          {madsCheckins &&
+            renderHistoryBox(
+              madsCheckins.filter((item) => item.status && item.status !== "pending"),
+              "stine"
+            )}
         </div>
       </div>
     </div>
-  );
-}
+  </div>
+);
 
-function getWeekNumber(d: Date) {
-  d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d as any) - (yearStart as any)) / 86400000 + 1) / 7);
-}
+};
 
 export default CheckinPage;

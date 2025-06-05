@@ -45,7 +45,7 @@ export default function PointsPage() {
     }
   };
 
-  const renderTable = (title: string, role: string) => (
+  const renderTable = (title: string, roleFilter: string) => (
     <div className="mb-10">
       <h2 className="text-xl font-semibold mb-4">{title}</h2>
       <table className="w-full border text-sm">
@@ -58,7 +58,7 @@ export default function PointsPage() {
         </thead>
         <tbody>
           {settings
-            .filter((s) => s.role === role)
+            .filter((s) => s.role === roleFilter)
             .map((setting) => (
               <tr key={setting.id}>
                 <td className="border px-4 py-2">{setting.action}</td>
@@ -85,6 +85,7 @@ export default function PointsPage() {
   return (
     <div className="max-w-4xl mx-auto py-8">
       <h1 className="text-2xl font-bold mb-8">XP-indstillinger</h1>
+      {renderTable("Fælles evaluering", "common")}
       {renderTable("Stine", "stine")}
       {renderTable("Mads", "mads")}
     </div>
