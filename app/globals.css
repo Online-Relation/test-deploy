@@ -121,8 +121,9 @@ input, textarea, select {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
-    @apply px-4 sm:px-6 md:px-8 lg:px-16;
+    @apply bg-white text-black w-full;
+    padding: 0;
+    margin: 0;
   }
 }
 

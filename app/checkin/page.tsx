@@ -225,7 +225,7 @@ const CheckinPage = () => {
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
       {/* Mads' kort */}
-      <div className="bg-white rounded-2xl shadow-lg p-6 space-y-8">
+      <div className="bg-white rounded-2xl shadow-lg px-4 py-5 sm:px-6 sm:py-6 space-y-8">
         <h2 className="text-2xl font-bold text-blue-700">Mads</h2>
 
         <div>
@@ -272,7 +272,7 @@ const CheckinPage = () => {
       </div>
 
       {/* Stines kort */}
-      <div className="bg-white rounded-2xl shadow-lg p-6 space-y-8">
+      <div className="bg-white rounded-2xl shadow-lg px-4 py-5 sm:px-6 sm:py-6 space-y-8">
         <h2 className="text-2xl font-bold text-purple-700">Stine</h2>
 
         <div>
