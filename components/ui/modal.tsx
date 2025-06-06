@@ -1,4 +1,4 @@
-// components/ui/modal.tsx
+// components/ui/Modal.tsx
 'use client';
 
 import { useCategory } from '@/context/CategoryContext';
@@ -121,11 +121,20 @@ export default function Modal(props: ModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-xl shadow max-w-3xl w-full max-h-[90vh] overflow-y-auto relative">
+    <div
+      className="fixed inset-0 flex items-center justify-center z-50"
+      style={{ backgroundColor: 'var(--overlay-bg)' }}
+    >
+      <div
+        className="rounded-xl shadow max-w-3xl w-full max-h-[90vh] overflow-y-auto relative p-6"
+        style={{ backgroundColor: 'var(--modal-bg)', color: 'var(--text-default)' }}
+      >
         <button
           onClick={onClose}
-          className="absolute top-3 right-4 text-gray-500 hover:text-black text-xl"
+          className="absolute top-3 right-4 text-xl"
+          style={{ color: 'var(--text-muted)' }}
+          onMouseOver={(e) => (e.currentTarget.style.color = 'var(--text-default)')}
+          onMouseOut={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
         >
           ✕
         </button>
@@ -138,7 +147,12 @@ export default function Modal(props: ModalProps) {
               placeholder="Titel"
               value={newFantasy.title}
               onChange={(e) => setNewFantasy({ ...newFantasy, title: e.target.value })}
-              className="w-full px-4 py-2 border rounded text-black"
+              className="w-full px-4 py-2 border rounded"
+              style={{
+                borderColor: 'var(--border-color)',
+                color: 'var(--text-default)',
+                backgroundColor: 'var(--modal-bg)',
+              }}
             />
             <RichTextEditor
               value={newFantasy.description}
@@ -160,17 +174,29 @@ export default function Modal(props: ModalProps) {
             <select
               value={newFantasy.category || ''}
               onChange={(e) => setNewFantasy({ ...newFantasy, category: e.target.value })}
-              className="w-full px-4 py-2 border rounded text-black bg-white"
+              className="w-full px-4 py-2 border rounded"
+              style={{
+                borderColor: 'var(--border-color)',
+                color: 'var(--text-default)',
+                backgroundColor: 'var(--modal-bg)',
+              }}
             >
               <option value="">Vælg kategori</option>
               {fantasyCategories.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
               ))}
             </select>
             <select
               value={newFantasy.effort || ''}
               onChange={(e) => setNewFantasy({ ...newFantasy, effort: e.target.value })}
-              className="w-full px-4 py-2 border rounded text-black bg-white"
+              className="w-full px-4 py-2 border rounded"
+              style={{
+                borderColor: 'var(--border-color)',
+                color: 'var(--text-default)',
+                backgroundColor: 'var(--modal-bg)',
+              }}
             >
               <option value="">Vælg effort</option>
               <option value="Low">Low</option>
@@ -179,7 +205,17 @@ export default function Modal(props: ModalProps) {
             </select>
             <button
               onClick={onCreate}
-              className="bg-pink-600 text-white px-4 py-2 rounded hover:bg-pink-700"
+              className="px-4 py-2 rounded"
+              style={{
+                backgroundColor: 'var(--btn-primary-bg)',
+                color: 'var(--color-white)',
+              }}
+              onMouseOver={(e) =>
+                (e.currentTarget.style.backgroundColor = 'var(--btn-primary-hover)')
+              }
+              onMouseOut={(e) =>
+                (e.currentTarget.style.backgroundColor = 'var(--btn-primary-bg)')
+              }
             >
               Tilføj fantasi
             </button>
@@ -190,8 +226,13 @@ export default function Modal(props: ModalProps) {
               type="text"
               value={edited?.title || ''}
               onChange={(e) => setEdited({ ...edited!, title: e.target.value })}
-              className="w-full px-4 py-2 border rounded text-black"
+              className="w-full px-4 py-2 border rounded"
               placeholder="Titel"
+              style={{
+                borderColor: 'var(--border-color)',
+                color: 'var(--text-default)',
+                backgroundColor: 'var(--modal-bg)',
+              }}
             />
             <RichTextEditor
               value={edited?.description || ''}
@@ -213,17 +254,29 @@ export default function Modal(props: ModalProps) {
             <select
               value={edited?.category || ''}
               onChange={(e) => setEdited({ ...edited!, category: e.target.value })}
-              className="w-full px-4 py-2 border rounded text-black bg-white"
+              className="w-full px-4 py-2 border rounded"
+              style={{
+                borderColor: 'var(--border-color)',
+                color: 'var(--text-default)',
+                backgroundColor: 'var(--modal-bg)',
+              }}
             >
               <option value="">Vælg kategori</option>
               {fantasyCategories.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
               ))}
             </select>
             <select
               value={edited?.effort || ''}
               onChange={(e) => setEdited({ ...edited!, effort: e.target.value })}
-              className="w-full px-4 py-2 border rounded text-black bg-white"
+              className="w-full px-4 py-2 border rounded"
+              style={{
+                borderColor: 'var(--border-color)',
+                color: 'var(--text-default)',
+                backgroundColor: 'var(--modal-bg)',
+              }}
             >
               <option value="">Vælg effort</option>
               <option value="Low">Low</option>
@@ -234,7 +287,17 @@ export default function Modal(props: ModalProps) {
               <div className="flex gap-2">
                 <button
                   onClick={handleSave}
-                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                  className="px-4 py-2 rounded"
+                  style={{
+                    backgroundColor: 'var(--btn-primary-bg)',
+                    color: 'var(--color-white)',
+                  }}
+                  onMouseOver={(e) =>
+                    (e.currentTarget.style.backgroundColor = 'var(--btn-primary-hover)')
+                  }
+                  onMouseOut={(e) =>
+                    (e.currentTarget.style.backgroundColor = 'var(--btn-primary-bg)')
+                  }
                 >
                   Gem
                 </button>
@@ -243,7 +306,14 @@ export default function Modal(props: ModalProps) {
                     setEditing(false);
                     setEdited(fantasy ?? null);
                   }}
-                  className="text-gray-600 hover:text-black px-4 py-2"
+                  className="px-4 py-2"
+                  style={{ color: 'var(--btn-secondary-text)' }}
+                  onMouseOver={(e) =>
+                    (e.currentTarget.style.color = 'var(--btn-secondary-hover)')
+                  }
+                  onMouseOut={(e) =>
+                    (e.currentTarget.style.color = 'var(--btn-secondary-text)')
+                  }
                 >
                   Annuller
                 </button>
@@ -251,7 +321,14 @@ export default function Modal(props: ModalProps) {
               {fantasy?.id && (
                 <button
                   onClick={handleDelete}
-                  className="text-red-600 hover:text-red-800 text-sm ml-auto"
+                  className="text-sm ml-auto"
+                  style={{ color: 'var(--btn-danger-text)' }}
+                  onMouseOver={(e) =>
+                    (e.currentTarget.style.color = 'var(--btn-danger-hover)')
+                  }
+                  onMouseOut={(e) =>
+                    (e.currentTarget.style.color = 'var(--btn-danger-text)')
+                  }
                 >
                   🗑️ Slet
                 </button>
@@ -269,30 +346,62 @@ export default function Modal(props: ModalProps) {
               />
             )}
             <div
-              className="prose max-w-none text-gray-700 leading-relaxed [&_p]:mb-4"
+              className="prose max-w-none leading-relaxed [&_p]:mb-4"
+              style={{ color: 'var(--text-secondary)' }}
               dangerouslySetInnerHTML={{ __html: fantasy?.description || '' }}
             />
             <div className="mt-4 flex flex-wrap gap-2 text-sm font-medium">
               {fantasy?.category && (
-                <Badge variant="outline" className="bg-blue-100 text-blue-800 gap-1">
+                <Badge
+                  variant="outline"
+                  className="gap-1"
+                  style={{
+                    backgroundColor: 'var(--badge-bg-info)',
+                    color: 'var(--badge-text-info)',
+                  }}
+                >
                   <Tag size={14} /> {fantasy.category}
                 </Badge>
               )}
               {fantasy?.effort && (
-                <Badge variant="outline" className="bg-yellow-100 text-yellow-800 gap-1">
+                <Badge
+                  variant="outline"
+                  className="gap-1"
+                  style={{
+                    backgroundColor: 'var(--badge-bg-warning)',
+                    color: 'var(--badge-text-warning)',
+                  }}
+                >
                   <Zap size={14} /> {fantasy.effort}
                 </Badge>
               )}
               {fantasy?.fulfilled_date && (
-                <Badge variant="outline" className="bg-gray-100 text-gray-800 gap-1">
+                <Badge
+                  variant="outline"
+                  className="gap-1"
+                  style={{
+                    backgroundColor: 'var(--badge-bg-muted)',
+                    color: 'var(--badge-text-muted)',
+                  }}
+                >
                   <Calendar size={14} /> Opfyldt: {fantasy.fulfilled_date}
                 </Badge>
               )}
             </div>
             <div className="mt-6">
               <button
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                className="px-4 py-2 rounded"
+                style={{
+                  backgroundColor: 'var(--blue-600)',
+                  color: 'var(--color-white)',
+                }}
                 onClick={() => setEditing(true)}
+                onMouseOver={(e) =>
+                  (e.currentTarget.style.backgroundColor = 'var(--blue-700)')
+                }
+                onMouseOut={(e) =>
+                  (e.currentTarget.style.backgroundColor = 'var(--blue-600)')
+                }
               >
                 ✏️ Redigér
               </button>

@@ -39,6 +39,15 @@ test-deploy/
 │   ├── UserStatus.tsx
 │   └── ui/
 │       └── Modal.tsx
+        └── badge.tsx
+        └── TagBadge.tsx
+        └── button.tsx
+        └── card.tsx
+        └── input.tsx
+        └── label.tsx
+        └── progress.tsx
+        └── RichTextEditor.tsx
+        └── tabs.tsx
 │
 ├── context/
 │   ├── UserContext.tsx
@@ -645,3 +654,34 @@ Administrerbare XP-indstillinger
 
 Klar til udvidelse med niveauer, statistik og historik
 
+#### Dagsrapport d.6/6 - 2025 ####
+Hvad vi har lavet i dag
+Tilbageført til fungerende version af layout og styling uden global padding (p-6) på .card i globals.css.
+
+Klart skel mellem global styling og lokal padding for cards — padding styres nu lokalt i komponenter som FantasyBoard eller Card.
+
+Gennemgang og fastlæggelse af farver og tekstfarver i globals.css med CSS-variabler for let global farvestyring.
+
+Justering af tailwind.config.js med farver og typografi som tidligere, uden at påvirke layoutet.
+
+Genindført korrekt brug af card-klassen uden global padding i globals.css.
+
+Sikret at padding til cards håndteres via komponenternes egne className og ikke globalt.
+
+Bekræftet, at FantasyBoard og Card komponenter nu bruger de rette klasser uden at ødelægge layout.
+
+Fjernet forsøg på global padding i globals.css som gav layoutproblemer.
+
+Enig om, at global styling skal håndtere farver, typografi og rammer, mens spacing/padding håndteres lokalt for fleksibilitet.
+
+Besluttet at tage en pause på dette stadie for at undgå yderligere forvirring og ødelæggelser.
+
+Database
+Ingen ændringer i database eller tabeller i denne session.
+
+Implementerede funktioner
+Funktionelle drag & drop kort i FantasyBoard med lokal styling.
+
+Modal til oprettelse og redigering fungerer som tidligere, uden globale stylingkonflikter.
+
+Brug af Tailwind CSS variabler til farver og tekst i globale styles.

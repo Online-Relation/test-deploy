@@ -22,100 +22,112 @@ export default function DashboardPage() {
   const [role, setRole] = useState<string>('');
 
   useEffect(() => {
-const fetchData = async () => {
-  const user = (await supabase.auth.getUser()).data.user;
-  if (!user) return;
+    const fetchData = async () => {
+      // Find den nuværende bruger
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, display_name, role')
-    .eq('id', user.id)
-    .maybeSingle();
+      // Hent profil for display name og rolle
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, display_name, role')
+        .eq('id', user.id)
+        .maybeSingle();
 
-  if (!profile) return;
+      if (!profile) return;
 
-  setDisplayName(profile.display_name || user.email || '');
-  setRole(profile.role || '');
+      setDisplayName(profile.display_name || user.email || '');
+      setRole(profile.role || '');
 
-  const { data: logData } = await supabase
-    .from('xp_log')
-    .select('change')
-    .eq('user_id', user.id);
+      // Hent hele xp_log for at beregne total XP
+      const { data: logData } = await supabase
+        .from('xp_log')
+        .select('change')
+        .eq('user_id', user.id);
 
-  const { data: rewardData } = await supabase
-    .from('rewards')
-    .select('*')
-    .eq('redeemed', false)
-    .eq('user_id', user.id);
+      // Hent uindløste gaver for denne bruger
+      const { data: rewardData } = await supabase
+        .from('rewards')
+        .select('*')
+        .eq('redeemed', false)
+        .eq('user_id', user.id);
 
-  const { data: otherProfile } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('role', profile.role === 'mads' ? 'stine' : 'mads')
-    .maybeSingle();
+      // Hent partnerens profil-id (hvis vi har brug for at vise fælles fantasier)
+      const { data: otherProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', profile.role === 'mads' ? 'stine' : 'mads')
+        .maybeSingle();
 
-  const { data: fantasies } = await supabase
-    .from('fantasies')
-    .select('effort, status, xp_granted')
-    .in('status', ['idea', 'planned'])
-    .in('user_id', [user.id, otherProfile?.id]);
+      // Hent alle fantasier med status 'idea' eller 'planned' for både bruger og partner
+      const { data: fantasies } = await supabase
+        .from('fantasies')
+        .select('effort, status, xp_granted, user_id')
+        .in('status', ['idea', 'planned'])
+        .in('user_id', [user.id, otherProfile?.id]);
 
-  const { data: pendingCheckins } = await supabase
-    .from('checkin')
-    .select('id')
-    .eq('status', 'pending')
-    .eq('evaluator_id', profile.id);
+      // Hent alle check-ins, hvor denne bruger skal evaluere
+      const { data: pendingCheckins } = await supabase
+        .from('checkin')
+        .select('id')
+        .eq('status', 'pending')
+        .eq('evaluator_id', profile.id);
 
-  const { data: xpSettings } = await supabase
-    .from('xp_settings')
-    .select('action, effort, xp')
-    .eq('role', profile.role)
-    .in('action', ['plan_fantasy', 'complete_fantasy', 'evaluate_partial']);
+      // Hent XP-indstillinger for alle relevante actions
+      const { data: xpSettings } = await supabase
+        .from('xp_settings')
+        .select('action, effort, xp')
+        .eq('role', profile.role)
+        .in('action', ['add_fantasy', 'plan_fantasy', 'complete_fantasy', 'evaluate_partial']);
 
-  const xpMap: Record<string, number> = {};
-  xpSettings?.forEach((s) => {
-    const key = `${s.action}_${s.effort?.toLowerCase() || ''}`;
-    xpMap[key] = s.xp;
-  });
+      // Byg en map af form 'action_effort' => xp
+      const xpMap: Record<string, number> = {};
+      xpSettings?.forEach((s) => {
+        const key = `${s.action}_${s.effort?.toLowerCase() || ''}`;
+        xpMap[key] = s.xp;
+      });
 
-  let fantasyXp = 0;
-  if (profile.role === 'stine') {
-    fantasyXp = fantasies?.reduce((sum, f) => {
-      const effort = f.effort?.toLowerCase();
-      let xp = 0;
+      // Beregn fantasyXp: 
+      // - Hvis status === 'idea' → brug add_fantasy_<effort>
+      // - Hvis status === 'planned' && xp_granted !== true → brug complete_fantasy_<effort>
+      let fantasyXp = 0;
+      if (profile.role === 'stine') {
+        fantasyXp = fantasies?.reduce((sum, f) => {
+          const effort = f.effort?.toLowerCase();
+          let xp = 0;
 
-      if (effort) {
-        // ✅ Giv point for planlægning allerede i 'idea'
-        if (f.status === 'idea' || f.status === 'planned') {
-          xp += xpMap[`plan_fantasy_${effort}`] || 0;
-        }
+          if (effort) {
+            if (f.status === 'idea') {
+              xp += xpMap[`add_fantasy_${effort}`] || 0;
+            }
+            if (f.status === 'planned' && f.xp_granted !== true) {
+              xp += xpMap[`complete_fantasy_${effort}`] || 0;
+            }
+          }
 
-        // ✅ Giv point for fuldførelse KUN hvis den er 'planned' og ikke tidligere givet
-        if (f.status === 'planned' && f.xp_granted !== true) {
-          xp += xpMap[`complete_fantasy_${effort}`] || 0;
-        }
+          return sum + xp;
+        }, 0) || 0;
       }
 
-      return sum + xp;
-    }, 0) || 0;
-  }
+      // Beregn checkinXp: antal pending * evaluate_partial_
+      const checkinXp =
+        (pendingCheckins?.length || 0) * (xpMap['evaluate_partial_'] || 0);
 
-  const checkinXp =
-    (pendingCheckins?.length || 0) * (xpMap['evaluate_partial_'] || 0);
-
-  setXpLog(logData || []);
-  setRewards(rewardData || []);
-  setFantasyCount(fantasies?.length || 0);
-  setPotentialXp(fantasyXp + checkinXp);
-};
-
-
+      setXpLog(logData || []);
+      setRewards(rewardData || []);
+      setFantasyCount(fantasies?.length || 0);
+      setPotentialXp(fantasyXp + checkinXp);
+    };
 
     fetchData();
   }, []);
 
+  // Summér alle changes i xp_log til totalXp
   const totalXp = xpLog.reduce((sum, e) => sum + e.change, 0);
 
+  // Find næste gave, som tildelt til denne rolle, som ikke er indløst endnu
   const nextReward = rewards
     .filter((r) => r.assigned_to === role && !r.redeemed)
     .sort((a, b) => a.required_xp - b.required_xp)[0];
@@ -123,9 +135,12 @@ const fetchData = async () => {
   const canRedeem = nextReward && totalXp >= nextReward.required_xp;
 
   const handleRedeem = async () => {
-    const user = (await supabase.auth.getUser()).data.user;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user || !nextReward) return;
 
+    // Indsæt en negativ XP post i xp_log
     const { error: xpError } = await supabase.from('xp_log').insert({
       user_id: user.id,
       change: -nextReward.required_xp,
@@ -133,6 +148,7 @@ const fetchData = async () => {
       role,
     });
 
+    // Opdater reward til redeemed
     const { error: redeemError } = await supabase
       .from('rewards')
       .update({ redeemed: true, redeemed_at: new Date().toISOString() })
@@ -151,7 +167,9 @@ const fetchData = async () => {
       {!displayName ? (
         <div className="text-center mt-20 text-gray-500">
           <p className="text-xl font-semibold">Velkommen til dashboardet</p>
-          <p className="mt-2 mb-6">Log ind for at se dit indhold og følge din udvikling.</p>
+          <p className="mt-2 mb-6">
+            Log ind for at se dit indhold og følge din udvikling.
+          </p>
           <a
             href="/login"
             className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
@@ -208,7 +226,9 @@ const fetchData = async () => {
                     </button>
                   </>
                 ) : (
-                  <p className="text-sm text-gray-600 italic">Ingen uindløste gaver</p>
+                  <p className="text-sm text-gray-600 italic">
+                    Ingen uindløste gaver
+                  </p>
                 )}
               </CardContent>
             </Card>
@@ -217,7 +237,8 @@ const fetchData = async () => {
               <CardContent className="p-6 space-y-2 text-center">
                 <h2 className="text-xl font-bold">💡 Opgaver klar</h2>
                 <p className="text-sm text-gray-600">
-                  {fantasyCount} opgave{fantasyCount !== 1 && 'r'} klar til opfyldelse
+                  {fantasyCount} opgave{fantasyCount !== 1 && 'r'} klar til
+                  opfyldelse
                 </p>
                 <p className="text-sm text-gray-800 font-semibold">
                   🎯 Potentielle point: {potentialXp} XP

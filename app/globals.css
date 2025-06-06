@@ -1,3 +1,5 @@
+/* globals.css */
+
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -42,6 +44,7 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 }
+
 input, textarea, select {
   background-color: white;
   color: black;
@@ -49,71 +52,96 @@ input, textarea, select {
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: #ffffff;
+  --foreground: #252525;
+  --card: #ffffff;
+  --card-foreground: #252525;
+  --popover: #ffffff;
+  --popover-foreground: #252525;
+  --primary: #4F46E5;
+  --primary-foreground: #ffffff;
+  --secondary: #6366F1;
+  --secondary-foreground: #ffffff;
+  --muted: #f7f7f7;
+  --muted-foreground: #8b8b8b;
+  --accent: #6366F1;
+  --accent-foreground: #ffffff;
+  --destructive: #dc2626;
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+  --ring: #a5b4fc;
+  --chart-1: #b5b5f1;
+  --chart-2: #9ca3ff;
+  --chart-3: #7c3aed;
+  --chart-4: #c7d2fe;
+  --chart-5: #a78bfa;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #252525;
+  --sidebar-primary: #4F46E5;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #6366F1;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #e5e7eb;
+  --sidebar-ring: #a5b4fc;
+  --overlay-bg: rgba(0, 0, 0, 0.6);
+  --modal-bg: var(--card);                /* baggrund for modalen */
+  --text-default: var(--foreground);      /* hovedtekst i modal */
+  --text-muted: var(--muted-foreground);  /* fx krydsknap og sekundær tekst */
+  --text-secondary: var(--muted-foreground);
+
+  --border-color: var(--border);          /* rammefarve på input/select */
+
+  --btn-primary-bg: var(--primary);       /* fx “Tilføj” og “Gem” knap */
+  --btn-primary-hover: var(--secondary);  /* hover‐state for primær knap */
+
+  --btn-secondary-text: var(--muted-foreground); /* fx “Annuller” tekst */
+  --btn-secondary-hover: var(--foreground);
+
+  --btn-danger-text: var(--destructive);       /* fx “Slet” knap */
+  --btn-danger-hover: /* vælg en lidt mørkere variant af --destructive */;
+
+  --badge-bg-info: var(--accent);          /* badge‐baggrund f.eks. kategori */
+  --badge-text-info: var(--accent-foreground);
+
+  --badge-bg-warning: /* tilføj en gul/grå farve, hvis I vil skelne effort */
+  --badge-text-warning: /* tilsvarende tekstfarve for warning-badge */;
+
+  --badge-bg-muted: var(--muted);          /* fx “Opfyldt: dato” */
+  --badge-text-muted: var(--muted-foreground);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #252525;
+  --foreground: #ffffff;
+  --card: #4f46e5;
+  --card-foreground: #ffffff;
+  --popover: #4f46e5;
+  --popover-foreground: #ffffff;
+  --primary: #dbeafe;
+  --primary-foreground: #252525;
+  --secondary: #4b5563;
+  --secondary-foreground: #ffffff;
+  --muted: #4b5563;
+  --muted-foreground: #a5b4fc;
+  --accent: #4b5563;
+  --accent-foreground: #ffffff;
+  --destructive: #b91c1c;
+  --border: rgba(255,255,255,0.1);
+  --input: rgba(255,255,255,0.15);
+  --ring: #71717a;
+  --chart-1: #3b82f6;
+  --chart-2: #5b21b6;
+  --chart-3: #a78bfa;
+  --chart-4: #3730a3;
+  --chart-5: #8b5cf6;
+  --sidebar: #4f46e5;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #4b5563;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255,255,255,0.1);
+  --sidebar-ring: #71717a;
 }
 
 @layer base {
@@ -121,9 +149,15 @@ input, textarea, select {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-white text-black w-full;
-    padding: 0;
-    margin: 0;
+    @apply bg-background text-foreground;
   }
 }
 
+@layer components {
+  
+  .btn-primary {
+    @apply bg-primary text-primary-foreground px-4 py-2 rounded-xl font-medium hover:bg-primary/90;
+  }
+
+  /* Her kan flere knap- eller UI-klasser defineres */
+}

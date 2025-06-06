@@ -1,19 +1,18 @@
-// src/components/ui/badge.tsx
 import { cn } from '@/lib/utils';
 import { HTMLAttributes } from 'react';
 
-interface BadgeProps extends HTMLAttributes<HTMLDivElement> {
+interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   variant?: 'default' | 'outline';
 }
 
 export function Badge({ className, variant = 'default', ...props }: BadgeProps) {
-  const baseClasses = 'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors';
+  const baseClasses = 'inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors';
   const variantClasses =
     variant === 'outline'
       ? 'border border-current bg-transparent'
-      : 'bg-gray-100 text-gray-800';
+      : 'bg-muted text-muted-foreground';
 
   return (
-    <div className={cn(baseClasses, variantClasses, className)} {...props} />
+    <span className={cn(baseClasses, variantClasses, className)} {...props} />
   );
 }
