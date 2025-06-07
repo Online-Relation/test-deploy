@@ -4,52 +4,90 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
-const UserContext = createContext<any>(null);
+type AccessMap = Record<string, boolean>;
+
+interface UserProfile {
+  id: string;
+  email: string | null;
+  role: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  access: AccessMap;
+}
+
+interface UserContextValue {
+  user: UserProfile | null;
+  loading: boolean;
+}
+
+const UserContext = createContext<UserContextValue>({ user: null, loading: true });
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUser = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      setLoading(true);
 
-      const authUser = session?.user;
-
-      if (authUser) {
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authUser.id)
-          .single();
-
-        if (error) {
-          console.error('Fejl ved hentning af profil:', error.message);
-        } else {
-          const { data: accessData, error: accessError } = await supabase
-            .from('access_control')
-            .select('menu_key, allowed')
-            .eq('user_id', authUser.id);
-
-          const accessMap: Record<string, boolean> = {};
-          accessData?.forEach((row) => {
-            accessMap[row.menu_key] = row.allowed;
-          });
-
-          setUser({
-            id: authUser.id,
-            email: authUser.email,
-            role: profile.role,
-            display_name: profile.display_name,
-            avatar_url: profile.avatar_url,
-            access: accessMap, // ← her er adgangen
-          });
-        }
-      } else {
-        setUser(null);
+      // 1) Hent session‐responsen
+      const sessionResult = await supabase.auth.getSession();
+      if (sessionResult.error) {
+        console.error('Fejl ved hentning af session:', sessionResult.error.message);
       }
+      const session = sessionResult.data.session;
+      if (!session || !session.user) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      const authUser = session.user;
+
+      // 2) Hent profil‐data
+      const profileResult = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url, role')
+        .eq('id', authUser.id)
+        .single();
+
+      if (profileResult.error || !profileResult.data) {
+        console.error('Fejl ved hentning af profil:', profileResult.error?.message);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      const profileData = profileResult.data;
+
+      // 3) Hent adgangskontrol‐data
+      const accessResult = await supabase
+        .from('access_control')
+        .select('menu_key, allowed')
+        .eq('user_id', authUser.id);
+
+      if (accessResult.error) {
+        console.error('Fejl ved hentning af access_control:', accessResult.error.message);
+      }
+      const accessRows = accessResult.data || [];
+
+      // 4) Byg accessMap
+      const accessMap: AccessMap = {};
+      accessRows.forEach((row) => {
+        if (row.menu_key) {
+          accessMap[row.menu_key] = row.allowed === true;
+        }
+      });
+
+      // 5) Sæt user‐state, konverter undefined → null
+      setUser({
+        id: authUser.id,
+        email: authUser.email ?? null,
+        role: profileData.role ?? null,
+        display_name: profileData.display_name ?? null,
+        avatar_url: profileData.avatar_url ?? null,
+        access: accessMap,
+      });
 
       setLoading(false);
     };
@@ -59,17 +97,12 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: listener } = supabase.auth.onAuthStateChange(() => {
       fetchUser();
     });
-
     return () => {
       listener.subscription.unsubscribe();
     };
   }, []);
 
-  return (
-    <UserContext.Provider value={{ user, loading }}>
-      {children}
-    </UserContext.Provider>
-  );
+  return <UserContext.Provider value={{ user, loading }}>{children}</UserContext.Provider>;
 };
 
 export const useUserContext = () => useContext(UserContext);

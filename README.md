@@ -685,3 +685,42 @@ Funktionelle drag & drop kort i FantasyBoard med lokal styling.
 Modal til oprettelse og redigering fungerer som tidligere, uden globale stylingkonflikter.
 
 Brug af Tailwind CSS variabler til farver og tekst i globale styles.
+
+#### Opdateret: 7. juni 2025 ####
+
+
+Oprettet mapper for Check-in undersider i app/checkin:
+
+app/checkin/oversigt
+
+app/checkin/mine-behov
+
+app/checkin/historik
+
+app/checkin/evaluering
+
+Tilføjet tilhørende sider page.tsx i hver mappe
+
+Opdateret adgangskontrol for de nye undersider i UserContext.tsx og Sidebar.tsx
+
+Opdateret: 6. juni 2025
+
+Added access control integration in UserContext and Sidebar, ensuring per-user menu visibility.
+
+Refactored Sidebar.tsx to use hierarchical accessHierarchy for main and submenus.
+
+Updated UserContext.tsx to reliably fetch profiles and access_control, converting undefined fields to null.
+
+Documented changes under relevant sections for clarity.
+
+Oversigt
+
+Dette projekt er et personligt dashboard til administration af diverse aktiviteter, blandt andet:
+
+Fantasymodulet (Parforhold)
+
+Check-in (ugentlige behov)
+
+To-Do-liste, Date Ideas, Manifestation, Karriere, Bucketlist
+
+Indstillings­sider til XP‑opsætning, Rewards, Kategorier og Adgangskontroller

@@ -2,54 +2,69 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { useXp } from '@/context/XpContext';
 import { useHasMounted } from '@/hooks/useHasMounted';
 import { useUserContext } from '@/context/UserContext';
 import { supabase } from '@/lib/supabaseClient';
-import { LayoutDashboard, HeartHandshake } from "lucide-react";
 
+import { Settings, ChevronDown, ChevronRight, Menu, X } from 'lucide-react';
 
-import {
-  Heart,
-  Sparkles,
-  Settings,
-  ListTodo,
-  Briefcase,
-  Backpack,
-  Brain,
-  ChevronDown,
-  ChevronRight,
-  Menu,
-  X,
-} from 'lucide-react';
+interface AccessEntry {
+  key: string;
+  label: string;
+  href: string;
+  children: AccessEntry[];
+}
 
-const allNavItems = [
-  { key: 'dashboard', href: '/', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },   
-  { key: 'todo', href: '/todo', label: 'To-Do List', icon: <ListTodo size={20} /> },
-  { key: 'dates', href: '/dates', label: 'Date Ideas', icon: <Heart size={20} /> },
-  { key: 'fantasy', href: '/fantasy', label: 'Parforhold', icon: <Sparkles size={20} /> },
-  { key: 'checkin', href: '/checkin', label: 'Check-in', icon: <HeartHandshake size={20} /> },
-  { key: 'manifestation', href: '/manifestation', label: 'Manifestation', icon: <Brain size={20} /> },
-  { key: 'career', href: '/career', label: 'Karriere', icon: <Briefcase size={20} /> },
-  { key: 'bucketlist', href: '/bucketlist', label: 'Bucketlist', icon: <Backpack size={20} /> },
-  { key: 'profile', href: '/profile', label: 'Profil', icon: <Settings size={20} /> },
+const accessHierarchy: AccessEntry[] = [
+  { key: 'dashboard', label: 'Dashboard', href: '/', children: [] },
+  { key: 'todo', label: 'To-Do List', href: '/todo', children: [] },
+  { key: 'dates', label: 'Date Ideas', href: '/dates', children: [] },
+  { key: 'fantasy', label: 'Fantasier', href: '/fantasy', children: [] },
+  {
+    key: 'checkin',
+    label: 'Check-in',
+    href: '/checkin',
+    children: [
+      { key: 'checkin/oversigt', label: 'Oversigt', href: '/checkin/oversigt', children: [] },
+      { key: 'checkin/mine-behov', label: 'Mine behov', href: '/checkin/mine-behov', children: [] },
+      { key: 'checkin/historik', label: 'Historik', href: '/checkin/historik', children: [] },
+      { key: 'checkin/evaluering', label: 'Evaluering', href: '/checkin/evaluering', children: [] },
+    ],
+  },
+  { key: 'manifestation', label: 'Manifestation', href: '/manifestation', children: [] },
+  { key: 'career', label: 'Karriere', href: '/career', children: [] },
+  { key: 'bucketlist', label: 'Bucketlist', href: '/bucketlist', children: [] },
+  { key: 'profile', label: 'Profil', href: '/profile', children: [] },
+  {
+    key: 'settings',
+    label: 'Indstillinger',
+    href: '/settings',
+    children: [
+      { key: 'settings/points', label: 'Points', href: '/settings/points', children: [] },
+      { key: 'settings/rewards', label: 'Rewards', href: '/settings/rewards', children: [] },
+      { key: 'settings/categories', label: 'Categories', href: '/settings/categories', children: [] },
+      { key: 'settings/access', label: 'Profiladgange', href: '/settings/access', children: [] },
+    ],
+  },
 ];
 
 export default function Sidebar() {
   const hasMounted = useHasMounted();
   const { user, loading } = useUserContext();
   const pathname = usePathname();
+  const router = useRouter();
   const { xp } = useXp();
-  const [settingsOpen, setSettingsOpen] = useState(pathname.startsWith('/settings'));
-  const [allowedMenuKeys, setAllowedMenuKeys] = useState<string[]>([]);
+
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [checkinOpen, setCheckinOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   const isAdmin = user?.email === 'mads@onlinerelation.dk';
-
-
+  const userAccess: Record<string, boolean> = user?.access || {};
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -57,70 +72,99 @@ export default function Sidebar() {
         setMobileOpen(false);
       }
     };
-
     if (mobileOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
-
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [mobileOpen]);
 
-if (!hasMounted || loading || !user || user.access == null) return null;
+  useEffect(() => {
+    setCheckinOpen(pathname.startsWith('/checkin'));
+    setSettingsOpen(pathname.startsWith('/settings'));
+  }, [pathname]);
 
+  if (!hasMounted || loading || !user) {
+    return null;
+  }
 
- const navItems = allNavItems.filter((item) =>
-  isAdmin || user.access?.[item.key] === true
-);
+  const hasAccessTo = (key: string) => {
+    if (isAdmin) return true;
+    return !!userAccess[key];
+  };
 
-  const navContent = (
-    <>
-      {navItems.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          onClick={() => setMobileOpen(false)}
-          className={`flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition ${
-            pathname === item.href ? 'bg-gray-700 font-semibold' : ''
-          }`}
-        >
-          {item.icon}
-          {item.label}
-        </Link>
-      ))}
+  const navContent = accessHierarchy.map((entry) => {
+    if (!hasAccessTo(entry.key)) return null;
+    const anyChildVisible = entry.children.some((child) => hasAccessTo(child.key));
 
-      {isAdmin && (
-        <div>
+    if (entry.children.length > 0) {
+      return (
+        <div key={entry.key}>
           <button
-            onClick={() => setSettingsOpen(!settingsOpen)}
-            className={`w-full flex items-center justify-between gap-2 px-4 py-2 rounded hover:bg-gray-800 transition ${
-              pathname.startsWith('/settings') ? 'bg-gray-700 font-semibold' : ''
+            onClick={() => {
+              if (entry.key === 'checkin') {
+                setCheckinOpen((open) => !open);
+              } else {
+                setSettingsOpen((open) => !open);
+              }
+            }}
+            className={`w-full flex items-center justify-between px-4 py-2 rounded hover:bg-gray-800 transition ${
+              pathname.startsWith(entry.href) ? 'bg-gray-700 font-semibold' : ''
             }`}
           >
-            <span className="flex items-center gap-2">
-              <Settings size={20} />
-              Indstillinger
-            </span>
-            {settingsOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            <span className="flex items-center gap-2">{entry.label}</span>
+            {entry.key === 'checkin' ? (
+              checkinOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />
+            ) : settingsOpen ? (
+              <ChevronDown size={16} />
+            ) : (
+              <ChevronRight size={16} />
+            )}
           </button>
 
-          {settingsOpen && (
+          {(entry.key === 'checkin' ? checkinOpen : settingsOpen) && anyChildVisible && (
             <div className="ml-6 mt-1 space-y-1">
-              <Link href="/settings/points" className={subLinkClass(pathname, '/settings/points')}>Points</Link>
-              <Link href="/settings/rewards" className={subLinkClass(pathname, '/settings/rewards')}>Rewards</Link>
-              <Link href="/settings/categories" className={subLinkClass(pathname, '/settings/categories')}>Categories</Link>
-              <Link href="/settings/access" className={subLinkClass(pathname, '/settings/access')}>Profiladgange</Link>
+              {entry.children.map((child) => {
+                if (!hasAccessTo(child.key)) return null;
+                return (
+                  <button
+                    key={child.key}
+                    onClick={() => {
+                      router.push(child.href);
+                      setMobileOpen(false);
+                    }}
+                    className={`block w-full text-left px-3 py-1 rounded hover:bg-gray-800 transition ${
+                      pathname === child.href ? 'bg-gray-700 font-semibold' : ''
+                    }`}
+                  >
+                    {child.label}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
-      )}
-    </>
-  );
+      );
+    }
+
+    return (
+      <Link
+        key={entry.key}
+        href={entry.href}
+        onClick={() => setMobileOpen(false)}
+        className={`flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition ${
+          pathname === entry.href ? 'bg-gray-700 font-semibold' : ''
+        }`}
+      >
+        {entry.label}
+      </Link>
+    );
+  });
 
   const profileLink = (
     <Link href="/profile" className="flex flex-col items-center gap-2 cursor-pointer">
-      {user?.avatar_url ? (
+      {user.avatar_url ? (
         <img
           src={user.avatar_url}
           alt="Profilbillede"
@@ -128,10 +172,10 @@ if (!hasMounted || loading || !user || user.access == null) return null;
         />
       ) : (
         <div className="w-14 h-14 rounded-full bg-gray-700 flex items-center justify-center text-white text-xl font-semibold">
-          {user?.display_name?.[0] ?? '👤'}
+          {user.display_name?.charAt(0) ?? '👤'}
         </div>
       )}
-      <div className="text-sm font-medium text-white">{user?.display_name ?? 'Bruger'}</div>
+      <div className="text-sm font-medium text-white">{user.display_name}</div>
     </Link>
   );
 
@@ -139,7 +183,10 @@ if (!hasMounted || loading || !user || user.access == null) return null;
     <div className="mb-6 flex flex-col items-center gap-2 px-4">
       {profileLink}
       <button
-        onClick={async () => await supabase.auth.signOut()}
+        onClick={async () => {
+          await supabase.auth.signOut();
+          router.push('/login');
+        }}
         className="text-xs text-gray-300 hover:text-white"
       >
         Log ud
@@ -152,39 +199,30 @@ if (!hasMounted || loading || !user || user.access == null) return null;
 
   return (
     <>
-      {/* Mobil topbar */}
       <div className="md:hidden flex items-center justify-between bg-gray-900 text-white px-4 py-3 fixed top-0 left-0 right-0 z-50">
-        <button onClick={() => setMobileOpen(!mobileOpen)}>
-          {mobileOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
-        <span className="text-lg font-bold">✨ Mit Dashboard</span>
+        <button onClick={() => setMobileOpen((prev) => !prev)}>
+          {mobileOpen ? <X size={24} /> : <Menu size={24} />
+        }</button>
+        <Link href="/" className="text-lg font-bold">✨ Mit Dashboard</Link>
       </div>
 
-      {/* Mobilmenu */}
       {mobileOpen && (
         <div
           ref={menuRef}
-          className="md:hidden fixed top-[56px] left-0 right-0 bottom-0 bg-gray-900 text-white z-40 overflow-y-auto p-4 space-y-2"
+          className="md:hidden fixed top-[56px] left=0 right-0 bottom-0 bg-gray-900 text-white z-40 overflow-y-auto p-4 space-y-2"
         >
           {navContent}
           {bottomSection}
         </div>
       )}
 
-      {/* Desktop sidebar */}
       <div className="hidden md:flex h-screen w-64 bg-gray-900 text-white shadow-lg flex-col justify-between">
         <div>
-          <div className="p-6 font-bold text-xl">✨ Mit Dashboard</div>
+          <Link href="/" className="p-6 font-bold text-xl">✨ Mit Dashboard</Link>
           <nav className="flex flex-col space-y-1 px-4">{navContent}</nav>
         </div>
         {bottomSection}
       </div>
     </>
   );
-}
-
-function subLinkClass(pathname: string, target: string) {
-  return `block px-3 py-1 rounded hover:bg-gray-800 transition ${
-    pathname === target ? 'bg-gray-700 font-semibold' : ''
-  }`;
 }
