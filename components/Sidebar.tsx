@@ -163,7 +163,7 @@ export default function Sidebar() {
   });
 
   const profileLink = (
-    <Link href="/profile" className="flex flex-col items-center gap-2 cursor-pointer">
+    <Link href="/profile" className="flex flex-col items-center gap-2 cursor-pointer mt-6">
       {user.avatar_url ? (
         <img
           src={user.avatar_url}
@@ -199,7 +199,7 @@ export default function Sidebar() {
 
   return (
     <>
-      <div className="md:hidden flex items-center justify-between bg-gray-900 text-white px-4 py-3 fixed top-0 left-0 right-0 z-50">
+      <div className="md:hidden flex items-center justify-between bg-gray-900 text-white px-4 py-3 pt-6 fixed top-0 left-0 right-0 z-50">
         <button onClick={() => setMobileOpen((prev) => !prev)}>
           {mobileOpen ? <X size={24} /> : <Menu size={24} />
         }</button>
@@ -209,17 +209,17 @@ export default function Sidebar() {
       {mobileOpen && (
         <div
           ref={menuRef}
-          className="md:hidden fixed top-[56px] left=0 right-0 bottom-0 bg-gray-900 text-white z-40 overflow-y-auto p-4 space-y-2"
+          className="md:hidden fixed top-[64px] left-0 right-0 bottom-0 bg-gray-900 text-white z-40 overflow-y-auto p-4 space-y-2"
         >
           {navContent}
           {bottomSection}
         </div>
       )}
 
-      <div className="hidden md:flex h-screen w-64 bg-gray-900 text-white shadow-lg flex-col justify-between">
+      <div className="hidden md:flex h-screen w-64 bg-gray-900 text-white shadow-lg flex-col justify-between pt-6">
         <div>
-          <Link href="/" className="p-6 font-bold text-xl">✨ Mit Dashboard</Link>
-          <nav className="flex flex-col space-y-1 px-4">{navContent}</nav>
+          <Link href="/" className="p-6 pt-8 font-bold text-xl">✨ Mit Dashboard</Link>
+          <nav className="flex flex-col space-y-1 px-4 mt-4">{navContent}</nav>
         </div>
         {bottomSection}
       </div>

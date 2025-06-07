@@ -1,3 +1,4 @@
+// app/layout.tsx
 'use client';
 
 import './globals.css';
@@ -20,6 +21,31 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="da" className={poppins.className} suppressHydrationWarning>
+      <head>
+        <title>Mit Dashboard</title>
+        <meta name="description" content="Gamificeret dashboard for par" />
+        {/* iPhone genvej-ikon */}
+        <link
+          rel="apple-touch-icon"
+          sizes="180x180"
+          href="/apple-touch-icon.png"
+        />
+        {/* Favicon til browsere */}
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="32x32"
+          href="/favicon-32x32.png"
+        />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="16x16"
+          href="/favicon-16x16.png"
+        />
+        {/* Web manifest */}
+        <link rel="manifest" href="/site.webmanifest" />
+      </head>
       <body className="flex bg-background text-foreground">
         <UserProvider>
           <XpProvider>
