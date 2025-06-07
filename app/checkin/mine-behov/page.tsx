@@ -8,6 +8,7 @@ export default function MineBehovPage() {
   const [madsNeeds, setMadsNeeds] = useState(['', '', '']);
   const [stineNeeds, setStineNeeds] = useState(['', '', '']);
   const [currentUserRole, setCurrentUserRole] = useState<'mads' | 'stine' | null>(null);
+  const [saved, setSaved] = useState(false);
 
   // Faste UUID’er for Mads og Stine:
   const userIdMads = '190a3151-97bc-43be-9daf-1f3b3062f97f';
@@ -26,8 +27,18 @@ export default function MineBehovPage() {
     getSessionUser();
   }, []);
 
+  // ISO-week helper
+  const getWeekNumber = (d: Date) => {
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d as any) - (yearStart as any)) / 86400000 + 1) / 7);
+  };
+
   // Funktion til at gemme behov i databasen
   const handleSubmit = async (who: 'mads' | 'stine') => {
+    setSaved(false);
     const needs = who === 'mads' ? madsNeeds : stineNeeds;
     const ownerId = who === 'mads' ? userIdMads : userIdStine;
 
@@ -44,25 +55,14 @@ export default function MineBehovPage() {
           week_number: weekNumber,
           year,
           status: 'pending',
-          evaluator_id: ownerId, // ejeren evaluerer senere
+          evaluator_id: ownerId,
         })
       );
 
     if (insertPromises.length > 0) {
       await Promise.all(insertPromises);
-      if (who === 'mads') setMadsNeeds(['', '', '']);
-      else setStineNeeds(['', '', '']);
-      // Vi kan eventuelt vise en notifikation eller blot lade brugeren navigere tilbage
+      setSaved(true);
     }
-  };
-
-  // ISO-week helper
-  const getWeekNumber = (d: Date) => {
-    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    const dayNum = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    return Math.ceil((((d as any) - (yearStart as any)) / 86400000 + 1) / 7);
   };
 
   return (
@@ -84,6 +84,7 @@ export default function MineBehovPage() {
                   const arr = [...madsNeeds];
                   arr[idx] = e.target.value;
                   setMadsNeeds(arr);
+                  setSaved(false);
                 }}
                 placeholder={`Behov ${idx + 1}`}
                 className="w-full p-2 border rounded"
@@ -95,6 +96,11 @@ export default function MineBehovPage() {
             >
               Gem behov
             </button>
+            {saved && (
+              <p className="text-sm text-green-600 mt-2">
+                Dine behov er gemt!
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -114,6 +120,7 @@ export default function MineBehovPage() {
                   const arr = [...stineNeeds];
                   arr[idx] = e.target.value;
                   setStineNeeds(arr);
+                  setSaved(false);
                 }}
                 placeholder={`Behov ${idx + 1}`}
                 className="w-full p-2 border rounded"
@@ -125,6 +132,11 @@ export default function MineBehovPage() {
             >
               Gem behov
             </button>
+            {saved && (
+              <p className="text-sm text-green-600 mt-2">
+                Dine behov er gemt!
+              </p>
+            )}
           </div>
         </div>
       )}
