@@ -4,28 +4,24 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
-// Definer både hoved‐menupunkter og underpunkter som et hierarki
-// Hver key uden “/” er et hovedpunkt. Eventuelle keys med “/” hører under hovedpunktet.
-const accessHierarchy = [
-  {
-    key: 'dashboard',
-    label: 'Dashboard',
-    children: [],
-  },
-  {
-    key: 'todo',
-    label: 'To-Do List',
-    children: [],
-  },
-  {
-    key: 'dates',
-    label: 'Date Ideas',
-    children: [],
-  },
+interface AccessEntry {
+  key: string;
+  label: string;
+  children: { key: string; label: string }[];
+}
+
+// Opdateret hierarki: Parforhold som hovedpunkt med Fantasier, Date Ideas og Bucketlist som undermenuer
+const accessHierarchy: AccessEntry[] = [
+  { key: 'dashboard', label: 'Dashboard', children: [] },
+  { key: 'todo', label: 'To-Do List', children: [] },
   {
     key: 'fantasy',
-    label: 'Fantasier',
-    children: [],
+    label: 'Parforhold',
+    children: [
+      { key: 'fantasy/fantasier', label: 'Fantasier' },
+      { key: 'dates', label: 'Date Ideas' },
+      { key: 'bucketlist', label: 'Bucketlist' },
+    ],
   },
   {
     key: 'checkin',
@@ -37,26 +33,9 @@ const accessHierarchy = [
       { key: 'checkin/evaluering', label: 'Evaluering' },
     ],
   },
-  {
-    key: 'manifestation',
-    label: 'Manifestation',
-    children: [],
-  },
-  {
-    key: 'career',
-    label: 'Karriere',
-    children: [],
-  },
-  {
-    key: 'bucketlist',
-    label: 'Bucketlist',
-    children: [],
-  },
-  {
-    key: 'profile',
-    label: 'Profil',
-    children: [],
-  },
+  { key: 'manifestation', label: 'Manifestation', children: [] },
+  { key: 'career', label: 'Karriere', children: [] },
+  { key: 'profile', label: 'Profil', children: [] },
   {
     key: 'settings',
     label: 'Indstillinger',
@@ -82,19 +61,13 @@ export default function AccessPage() {
   // Hent alle profiler til dropdown
   useEffect(() => {
     const fetchUsers = async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, display_name');
-      if (error) {
-        console.error('Fejl ved hentning af profiler:', error.message);
-        return;
-      }
-      setUsers(data || []);
+      const { data, error } = await supabase.from('profiles').select('id, display_name');
+      if (!error && data) setUsers(data);
     };
     fetchUsers();
   }, []);
 
-  // Hent adgangsopsætning for den valgte bruger
+  // Hent adgangsopsætning
   useEffect(() => {
     const fetchAccess = async () => {
       if (!selectedUser) {
@@ -105,66 +78,49 @@ export default function AccessPage() {
         .from('access_control')
         .select('menu_key, allowed')
         .eq('user_id', selectedUser);
+      if (error) return;
 
-      if (error) {
-        console.error('Fejl ved hentning af adgangsindstillinger:', error.message);
-        return;
-      }
-
-      // Byg et map for alle keys (hoved og under), default = false
-      const accessMap: Record<string, boolean> = {};
+      const map: Record<string, boolean> = {};
       accessHierarchy.forEach((entry) => {
-        // Hovedpunkt
-        accessMap[entry.key] = !!data?.find((row) => row.menu_key === entry.key)?.allowed;
-        // Underpunkter (hvis nogen)
+        map[entry.key] = !!data?.find((r) => r.menu_key === entry.key)?.allowed;
         entry.children.forEach((child) => {
-          accessMap[child.key] = !!data?.find((row) => row.menu_key === child.key)?.allowed;
+          map[child.key] = !!data?.find((r) => r.menu_key === child.key)?.allowed;
         });
       });
-
-      setAccessList(accessMap);
+      setAccessList(map);
     };
-
     fetchAccess();
   }, [selectedUser]);
 
-  // Toggle én given key
   const toggleAccess = (key: string) => {
-    setAccessList((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+    setAccessList((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Gem alle adgangsregler
   const saveAccess = async () => {
     if (!selectedUser) return;
-
     try {
-      const updates = [];
-
-      // Upsert hovedpunkter
-      accessHierarchy.forEach((entry) => {
-        updates.push(
-          supabase.from('access_control').upsert({
+      // Gem hovedpunkter
+      for (const entry of accessHierarchy) {
+        const { error } = await supabase
+          .from('access_control')
+          .upsert({
             user_id: selectedUser,
             menu_key: entry.key,
             allowed: !!accessList[entry.key],
-          })
-        );
-        // Upsert underpunkter
-        entry.children.forEach((child) => {
-          updates.push(
-            supabase.from('access_control').upsert({
+          });
+        if (error) throw error;
+        // Gem underpunkter
+        for (const child of entry.children) {
+          const { error: childError } = await supabase
+            .from('access_control')
+            .upsert({
               user_id: selectedUser,
               menu_key: child.key,
               allowed: !!accessList[child.key],
-            })
-          );
-        });
-      });
-
-      await Promise.all(updates);
+            });
+          if (childError) throw childError;
+        }
+      }
       alert('Adgange opdateret ✅');
     } catch (error) {
       console.error('Fejl ved opdatering af adgangsindstillinger:', error);
@@ -176,7 +132,6 @@ export default function AccessPage() {
     <div className="max-w-xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-bold">🔐 Profiladgange</h1>
 
-      {/* Dropdown: vælg bruger */}
       <label className="block">
         <span className="text-sm font-medium text-gray-700">Vælg bruger</span>
         <select
@@ -197,7 +152,6 @@ export default function AccessPage() {
         <div className="space-y-4">
           {accessHierarchy.map((entry) => (
             <div key={entry.key} className="space-y-1">
-              {/* Hovedpunkt */}
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -207,8 +161,6 @@ export default function AccessPage() {
                 />
                 <span className="text-base font-medium">{entry.label}</span>
               </label>
-
-              {/* Underpunkter – indrykket */}
               {entry.children.length > 0 && (
                 <div className="ml-6 space-y-1">
                   {entry.children.map((child) => (

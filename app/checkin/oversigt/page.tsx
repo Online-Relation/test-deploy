@@ -5,18 +5,18 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 const OversigtPage = () => {
-  const [madsCheckins, setMadsCheckins] = useState<any[] | null>(null);
-  const [stineCheckins, setStineCheckins] = useState<any[] | null>(null);
+  const [madsCheckins, setMadsCheckins] = useState<any[]>([]);
+  const [stineCheckins, setStineCheckins] = useState<any[]>([]);
   const [currentWeek, setCurrentWeek] = useState<number>(0);
   const [currentYear, setCurrentYear] = useState<number>(0);
 
-  // Hent uge‐og årstallig
   useEffect(() => {
     const today = new Date();
     const weekNumber = getWeekNumber(today);
+    const year = today.getFullYear();
     setCurrentWeek(weekNumber);
-    setCurrentYear(today.getFullYear());
-    fetchOverview(weekNumber, today.getFullYear());
+    setCurrentYear(year);
+    fetchOverview(weekNumber, year);
   }, []);
 
   const getWeekNumber = (d: Date) => {
@@ -28,7 +28,6 @@ const OversigtPage = () => {
   };
 
   const fetchOverview = async (weekNumber: number, year: number) => {
-    // Hent alle checkins for Mads og Stine i den aktuelle uge
     const userIdMads = "190a3151-97bc-43be-9daf-1f3b3062f97f";
     const userIdStine = "5687c342-1a13-441c-86ca-f7e87e1edbd5";
 
@@ -46,8 +45,16 @@ const OversigtPage = () => {
       .eq("year", year)
       .eq("user_id", userIdStine);
 
-    setMadsCheckins(madsData ?? []);
-    setStineCheckins(stineData ?? []);
+    // Filtrer kun pending og tag max 3
+    const madsPending = (madsData ?? [])
+      .filter((row) => row.status === "pending")
+      .slice(0, 3);
+    const stinePending = (stineData ?? [])
+      .filter((row) => row.status === "pending")
+      .slice(0, 3);
+
+    setMadsCheckins(madsPending);
+    setStineCheckins(stinePending);
   };
 
   return (
@@ -63,7 +70,7 @@ const OversigtPage = () => {
           {/* Mads' Check-ins */}
           <div className="bg-white rounded-lg shadow p-4">
             <h3 className="text-xl font-semibold mb-2">Mads' behov</h3>
-            {madsCheckins && madsCheckins.length > 0 ? (
+            {madsCheckins.length > 0 ? (
               <ul className="space-y-2">
                 {madsCheckins.map((item) => (
                   <li
@@ -72,20 +79,20 @@ const OversigtPage = () => {
                   >
                     <span>{item.need_text}</span>
                     <span className="text-sm text-gray-500">
-                      {item.status === "pending" ? "Afventer" : item.status.replace("evaluate_", "")}
+                      Afventer
                     </span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-gray-500">Ingen Mads‐checkins denne uge.</p>
+              <p className="text-gray-500">Ingen Mads‐checkins under behandling.</p>
             )}
           </div>
 
           {/* Stine's Check-ins */}
           <div className="bg-white rounded-lg shadow p-4">
             <h3 className="text-xl font-semibold mb-2">Stine's behov</h3>
-            {stineCheckins && stineCheckins.length > 0 ? (
+            {stineCheckins.length > 0 ? (
               <ul className="space-y-2">
                 {stineCheckins.map((item) => (
                   <li
@@ -94,13 +101,13 @@ const OversigtPage = () => {
                   >
                     <span>{item.need_text}</span>
                     <span className="text-sm text-gray-500">
-                      {item.status === "pending" ? "Afventer" : item.status.replace("evaluate_", "")}
+                      Afventer
                     </span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-gray-500">Ingen Stine‐checkins denne uge.</p>
+              <p className="text-gray-500">Ingen Stine‐checkins under behandling.</p>
             )}
           </div>
         </div>
