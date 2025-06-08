@@ -37,6 +37,7 @@ interface AccessEntry {
 const accessHierarchy: AccessEntry[] = [
   { key: 'dashboard', label: 'Dashboard', href: '/', children: [] },
   { key: 'todo', label: 'To-Do List', href: '/todo', children: [] },
+  
   {
     key: 'fantasy',
     label: 'Parforhold',
@@ -44,7 +45,7 @@ const accessHierarchy: AccessEntry[] = [
     children: [
       { key: 'fantasy/fantasier', label: 'Fantasier', href: '/fantasy', children: [] },
       { key: 'dates', label: 'Date Ideas', href: '/dates', children: [] },
-      { key: 'bucketlist', label: 'Bucketlist', href: '/bucketlist', children: [] },
+      {key: 'bucketlist-couple', label: 'Bucketlist', href: '/bucketlist-couple', children: [],},
     ],
   },
   {
@@ -80,7 +81,7 @@ const iconMap: Record<string, ReactNode> = {
   dates: <Heart size={20} />,
   fantasy: <Sparkles size={20} />,
   'fantasy/fantasier': <Sparkles size={20} />,
-  bucketlist: <Backpack size={20} />,
+'bucketlist-couple': <Backpack size={20} />,
   checkin: <HeartHandshake size={20} />,
   manifestation: <BrainCircuit size={20} />,
   career: <Briefcase size={20} />,
