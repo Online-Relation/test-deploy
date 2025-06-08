@@ -9,6 +9,7 @@ export interface Subgoal {
   title: string;
   done: boolean;
   dueDate?: string;
+  image_url?: string;
 }
 
 export interface Bucket {
@@ -23,11 +24,8 @@ interface BucketContextType {
   loading: boolean;
   addBucket: (title: string) => Promise<void>;
   addSubgoal: (bucketId: string, title: string) => Promise<void>;
-  toggleSubgoalDone: (
-    bucketId: string,
-    subgoalId: string,
-    done: boolean
-  ) => Promise<void>;
+  toggleSubgoalDone: (bucketId: string, subgoalId: string, done: boolean) => Promise<void>;
+  uploadSubgoalImage: (bucketId: string, subgoalId: string, file: File) => Promise<void>;
 }
 
 const BucketContext = createContext<BucketContextType | undefined>(undefined);
@@ -115,9 +113,59 @@ export const BucketProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   };
 
+  // Upload billede til et delmål
+  const uploadSubgoalImage = async (
+    bucketId: string,
+    subgoalId: string,
+    file: File
+  ) => {
+    // Upload til Supabase Storage
+    const filePath = `${bucketId}/${subgoalId}/${file.name}`;
+    const { error: uploadError } = await supabase
+      .storage
+      .from('bucketlist-couple')
+      .upload(filePath, file, { upsert: true });
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      return;
+    }
+
+    // Hent public URL
+    const { data: urlData } = supabase
+      .storage
+      .from('bucketlist-couple')
+      .getPublicUrl(filePath);
+    const publicUrl = urlData.publicUrl;
+
+    // Opdater delmåls-URL i buckets
+    const bucket = buckets.find(b => b.id === bucketId);
+    if (!bucket) return;
+    const updatedGoals = bucket.goals.map(s =>
+      s.id === subgoalId ? { ...s, image_url: publicUrl } : s
+    );
+    const { error } = await supabase
+      .from('bucketlist_couple')
+      .update({ goals: updatedGoals })
+      .eq('id', bucketId);
+    if (!error) {
+      setBuckets(prev =>
+        prev.map(b => (b.id === bucketId ? { ...b, goals: updatedGoals } : b))
+      );
+    } else {
+      console.error('Error saving image_url:', error);
+    }
+  };
+
   return (
     <BucketContext.Provider
-      value={{ buckets, loading, addBucket, addSubgoal, toggleSubgoalDone }}
+      value={{
+        buckets,
+        loading,
+        addBucket,
+        addSubgoal,
+        toggleSubgoalDone,
+        uploadSubgoalImage,
+      }}
     >
       {children}
     </BucketContext.Provider>

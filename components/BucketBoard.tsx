@@ -1,4 +1,3 @@
-// /components/BucketBoard.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -6,8 +5,14 @@ import { motion } from 'framer-motion';
 import { useBucket } from '@/context/BucketContext';
 
 export default function BucketBoard() {
-  // ✅ Alle hooks kaldes herinde i toppen af komponenten
-  const { buckets, loading, addBucket, addSubgoal, toggleSubgoalDone } = useBucket();
+  const {
+    buckets,
+    loading,
+    addBucket,
+    addSubgoal,
+    toggleSubgoalDone,
+    uploadSubgoalImage,      // hent den nye funktion
+  } = useBucket();
   const [newBucket, setNewBucket] = useState('');
   const [newTitles, setNewTitles] = useState<Record<string, string>>({});
   const [flipped, setFlipped] = useState<Record<string, boolean>>({});
@@ -47,28 +52,40 @@ export default function BucketBoard() {
           return (
             <motion.div
               key={bucket.id}
-              className="relative w-full h-64 perspective"
+              className="relative w-full h-80 perspective group"
               onClick={() =>
                 setFlipped(prev => ({ ...prev, [bucket.id]: !prev[bucket.id] }))
               }
-              whileHover={{ scale: 1.02 }}
+              whileHover={{ scale: 1.03 }}
             >
               {/* FRONT */}
               <motion.div
-                className="absolute inset-0 bg-white rounded-2xl shadow-lg p-4 backface-hidden flex flex-col justify-between"
+                className="absolute inset-0 bg-white rounded-2xl shadow-lg overflow-hidden backface-hidden flex flex-col"
                 animate={{ rotateY: isFlipped ? 180 : 0 }}
                 transition={{ duration: 0.6 }}
               >
-                <h3 className="text-lg font-bold">{bucket.title}</h3>
-                <div className="w-full bg-gray-200 h-2 rounded-full mb-2">
-                  <div
-                    className="h-2 rounded-full bg-purple-600"
-                    style={{ width: `${progress}%` }}
+                {/* Vis billede hvis det findes */}
+                {bucket.goals[0]?.image_url && (
+                  <img
+                    src={bucket.goals[0].image_url}
+                    alt=""
+                    className="w-full h-32 object-cover"
                   />
+                )}
+                <div className="p-4 flex-1 flex flex-col justify-between">
+                  <h3 className="text-xl font-bold">{bucket.title}</h3>
+                  <div>
+                    <div className="w-full bg-gray-200 h-2 rounded-full mb-2">
+                      <div
+                        className="h-2 rounded-full bg-purple-600"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      {doneCount} / {bucket.goals.length} gennemført
+                    </p>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-600">
-                  {doneCount} / {bucket.goals.length} gennemført
-                </p>
               </motion.div>
 
               {/* BACK */}
@@ -77,7 +94,7 @@ export default function BucketBoard() {
                 animate={{ rotateY: isFlipped ? 0 : -180 }}
                 transition={{ duration: 0.6 }}
               >
-                <h4 className="text-md font-semibold mb-2">Delmål</h4>
+                <h4 className="text-md font-semibold mb-2">Delmål & Billeder</h4>
                 <ul className="space-y-2 flex-1 overflow-auto mb-4">
                   {bucket.goals.map(sg => (
                     <li key={sg.id} className="flex items-center gap-2">
@@ -95,6 +112,23 @@ export default function BucketBoard() {
                     </li>
                   ))}
                 </ul>
+
+                {/* Upload billede til første delmål som demo */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-1">
+                    Tilføj billede til første delmål
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={async e => {
+                      const file = e.target.files?.[0];
+                      if (!file || bucket.goals.length === 0) return;
+                      await uploadSubgoalImage(bucket.id, bucket.goals[0].id, file);
+                    }}
+                    className="block w-full text-sm text-gray-500"
+                  />
+                </div>
 
                 {/* Tilføj nyt delmål */}
                 <div className="flex gap-2">
