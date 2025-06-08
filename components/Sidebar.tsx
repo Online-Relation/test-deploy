@@ -1,6 +1,5 @@
-// components/Sidebar.tsx
+// /components/Sidebar.tsx
 'use client';
-
 
 import React from 'react';
 import type { ReactNode } from 'react';
@@ -37,7 +36,6 @@ interface AccessEntry {
 const accessHierarchy: AccessEntry[] = [
   { key: 'dashboard', label: 'Dashboard', href: '/', children: [] },
   { key: 'todo', label: 'To-Do List', href: '/todo', children: [] },
-  
   {
     key: 'fantasy',
     label: 'Parforhold',
@@ -45,7 +43,7 @@ const accessHierarchy: AccessEntry[] = [
     children: [
       { key: 'fantasy/fantasier', label: 'Fantasier', href: '/fantasy', children: [] },
       { key: 'dates', label: 'Date Ideas', href: '/dates', children: [] },
-      {key: 'bucketlist-couple', label: 'Bucketlist', href: '/bucketlist-couple', children: [],},
+      { key: 'bucketlist-couple', label: 'Bucketlist', href: '/bucketlist-couple', children: [] },
     ],
   },
   {
@@ -81,7 +79,7 @@ const iconMap: Record<string, ReactNode> = {
   dates: <Heart size={20} />,
   fantasy: <Sparkles size={20} />,
   'fantasy/fantasier': <Sparkles size={20} />,
-'bucketlist-couple': <Backpack size={20} />,
+  'bucketlist-couple': <Backpack size={20} />,
   checkin: <HeartHandshake size={20} />,
   manifestation: <BrainCircuit size={20} />,
   career: <Briefcase size={20} />,
@@ -139,7 +137,7 @@ export default function Sidebar() {
               if (entry.key === 'fantasy') setFantasyOpen(o => !o);
               if (entry.key === 'checkin') setCheckinOpen(o => !o);
               if (entry.key === 'settings') setSettingsOpen(o => !o);
-              setMobileOpen(false);
+              // Menumen forbliver åben på mobil, når du åbner undermenuer
             }}
             className={`w-full flex items-center justify-between px-4 py-2 rounded hover:bg-gray-800 transition ${pathname.startsWith(entry.href) ? 'bg-gray-700 font-semibold' : ''}`}
           >
@@ -155,7 +153,7 @@ export default function Sidebar() {
                 <Link
                   key={child.key}
                   href={child.href}
-                  onClick={()=>setMobileOpen(false)}
+                  onClick={() => setMobileOpen(false)}
                   className={`flex items-center gap-2 px-3 py-1 rounded hover:bg-gray-800 transition ${pathname === child.href ? 'bg-gray-700 font-semibold' : ''}`}
                 >
                   {iconMap[child.key]}
@@ -172,8 +170,8 @@ export default function Sidebar() {
       <Link
         key={entry.key}
         href={entry.href}
-        onClick={()=>setMobileOpen(false)}
-        className={`flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition ${pathname===entry.href? 'bg-gray-700 font-semibold' : ''}`}
+        onClick={() => setMobileOpen(false)}
+        className={`flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition ${pathname === entry.href ? 'bg-gray-700 font-semibold' : ''}`}
       >
         {iconMap[entry.key]}
         {entry.label}
@@ -183,8 +181,13 @@ export default function Sidebar() {
 
   const profileLink = (
     <Link href="/profile" className="flex flex-col items-center gap-2 cursor-pointer mt-6">
-      {user.avatar_url ? <img src={user.avatar_url} className="w-14 h-14 rounded-full" alt="avatar"/> :
-        <div className="w-14 h-14 rounded-full bg-gray-700 text-white flex items-center justify-center font-semibold">{user.display_name?.[0]||'👤'}</div>}
+      {user.avatar_url ? (
+        <img src={user.avatar_url} className="w-14 h-14 rounded-full" alt="avatar" />
+      ) : (
+        <div className="w-14 h-14 rounded-full bg-gray-700 text-white flex items-center justify-center font-semibold">
+          {user.display_name?.[0] || '👤'}
+        </div>
+      )}
       <div className="text-sm font-medium text-white">{user.display_name}</div>
     </Link>
   );
@@ -193,23 +196,30 @@ export default function Sidebar() {
     <div className="mb-6 flex flex-col items-center gap-2 px-4">
       {profileLink}
       <button
-        onClick={async()=>{await supabase.auth.signOut(); router.push('/login')}}
+        onClick={async () => { await supabase.auth.signOut(); router.push('/login'); }}
         className="text-xs text-gray-300 hover:text-white"
       >
         Log ud
       </button>
-      <div className="text-center bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-semibold">🎯 XP: {xp}</div>
+      <div className="text-center bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
+        🎯 XP: {xp}
+      </div>
     </div>
   );
 
   return (
     <>
       <div className="md:hidden flex items-center justify-between bg-gray-900 text-white px-4 py-3 fixed top-0 left-0 right-0 z-50">
-        <button onClick={()=>setMobileOpen(prev=>!prev)}>{mobileOpen?<X size={24}/> : <Menu size={24}/>}</button>
+        <button onClick={() => setMobileOpen(prev => !prev)}>
+          {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
         <span className="text-lg font-bold">✨ Mit Dashboard</span>
       </div>
       {mobileOpen && (
-        <div ref={menuRef} className="md:hidden fixed inset-0 bg-gray-900 text-white overflow-y-auto p-4 space-y-2 z-40">
+        <div
+          ref={menuRef}
+          className="md:hidden fixed inset-0 bg-gray-900 text-white overflow-y-auto p-4 space-y-2 z-40"
+        >
           {navContent}
           {bottomSection}
         </div>
