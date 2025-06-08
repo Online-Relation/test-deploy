@@ -11,20 +11,18 @@ export default function BucketTimeline() {
   if (loading) return <p className="p-4 text-center">Indlæser…</p>;
 
   return (
-    <div className="relative overflow-x-auto px-2 sm:px-4 lg:px-6 py-4">
-      <div className="absolute left-4 top-0 bottom-0 border-l-2 border-gray-300"></div>
+    <div className="container mx-auto px-4 py-6">
+      {/* Horizontal scroll på alle devices */}
+      <div className="flex space-x-4 overflow-x-auto pb-4">
+        {buckets.map(bucket => {
+          const doneCount = bucket.goals.filter(s => s.done).length;
+          const progress = Math.round((doneCount / bucket.goals.length) * 100);
 
-      {buckets.map(bucket => {
-        const doneCount = bucket.goals.filter(s => s.done).length;
-        const progress = Math.round((doneCount / bucket.goals.length) * 100);
-
-        return (
-          <div
-            key={bucket.id}
-            className="mb-8 pl-8 pr-4 last:mb-0 min-w-[280px] sm:min-w-[320px] lg:min-w-[400px] relative inline-block align-top"
-          >
-            <div className="absolute left-0 top-1 w-3 h-3 bg-blue-600 rounded-full" />
-            <div className="bg-white p-4 rounded-lg shadow flex flex-col">
+          return (
+            <div
+              key={bucket.id}
+              className="flex-none w-64 sm:w-72 lg:w-80 bg-white rounded-lg shadow p-4"
+            >
               <div className="flex justify-between items-center mb-2">
                 <h3 className="text-lg font-semibold truncate">{bucket.title}</h3>
                 <span className="text-sm text-gray-500">
@@ -46,7 +44,7 @@ export default function BucketTimeline() {
                       onChange={e =>
                         toggleSubgoalDone(bucket.id, sg.id, e.target.checked)
                       }
-                      className="form-checkbox h-4 w-4 text-blue-600"
+                      className="h-4 w-4 text-blue-600"
                     />
                     <span className={sg.done ? 'line-through text-gray-400' : ''}>
                       {sg.title}
@@ -54,7 +52,7 @@ export default function BucketTimeline() {
                   </li>
                 ))}
               </ul>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   placeholder="Nyt delmål"
@@ -62,7 +60,7 @@ export default function BucketTimeline() {
                   onChange={e =>
                     setNewTitles(prev => ({ ...prev, [bucket.id]: e.target.value }))
                   }
-                  className="flex-1 border rounded px-2 py-1 focus:outline-none"
+                  className="flex-1 border rounded px-2 py-1"
                 />
                 <button
                   onClick={() => {
@@ -71,15 +69,15 @@ export default function BucketTimeline() {
                     addSubgoal(bucket.id, title);
                     setNewTitles(prev => ({ ...prev, [bucket.id]: '' }));
                   }}
-                  className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
+                  className="bg-blue-600 text-white px-3 py-1 rounded"
                 >
                   Tilføj
                 </button>
               </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
