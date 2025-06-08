@@ -1,3 +1,4 @@
+// /components/BucketBoard.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -11,24 +12,24 @@ export default function BucketBoard() {
     addBucket,
     addSubgoal,
     toggleSubgoalDone,
-    uploadSubgoalImage,      // hent den nye funktion
+    uploadSubgoalImage,
   } = useBucket();
   const [newBucket, setNewBucket] = useState('');
-  const [newTitles, setNewTitles] = useState<Record<string, string>>({});
-  const [flipped, setFlipped] = useState<Record<string, boolean>>({});
+  const [newTitles, setNewTitles] = useState<Record<string,string>>({});
+  const [flipped, setFlipped] = useState<Record<string,boolean>>({});
 
-  if (loading) return <p>Loader data…</p>;
+  if (loading) return <p className="p-4 text-center">Indlæser…</p>;
 
   return (
-    <div>
-      {/* Opret ny bucket */}
-      <div className="flex gap-2 mb-4">
+    <div className="px-2 sm:px-4 lg:px-6">
+      {/* Ny bucket-form */}
+      <div className="flex flex-col sm:flex-row gap-2 mb-6">
         <input
           type="text"
           placeholder="Ny bucket"
           value={newBucket}
           onChange={e => setNewBucket(e.target.value)}
-          className="flex-1 border px-2 py-1 rounded"
+          className="flex-1 border rounded px-3 py-2 focus:outline-none"
         />
         <button
           onClick={() => {
@@ -36,14 +37,14 @@ export default function BucketBoard() {
             addBucket(newBucket.trim());
             setNewBucket('');
           }}
-          className="px-4 py-1 bg-purple-600 text-white rounded"
+          className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition"
         >
           Opret
         </button>
       </div>
 
-      {/* Bucket-kort */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Responsive grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {buckets.map(bucket => {
           const doneCount = bucket.goals.filter(s => s.done).length;
           const progress = Math.round((doneCount / bucket.goals.length) * 100);
@@ -52,37 +53,38 @@ export default function BucketBoard() {
           return (
             <motion.div
               key={bucket.id}
-              className="relative w-full h-80 perspective group"
+              className="relative w-full h-72 sm:h-64 perspective"
               onClick={() =>
                 setFlipped(prev => ({ ...prev, [bucket.id]: !prev[bucket.id] }))
               }
-              whileHover={{ scale: 1.03 }}
+              whileHover={{ scale: 1.02 }}
             >
               {/* FRONT */}
               <motion.div
-                className="absolute inset-0 bg-white rounded-2xl shadow-lg overflow-hidden backface-hidden flex flex-col"
+                className="absolute inset-0 backface-hidden bg-white shadow rounded-lg overflow-hidden flex flex-col"
                 animate={{ rotateY: isFlipped ? 180 : 0 }}
                 transition={{ duration: 0.6 }}
               >
-                {/* Vis billede hvis det findes */}
                 {bucket.goals[0]?.image_url && (
-                  <img
-                    src={bucket.goals[0].image_url}
-                    alt=""
-                    className="w-full h-32 object-cover"
-                  />
+                  <div className="h-32 w-full overflow-hidden">
+                    <img
+                      src={bucket.goals[0].image_url}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
                 )}
                 <div className="p-4 flex-1 flex flex-col justify-between">
-                  <h3 className="text-xl font-bold">{bucket.title}</h3>
+                  <h3 className="text-lg font-bold truncate">{bucket.title}</h3>
                   <div>
-                    <div className="w-full bg-gray-200 h-2 rounded-full mb-2">
+                    <div className="w-full bg-gray-200 h-2 rounded mb-1">
                       <div
-                        className="h-2 rounded-full bg-purple-600"
+                        className="h-2 rounded bg-purple-600"
                         style={{ width: `${progress}%` }}
                       />
                     </div>
-                    <p className="text-sm text-gray-600">
-                      {doneCount} / {bucket.goals.length} gennemført
+                    <p className="text-xs text-gray-500">
+                      {doneCount}/{bucket.goals.length} ({progress}%)
                     </p>
                   </div>
                 </div>
@@ -90,12 +92,12 @@ export default function BucketBoard() {
 
               {/* BACK */}
               <motion.div
-                className="absolute inset-0 bg-white rounded-2xl shadow-lg p-4 backface-hidden rotateY-180 flex flex-col"
+                className="absolute inset-0 backface-hidden rotateY-180 bg-white shadow rounded-lg p-4 flex flex-col"
                 animate={{ rotateY: isFlipped ? 0 : -180 }}
                 transition={{ duration: 0.6 }}
               >
-                <h4 className="text-md font-semibold mb-2">Delmål & Billeder</h4>
-                <ul className="space-y-2 flex-1 overflow-auto mb-4">
+                <h4 className="font-semibold mb-2">Delmål</h4>
+                <ul className="flex-1 overflow-auto space-y-1 mb-3">
                   {bucket.goals.map(sg => (
                     <li key={sg.id} className="flex items-center gap-2">
                       <input
@@ -104,7 +106,7 @@ export default function BucketBoard() {
                         onChange={e =>
                           toggleSubgoalDone(bucket.id, sg.id, e.target.checked)
                         }
-                        className="form-checkbox h-5 w-5 text-purple-600"
+                        className="form-checkbox h-4 w-4 text-purple-600"
                       />
                       <span className={sg.done ? 'line-through text-gray-400' : ''}>
                         {sg.title}
@@ -112,26 +114,18 @@ export default function BucketBoard() {
                     </li>
                   ))}
                 </ul>
-
-                {/* Upload billede til første delmål som demo */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-1">
-                    Tilføj billede til første delmål
-                  </label>
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="file"
                     accept="image/*"
                     onChange={async e => {
                       const file = e.target.files?.[0];
-                      if (!file || bucket.goals.length === 0) return;
-                      await uploadSubgoalImage(bucket.id, bucket.goals[0].id, file);
+                      if (file && bucket.goals[0]) {
+                        await uploadSubgoalImage(bucket.id, bucket.goals[0].id, file);
+                      }
                     }}
-                    className="block w-full text-sm text-gray-500"
+                    className="text-sm text-gray-600"
                   />
-                </div>
-
-                {/* Tilføj nyt delmål */}
-                <div className="flex gap-2">
                   <input
                     type="text"
                     placeholder="Nyt delmål"
@@ -139,7 +133,7 @@ export default function BucketBoard() {
                     onChange={e =>
                       setNewTitles(prev => ({ ...prev, [bucket.id]: e.target.value }))
                     }
-                    className="flex-1 border px-2 py-1 rounded"
+                    className="flex-1 border rounded px-2 py-1 focus:outline-none"
                   />
                   <button
                     onClick={() => {
@@ -148,7 +142,7 @@ export default function BucketBoard() {
                       addSubgoal(bucket.id, title);
                       setNewTitles(prev => ({ ...prev, [bucket.id]: '' }));
                     }}
-                    className="px-3 py-1 bg-purple-600 text-white rounded"
+                    className="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 transition"
                   >
                     Tilføj
                   </button>
