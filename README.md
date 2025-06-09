@@ -724,3 +724,90 @@ Check-in (ugentlige behov)
 To-Do-liste, Date Ideas, Manifestation, Karriere, Bucketlist
 
 Indstillings­sider til XP‑opsætning, Rewards, Kategorier og Adgangskontroller
+
+#### Opdateret: 9. juni 2025 ####
+Projektoversigt
+
+Vi har udviklet en ny side /bucketlist-couple i vores Next.js-app, hvor par kan oprette, redigere og følge deres fælles bucket list.
+
+Nøglefunktioner
+
+Board- og Timeline-visning
+
+Skift mellem oversigt som grid af kort (Board) og en tidslinje (Timeline).
+
+Bucket CRUD
+
+Opret nye buckets med titel, beskrivelse og kategori.
+
+Redigér eksisterende buckets og gem ændringer.
+
+Kategori-funktionalitet
+
+Dropdown-menu i modal for at vælge kategori.
+
+Badge på hvert kort viser kategori-navn.
+
+Delmål (Subgoals)
+
+Tilføj, marker som færdige og track delmål pr. bucket.
+
+Billedupload til delmål
+
+Upload billede per delmål og vis i kortene.
+
+Responsivt design
+
+Grid justeres til mobile, tablet og desktop.
+
+Styling
+
+Globale Tailwind-klasser via globals.css, komponenter med btn, btn-primary osv.
+
+Databaseopdateringer
+
+Vi har oprettet og ændret følgende tabeller i Supabase:
+
+bucketlist_couple
+
+Tilføjede kolonner:
+
+title (text)
+
+description (text)
+
+category (uuid) → fremmednøgle til bucket_categories.id
+
+goals (jsonb) → array af delmål
+
+created_at (timestamptz)
+
+RLS-policies:
+
+SELECT for alle brugere
+
+INSERT for authenticated users
+
+UPDATE for authenticated users
+
+Constraints:
+
+Foreign key category → bucket_categories(id)
+
+(Optionelt) category sat til NOT NULL efter migrering af eksisterende data.
+
+bucket_categories
+
+Primærnøgle id (uuid)
+
+name (text) → kategori-navn (fx "Rejser", "Parforhold")
+
+Hvad er næste skridt
+
+Fjerne midlertidige default-kategorier, når alle eksisterende buckets er migreret.
+
+Test og QA af billedupload.
+
+Implementere filtrering pr. tidsperiode i Timeline.
+
+Tilføje bruger-feedback (notifikation ved færdigt delmål).

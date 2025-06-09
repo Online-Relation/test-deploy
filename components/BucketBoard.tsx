@@ -1,15 +1,33 @@
 // /components/BucketBoard.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useBucket } from '@/context/BucketContext';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function BucketBoard() {
   const { buckets, loading, addBucket, addSubgoal, toggleSubgoalDone, uploadSubgoalImage } = useBucket();
   const [newBucket, setNewBucket] = useState('');
-  const [newTitles, setNewTitles] = useState<Record<string,string>>({});
-  const [flipped, setFlipped] = useState<Record<string,boolean>>({});
+  const [newBucketCat, setNewBucketCat] = useState('');
+  const [newTitles, setNewTitles] = useState<Record<string, string>>({});
+  const [flipped, setFlipped] = useState<Record<string, boolean>>({});
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+
+  // Hent bucket-kategorier
+  useEffect(() => {
+    supabase
+      .from('bucket_categories')
+      .select('id,name')
+      .then(({ data }) => data && setCategories(data));
+  }, []);
+
+  // Sæt default kategori når hentet
+  useEffect(() => {
+    if (categories.length > 0 && !newBucketCat) {
+      setNewBucketCat(categories[0].id);
+    }
+  }, [categories]);
 
   if (loading) return <p className="p-4 text-center">Indlæser…</p>;
 
@@ -24,29 +42,42 @@ export default function BucketBoard() {
           onChange={e => setNewBucket(e.target.value)}
           className="flex-1 border rounded px-3 py-2"
         />
+        <select
+          className="border rounded px-3 py-2"
+          value={newBucketCat}
+          onChange={e => setNewBucketCat(e.target.value)}
+        >
+          {categories.map(cat => (
+            <option key={cat.id} value={cat.id}>{cat.name}</option>
+          ))}
+        </select>
         <button
           onClick={() => {
             if (!newBucket.trim()) return;
-            addBucket(newBucket.trim());
+            if (!newBucketCat) {
+              console.error('Vælg en kategori før oprettelse.');
+              return;
+            }
+            addBucket(newBucket.trim(), '', newBucketCat);
             setNewBucket('');
           }}
-          className="bg-purple-600 text-white px-4 py-2 rounded"
+          className="btn btn-primary"
         >
           Opret
         </button>
       </div>
 
-      {/* Grid: 1 kolonne på mobil, 2 på tablet, 3 på desktop */}
+      {/* Responsive grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {buckets.map(bucket => {
           const doneCount = bucket.goals.filter(s => s.done).length;
-          const progress = Math.round((doneCount / bucket.goals.length) * 100);
+          const progress = bucket.goals.length ? Math.round((doneCount / bucket.goals.length) * 100) : 0;
           const isFlipped = flipped[bucket.id] || false;
 
           return (
             <motion.div
               key={bucket.id}
-              className="relative w-full h-auto perspective cursor-pointer"
+              className="relative w-full perspective cursor-pointer"
               onClick={() => setFlipped(prev => ({ ...prev, [bucket.id]: !prev[bucket.id] }))}
               whileHover={{ scale: 1.02 }}
             >
@@ -67,10 +98,7 @@ export default function BucketBoard() {
                   <h3 className="text-lg font-bold truncate">{bucket.title}</h3>
                   <div>
                     <div className="w-full bg-gray-200 h-2 rounded mb-1">
-                      <div
-                        className="h-2 rounded bg-purple-600"
-                        style={{ width: `${progress}%` }}
-                      />
+                      <div className="h-2 rounded bg-purple-600" style={{ width: `${progress}%` }} />
                     </div>
                     <p className="text-xs text-gray-500">
                       {doneCount}/{bucket.goals.length} ({progress}%)
@@ -92,9 +120,7 @@ export default function BucketBoard() {
                       <input
                         type="checkbox"
                         checked={sg.done}
-                        onChange={e =>
-                          toggleSubgoalDone(bucket.id, sg.id, e.target.checked)
-                        }
+                        onChange={e => toggleSubgoalDone(bucket.id, sg.id, e.target.checked)}
                         className="h-4 w-4 text-purple-600"
                       />
                       <span className={sg.done ? 'line-through text-gray-400' : ''}>
@@ -113,16 +139,14 @@ export default function BucketBoard() {
                         await uploadSubgoalImage(bucket.id, bucket.goals[0].id, file);
                       }
                     }}
-                    className="text-sm"
+                    className="text-sm text-gray-600"
                   />
                   <input
                     type="text"
                     placeholder="Nyt delmål"
                     value={newTitles[bucket.id] || ''}
-                    onChange={e =>
-                      setNewTitles(prev => ({ ...prev, [bucket.id]: e.target.value }))
-                    }
-                    className="flex-1 border rounded px-2 py-1"
+                    onChange={e => setNewTitles(prev => ({ ...prev, [bucket.id]: e.target.value }))}
+                    className="flex-1 border rounded px-2 py-1 focus:outline-none"
                   />
                   <button
                     onClick={() => {
@@ -131,7 +155,7 @@ export default function BucketBoard() {
                       addSubgoal(bucket.id, title);
                       setNewTitles(prev => ({ ...prev, [bucket.id]: '' }));
                     }}
-                    className="bg-purple-600 text-white px-3 py-1 rounded"
+                    className="btn btn-primary"
                   >
                     Tilføj
                   </button>

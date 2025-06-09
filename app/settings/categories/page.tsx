@@ -1,4 +1,4 @@
-// app/settings/categories/page.tsx
+// /app/settings/categories/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -20,10 +20,12 @@ export default function CategoriesPage() {
   const [categories, setCategories] = useState<Entry[]>([]);
   const [types, setTypes] = useState<Entry[]>([]);
   const [giftCategories, setGiftCategories] = useState<Entry[]>([]);
+  const [bucketCategories, setBucketCategories] = useState<Entry[]>([]);
 
   const [newCategory, setNewCategory] = useState('');
   const [newType, setNewType] = useState('');
   const [newGiftCategory, setNewGiftCategory] = useState('');
+  const [newBucketCategory, setNewBucketCategory] = useState('');
 
   const [loading, setLoading] = useState(false);
 
@@ -32,21 +34,20 @@ export default function CategoriesPage() {
   }, []);
 
   const fetchData = async () => {
-    const { data: catData, error: catError } = await supabase.from('fantasy_categories').select('*');
-    const { data: typeData, error: typeError } = await supabase.from('fantasy_types').select('*');
-    const { data: giftData, error: giftError } = await supabase.from('gift_categories').select('*');
-
-    if (catError) console.error('Fejl ved hentning af fantasikategorier:', catError.message);
-    if (typeError) console.error('Fejl ved hentning af typer:', typeError.message);
-    if (giftError) console.error('Fejl ved hentning af gavekategorier:', giftError.message);
-
+    const [{ data: catData }, { data: typeData }, { data: giftData }, { data: bucketData }] = await Promise.all([
+      supabase.from('fantasy_categories').select('*'),
+      supabase.from('fantasy_types').select('*'),
+      supabase.from('gift_categories').select('*'),
+      supabase.from('bucket_categories').select('*'),
+    ]);
     if (catData) setCategories(catData);
     if (typeData) setTypes(typeData);
     if (giftData) setGiftCategories(giftData);
+    if (bucketData) setBucketCategories(bucketData);
   };
 
   const addEntry = async (
-    table: 'fantasy_categories' | 'fantasy_types' | 'gift_categories',
+    table: 'fantasy_categories' | 'fantasy_types' | 'gift_categories' | 'bucket_categories',
     value: string,
     setList: Function,
     setInput: Function
@@ -67,7 +68,7 @@ export default function CategoriesPage() {
   };
 
   const deleteEntry = async (
-    table: 'fantasy_categories' | 'fantasy_types' | 'gift_categories',
+    table: 'fantasy_categories' | 'fantasy_types' | 'gift_categories' | 'bucket_categories',
     id: string,
     setList: Function
   ) => {
@@ -95,9 +96,7 @@ export default function CategoriesPage() {
             className="flex-grow px-4 py-2 border rounded"
           />
           <button
-            onClick={() =>
-              addEntry('fantasy_categories', newCategory, setCategories, setNewCategory)
-            }
+            onClick={() => addEntry('fantasy_categories', newCategory, setCategories, setNewCategory)}
             disabled={loading}
             className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800"
           >
@@ -173,9 +172,7 @@ export default function CategoriesPage() {
             className="flex-grow px-4 py-2 border rounded"
           />
           <button
-            onClick={() =>
-              addEntry('gift_categories', newGiftCategory, setGiftCategories, setNewGiftCategory)
-            }
+            onClick={() => addEntry('gift_categories', newGiftCategory, setGiftCategories, setNewGiftCategory)}
             disabled={loading}
             className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800"
           >
@@ -191,6 +188,44 @@ export default function CategoriesPage() {
               {cat.name}
               <button
                 onClick={() => deleteEntry('gift_categories', cat.id, setGiftCategories)}
+                className="ml-2 text-black hover:text-red-600"
+                title="Slet"
+              >
+                <X size={14} />
+              </button>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Bucketlist-kategorier */}
+      <div>
+        <h2 className="text-lg font-semibold mb-2">Bucketlist-kategorier</h2>
+        <div className="flex gap-2 mb-2">
+          <input
+            type="text"
+            placeholder="Ny bucket-kategori (fx rejse, kommunikation, personlig udvikling)"
+            value={newBucketCategory}
+            onChange={(e) => setNewBucketCategory(e.target.value)}
+            className="flex-grow px-4 py-2 border rounded"
+          />
+          <button
+            onClick={() => addEntry('bucket_categories', newBucketCategory, setBucketCategories, setNewBucketCategory)}
+            disabled={loading}
+            className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800"
+          >
+            Tilføj
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {bucketCategories.map((cat, index) => (
+            <span
+              key={cat.id}
+              className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${colorClasses[index % colorClasses.length]}`}
+            >
+              {cat.name}
+              <button
+                onClick={() => deleteEntry('bucket_categories', cat.id, setBucketCategories)}
                 className="ml-2 text-black hover:text-red-600"
                 title="Slet"
               >
