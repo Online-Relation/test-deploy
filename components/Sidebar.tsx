@@ -39,6 +39,8 @@ const accessHierarchy: AccessEntry[] = [
     key: 'fantasy', label: 'Parforhold', href: '/fantasy', children: [
       { key: 'fantasy/fantasier', label: 'Fantasier', href: '/fantasy', children: [] },
       { key: 'dates', label: 'Date Ideas', href: '/dates', children: [] },
+      { key: 'fantasy/sex', label: 'Sex', href: '/fantasy/sex', children: [] },
+
     ],
   },
   { key: 'bucketlist-couple', label: 'Bucketlist', href: '/bucketlist-couple', children: [] },
