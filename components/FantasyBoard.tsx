@@ -16,9 +16,10 @@ import {
   useDraggable,
   useDroppable,
 } from '@dnd-kit/core';
-import { Tag, Zap, Star } from 'lucide-react';
+import { Tag, Zap, Star, AlertCircle } from 'lucide-react';
 import Modal from '@/components/ui/modal';
 import { TagBadge } from '@/components/ui/TagBadge';
+import { supabase } from '@/lib/supabaseClient';
 
 const fantasyStatuses = [
   { key: 'idea', label: 'Fantasier' },
@@ -52,7 +53,6 @@ export default function FantasyBoard() {
     setSelectedFantasy,
   } = useFantasyBoardLogic();
 
-  // Konverter rå categories til { id, name }
   const fantasyCategories: CategoryEntry[] = rawCategories.map((cat) =>
     typeof cat === 'string' ? { id: cat, name: cat } : cat
   );
@@ -61,12 +61,10 @@ export default function FantasyBoard() {
     ? fantasies.filter((f) => f.category === filterCategory)
     : fantasies;
 
-  // DnD: wrapper der kalder handleDragEnd fra hook
   const onDragEnd = async (event: any) => {
     await handleDragEnd(event);
   };
 
-  // Dette er ren layout-kode: Ingen Supabase eller user direkte her
   function DraggableCard({
     fantasy,
     onView,
@@ -108,14 +106,18 @@ export default function FantasyBoard() {
     if (fantasy.effort) {
       const effLower = fantasy.effort.toLowerCase();
       if (fantasy.status === 'idea') {
-  const xpVal = xpMapStine[`add_fantasy_${effLower}`] || 0;
-  if (xpVal > 0) pointLabel = `Planlagt: +${xpVal} XP`;
-}
- else if (fantasy.status === 'planned') {
+        const xpVal = xpMapStine[`add_fantasy_${effLower}`] || 0;
+        if (xpVal > 0) pointLabel = `Planlagt: +${xpVal} XP`;
+      } else if (fantasy.status === 'planned') {
         const xpVal = xpMapStine[`complete_fantasy_${effLower}`] || 0;
         if (xpVal > 0) pointLabel = `Fuldfør: +${xpVal} XP`;
       }
     }
+
+    const isMissingDescription =
+      !fantasy.description ||
+      fantasy.description.trim() === '' ||
+      fantasy.description === '<p><br></p>';
 
     return (
       <div
@@ -138,6 +140,15 @@ export default function FantasyBoard() {
             alt={fantasy.title}
             className="w-full h-56 object-cover rounded-t-xl"
           />
+        )}
+
+        {isMissingDescription && (
+          <div
+            className="absolute top-2 left-2 bg-red-600 text-white rounded-full p-1 z-10"
+            title="Manglende beskrivelse"
+          >
+            <AlertCircle size={16} />
+          </div>
         )}
 
         <div className="p-5 space-y-2">
@@ -289,6 +300,20 @@ export default function FantasyBoard() {
           fantasy={selectedFantasy}
           onClose={() => setSelectedFantasy(null)}
           onEdit={async (updated) => {
+            const { error } = await supabase
+              .from('fantasies')
+              .update({
+                title: updated.title,
+                description: updated.description,
+                category: updated.category,
+                effort: updated.effort,
+                image_url: updated.image_url,
+              })
+              .eq('id', updated.id);
+
+            if (error) {
+              console.error('Fejl ved opdatering:', error.message);
+            }
             setSelectedFantasy(null);
           }}
           onDelete={async (id) => {

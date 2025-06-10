@@ -917,3 +917,31 @@ Billeder vises forskelligt afhængigt af profil – men tilgængelige hvis publi
 
 Bug fix: billeder blev tidligere ikke gemt korrekt, fordi image_url ikke blev sendt med i addBucket. Dette er nu løst.
 
+## Opdatering 10/6 - 2025 ##
+Ny tabel: compliment_logs
+
+Felter: id (UUID), compliment_id (integer, FK → compliments.id), given_date (date), created_at (timestamptz)
+
+Migreret med justeret type på compliment_id for at matche compliments.id (integer)
+
+Udvidelse af sexlife_logs
+
+Tilføjet kolonner: had_sex (boolean), notes (text), log_date (date), created_at (timestamptz)
+
+Oprettet sexlife_log_tags join-tabel: id, log_id (FK → sexlife_logs.id), tag_id (FK → tags.id), created_at
+
+Ny tabel: tags
+
+Felter: id (UUID), name (text), created_at (timestamptz)
+
+Ny tabel: sexlife_log_tags
+
+Bindetabel til tags: log_id, tag_id (begge UUID)
+
+Ny tabel: wishes
+
+Felter: id (UUID), user_id (UUID, FK → profiles.id), description (text), created_at (timestamptz)
+
+Opdatering af profiles
+
+Tilføjet kolonne buksedragt (text) til tøjstørrelser
