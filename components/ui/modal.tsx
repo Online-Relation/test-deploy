@@ -7,8 +7,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { Fantasy } from '@/hooks/useFantasyBoardLogic';
 import { ChevronLeft, ChevronRight, X, Tag, Zap } from 'lucide-react';
 import { TagBadge } from '@/components/ui/TagBadge';
+import RichTextEditor from '@/components/ui/RichTextEditor'; // <--- importér editoren
 
-type FantasyInput = Omit<Fantasy, 'id'> & { extra_images?: string[]; hasExtras?: boolean };
+type FantasyInput = Omit<Fantasy, 'id'> & {
+  extra_images?: string[];
+  hasExtras?: boolean;
+  status?: 'idea' | 'planned' | 'fulfilled';
+};
 
 type ModalProps = {
   isCreateMode?: boolean;
@@ -128,7 +133,7 @@ export default function Modal({
       await onCreate({
         ...newFantasy,
         extra_images: extraImages,
-        status: 'idea',
+        status: newFantasy.status || 'idea',
       });
       onClose();
     } catch (err) {
@@ -152,7 +157,7 @@ export default function Modal({
     <Dialog open onClose={onClose} className="fixed inset-0 z-50">
       <div className="fixed inset-0 bg-black/50" />
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <div className="bg-background p-6 rounded-xl max-w-lg w-full shadow-xl space-y-4 relative">
+        <div className="bg-background p-6 rounded-xl max-w-lg w-full shadow-xl space-y-4 relative max-h-[80vh] overflow-y-auto">
 
           {/* Luk modal kryds */}
           <button
@@ -217,7 +222,7 @@ export default function Modal({
                 </div>
               )}
 
-              {/* BADGES NEDERST */}
+              {/* Badges nederst */}
               <div className="mt-6 border-t pt-4 flex flex-wrap gap-2">
                 {newFantasy.category && (
                   <TagBadge label={newFantasy.category} icon={<Tag size={14} />} color="purple" />
@@ -241,13 +246,12 @@ export default function Modal({
                 className="w-full border p-2 rounded"
               />
 
-              <textarea
-                placeholder="Beskrivelse"
+              {/* Her erstatter vi textarea med RichTextEditor */}
+              <RichTextEditor
                 value={newFantasy.description || ''}
-                onChange={(e) =>
-                  setNewFantasy({ ...newFantasy, description: e.target.value })
+                onChange={(val) =>
+                  setNewFantasy({ ...newFantasy, description: val })
                 }
-                className="w-full border p-2 rounded h-24"
               />
 
               <select
@@ -276,6 +280,19 @@ export default function Modal({
                 <option value="Low">Lav</option>
                 <option value="Medium">Mellem</option>
                 <option value="High">Høj</option>
+              </select>
+
+              {/* Mobilstatusvælger */}
+              <select
+                className="block md:hidden w-full border p-2 rounded mb-4"
+                value={newFantasy.status || 'idea'}
+                onChange={(e) =>
+                  setNewFantasy({ ...newFantasy, status: e.target.value as 'idea' | 'planned' | 'fulfilled' })
+                }
+              >
+                <option value="idea">Fantasier</option>
+                <option value="planned">Planlagt</option>
+                <option value="fulfilled">Opfyldt</option>
               </select>
 
               <div>

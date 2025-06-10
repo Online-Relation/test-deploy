@@ -156,13 +156,14 @@ export default function FantasyBoard() {
         )}
 
         {fantasy.extra_images && fantasy.extra_images.length > 0 && (
-          <div
-            className="absolute top-2 left-10 bg-blue-600 text-white rounded-full px-2 py-1 text-xs flex items-center gap-1 z-10"
-            title="Ekstra billeder"
-          >
-            <ImageIcon size={14} /> {fantasy.extra_images.length}
-          </div>
-        )}
+  <div
+    className="absolute top-2 left-10 bg-blue-600 text-white rounded-full px-2 py-1 text-xs flex items-center gap-1 z-10"
+    title="Ekstra billeder"
+  >
+    <ImageIcon size={14} /> {fantasy.extra_images.length}
+  </div>
+)}
+
 
         <div className="p-5 space-y-2">
           <h3 className="font-semibold text-lg text-foreground">

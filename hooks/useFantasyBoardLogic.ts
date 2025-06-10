@@ -74,25 +74,24 @@ export function useFantasyBoardLogic(): UseFantasyBoardResult {
     hasExtras: false,
   });
 
-const fetchFantasies = async () => {
-  const { data: dataFant, error: errFant } = await supabase
-    .from('fantasies')
-    .select(`
-      id,
-      title,
-      description,
-      category,
-      effort,
-      status,
-      image_url,
-      extra_images,
-      xp_granted,
-      fulfilled_date,
-      user_id
-    `);
-  if (!errFant && dataFant) setFantasies(dataFant);
-};
-
+  const fetchFantasies = async () => {
+    const { data: dataFant, error: errFant } = await supabase
+      .from('fantasies')
+      .select(`
+        id,
+        title,
+        description,
+        category,
+        effort,
+        status,
+        image_url,
+        extra_images,
+        xp_granted,
+        fulfilled_date,
+        user_id
+      `);
+    if (!errFant && dataFant) setFantasies(dataFant);
+  };
 
   useEffect(() => {
     async function fetchAll() {
@@ -149,58 +148,60 @@ const fetchFantasies = async () => {
     fetchAll();
   }, [role]);
 
-const handleCreateNewFantasy = async () => {
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession();
+  const handleCreateNewFantasy = async () => {
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
 
-  if (sessionError || !session) {
-    console.error('Session-fejl:', sessionError?.message);
-    return;
-  }
+    if (sessionError || !session) {
+      console.error('Session-fejl:', sessionError?.message);
+      return;
+    }
 
-  const user_id = session.user.id;
+    const user_id = session.user.id;
 
-if (!newFantasyData.title) {
-  console.warn('Titel er påkrævet.');
-  return;
-}
+    if (!newFantasyData.title) {
+      console.warn('Titel er påkrævet.');
+      return;
+    }
 
+    // Fjern hovedbilledet fra extra_images, hvis det findes der
+    const extraImages = (newFantasyData.extra_images || []).filter(
+      (url) => url !== newFantasyData.image_url
+    );
 
-  const { error } = await supabase.from('fantasies').insert({
-    title: newFantasyData.title,
-    description: newFantasyData.description,
-    category: newFantasyData.category,
-    effort: newFantasyData.effort,
-    image_url: newFantasyData.image_url || null,
-    extra_images: newFantasyData.extra_images || [],
-    status: 'idea',
-    user_id,
-  });
+    const { error } = await supabase.from('fantasies').insert({
+      title: newFantasyData.title,
+      description: newFantasyData.description,
+      category: newFantasyData.category,
+      effort: newFantasyData.effort,
+      image_url: newFantasyData.image_url || null,
+      extra_images: extraImages,
+      status: 'idea',
+      user_id,
+    });
 
-  if (error) {
-    console.error('Fejl ved oprettelse:', error.message);
-    return;
-  }
+    if (error) {
+      console.error('Fejl ved oprettelse:', error.message);
+      return;
+    }
 
-  setShowAddModal(false);
-  setNewFantasyData({
-    title: '',
-    description: '',
-    category: '',
-    effort: '',
-    image_url: '',
-    extra_images: [],
-    status: 'idea',
-    user_id: '', // reset
-    hasExtras: false,
-  });
+    setShowAddModal(false);
+    setNewFantasyData({
+      title: '',
+      description: '',
+      category: '',
+      effort: '',
+      image_url: '',
+      extra_images: [],
+      status: 'idea',
+      user_id: user?.id || '',
+      hasExtras: false,
+    });
 
-  await fetchFantasies();
-};
-
-
+    await fetchFantasies();
+  };
 
   const handleDragEnd = async (event: any) => {
     const { active, over } = event;
