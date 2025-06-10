@@ -835,3 +835,85 @@ updateBucket-funktionen i BucketContext er udvidet med imageUrl som parameter.
 addBucket og updateBucket håndterer begge nu valgfrit billede og gemmer det korrekt i databasen.
 
 Fejlhåndtering ved upload er tilføjet, og fetchBuckets() kaldes ved success for at sikre UI-opdatering.
+
+## Opdatering 10/6 - 2025 ##
+
+✅ 
+🪣 Bucketlist for Par – Udvidet funktionalitet
+Vi har implementeret en komplet bucketlist-funktion til par med følgende features:
+
+Funktionalitet
+Brugere (Mads og Stine) kan oprette bucket goals direkte via UI.
+
+Hvert mål kan have et billede, en deadline, en beskrivelse og en kategori.
+
+Brugeren kan tilføje delmål (subgoals) med ejer og eventuel deadline.
+
+Delmål kan markeres som fuldført, og XP tildeles til den ansvarlige – uanset hvem der trykker.
+
+Billeder kan uploades til hvert delmål og vises visuelt.
+
+Data gemmes i Supabase i tabellen bucketlist_couple.
+
+Billeder gemmes i Supabase Storage under bucket bucketlist-couple.
+
+UI-komponenter og filer
+/app/bucketlist-couple/page.tsx – visning og oprettelse af mål og delmål.
+
+/context/BucketContext.tsx – styring af buckets, delmål, billeder og XP-logik.
+
+/components/BucketCard.tsx – visning af individuelle bucket mål.
+
+Dashboard-integration
+Delmål tælles med i det potentielle XP på forsiden.
+
+Dashboardet tjekker mål der ikke er fuldført, og som har nuværende bruger som owner.
+
+XP beregnes dynamisk ud fra xp_settings, baseret på rollen og handlingen complete_subgoal.
+
+📊 Databaseændringer
+bucketlist_couple
+Nye felter og struktur:
+
+image_url – billede for hovedmål (bucket)
+
+goals – array af delmål med følgende felter:
+
+id (UUID)
+
+title
+
+done (boolean)
+
+dueDate (valgfri)
+
+owner (user_id fra profiles)
+
+image_url (link til billede)
+
+xp_log
+Når et delmål markeres som done, tilføjes en række til xp_log:
+
+change, description, user_id, role
+
+xp_settings
+Handling complete_subgoal skal være defineret for både mads og stine med XP-værdi.
+
+📁 Supabase Storage
+Billeder gemmes i:
+
+bash
+Kopiér
+Rediger
+bucketlist-couple/bucket-images/{bucketId}_{subgoalId}.jpg
+Ved upload konverteres filen til en public URL via getPublicUrl().
+
+Public URL indsættes i goals.image_url.
+
+🧠 Ekstra funktioner
+XP bliver ikke givet til den som klikker, men til den som er ejer (owner) af delmålet.
+
+Billeder vises forskelligt afhængigt af profil – men tilgængelige hvis public URL er sat korrekt.
+
+Bug fix: billeder blev tidligere ikke gemt korrekt, fordi image_url ikke blev sendt med i addBucket. Dette er nu løst.
+
