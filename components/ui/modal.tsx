@@ -1,414 +1,352 @@
-// components/ui/Modal.tsx
 'use client';
 
-import { useCategory } from '@/context/CategoryContext';
-import { useEffect, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Tag, Zap, Calendar } from 'lucide-react';
+import { useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { useHasMounted } from '@/hooks/useHasMounted';
-import RichTextEditor from '@/components/ui/RichTextEditor';
+import { Dialog } from '@headlessui/react';
+import { v4 as uuidv4 } from 'uuid';
+import { Fantasy } from '@/hooks/useFantasyBoardLogic';
+import { ChevronLeft, ChevronRight, X, Tag, Zap } from 'lucide-react';
+import { TagBadge } from '@/components/ui/TagBadge';
 
-interface Fantasy {
-  id: string;
-  title: string;
-  description: string;
-  image_url?: string;
-  category?: string;
-  effort?: string;
-  status: 'idea' | 'planned' | 'fulfilled';
-  xp_granted?: boolean;
-  fulfilled_date?: string;
-}
+type FantasyInput = Omit<Fantasy, 'id'> & { extra_images?: string[]; hasExtras?: boolean };
 
-interface ModalProps {
-  fantasy?: Fantasy | null;
-  onClose: () => void;
-  onEdit?: (fantasy: Fantasy) => void;
-  title?: string;
-  children?: React.ReactNode;
+type ModalProps = {
   isCreateMode?: boolean;
-  onCreate?: () => void;
-  newFantasy?: Omit<Fantasy, 'id'>;
-  setNewFantasy?: (fantasy: Omit<Fantasy, 'id'>) => void;
-  onDelete?: (id: string) => void;
-}
+  readOnly?: boolean;
+  title: string;
+  onClose: () => void;
+  onCreate?: (fantasy: FantasyInput) => Promise<void>;
+  onEdit?: (fantasy: Fantasy) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
+  fantasy?: Fantasy;
+  newFantasy: FantasyInput;
+  setNewFantasy: (f: FantasyInput) => void;
+  children?: ReactNode;
+};
 
-export default function Modal(props: ModalProps) {
-  const { fantasyCategories } = useCategory();
-  const hasMounted = useHasMounted();
-
-  const {
-    fantasy,
-    onClose,
-    onEdit,
-    title,
-    isCreateMode,
-    onCreate,
-    newFantasy,
-    setNewFantasy,
-    onDelete,
-  } = props;
-
-  const [editing, setEditing] = useState(false);
-  const [edited, setEdited] = useState<Fantasy | null>(fantasy ?? null);
+export default function Modal({
+  isCreateMode = false,
+  readOnly = false,
+  title,
+  onClose,
+  onCreate,
+  onEdit,
+  onDelete,
+  fantasy,
+  newFantasy,
+  setNewFantasy,
+  children,
+}: ModalProps) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadExtras, setUploadExtras] = useState(false);
+  const [extraImages, setExtraImages] = useState<string[]>([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
-    setEdited(fantasy ?? null);
-    setEditing(false);
+    fetchCategories();
+
+    if (!isCreateMode && fantasy) {
+      setNewFantasy({
+        title: fantasy.title || '',
+        description: fantasy.description || '',
+        category: fantasy.category || '',
+        effort: fantasy.effort || '',
+        image_url: fantasy.image_url || '',
+        extra_images: fantasy.extra_images || [],
+        hasExtras: (fantasy.extra_images ?? []).length > 0,
+        status: fantasy.status,
+        user_id: fantasy.user_id || '',
+        xp_granted: fantasy.xp_granted || false,
+        fulfilled_date: fantasy.fulfilled_date || undefined,
+      });
+      setExtraImages(fantasy.extra_images || []);
+      setCurrentImageIndex(0);
+    }
   }, [fantasy]);
 
-  if (!hasMounted || (!fantasy && !isCreateMode)) return null;
+  async function fetchCategories() {
+    const { data, error } = await supabase.from('fantasy_categories').select('*');
+    if (error) console.error('Fejl ved hentning af kategorier:', error.message);
+    else if (data) setCategories(data);
+  }
 
-  const handleSave = () => {
-    if (!edited) return;
-    onEdit?.(edited);
-    setEditing(false);
-  };
-
-  const handleDelete = async () => {
-    if (!fantasy?.id || !onDelete) return;
-
-    const { error: deleteError } = await supabase.from('fantasies').delete().eq('id', fantasy.id);
-    if (deleteError) {
-      console.error('Fejl ved sletning:', deleteError.message);
-      return;
-    }
-
-    const { error: xpError } = await supabase
-      .from('xp_log')
-      .delete()
-      .eq('description', `stine – add_fantasy`)
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    if (xpError) {
-      console.error('Fejl ved sletning af XP:', xpError.message);
-    }
-
-    onDelete(fantasy.id);
-    onClose();
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleImageUpload = async (e: any) => {
+    const file = e.target.files[0];
     if (!file) return;
 
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}.${fileExt}`;
-    const filePath = `fantasies/${fileName}`;
+    const filename = `fantasies/${uuidv4()}_${file.name}`;
+    setUploading(true);
 
-    const { error: uploadError } = await supabase.storage
-      .from('fantasies')
-      .upload(filePath, file);
+    const { error } = await supabase.storage.from('fantasies').upload(filename, file);
+    if (error) {
+      console.error('Fejl ved billedupload:', error.message);
+    } else {
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('fantasies').getPublicUrl(filename);
 
-    if (uploadError) {
-      console.error('Fejl ved upload:', uploadError.message);
-      return;
+      setNewFantasy({ ...newFantasy, image_url: publicUrl });
     }
 
-    const { data: publicUrlData } = supabase.storage
-      .from('fantasies')
-      .getPublicUrl(filePath);
+    setUploading(false);
+  };
 
-    const imageUrl = publicUrlData?.publicUrl;
+  const handleExtraImagesUpload = async (e: any) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    if (isCreateMode && newFantasy && setNewFantasy && imageUrl) {
-      setNewFantasy({ ...newFantasy, image_url: imageUrl });
-    } else if (edited && imageUrl) {
-      setEdited({ ...edited, image_url: imageUrl });
+    setUploading(true);
+    const urls: string[] = [];
+
+    for (const file of files) {
+      const filename = `fantasies/extras/${uuidv4()}_${file.name}`;
+      const { error } = await supabase.storage.from('fantasies').upload(filename, file);
+
+      if (error) {
+        console.error('Fejl ved upload af ekstra billede:', error.message);
+        continue;
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('fantasies').getPublicUrl(filename);
+
+      urls.push(publicUrl);
     }
+
+    const allImages = [...(newFantasy.extra_images || []), ...urls];
+    setExtraImages(allImages);
+    setNewFantasy({ ...newFantasy, extra_images: allImages });
+    setUploading(false);
+  };
+
+  const handleSubmit = async () => {
+    if (!onCreate) return;
+
+    try {
+      await onCreate({
+        ...newFantasy,
+        extra_images: extraImages,
+        status: 'idea',
+      });
+      onClose();
+    } catch (err) {
+      console.error('Fejl ved oprettelse af fantasi:', err);
+    }
+  };
+
+  const handlePrev = () => {
+    setCurrentImageIndex((prev) =>
+      prev === 0 ? extraImages.length - 1 : prev - 1
+    );
+  };
+
+  const handleNext = () => {
+    setCurrentImageIndex((prev) =>
+      prev === extraImages.length - 1 ? 0 : prev + 1
+    );
   };
 
   return (
-    <div
-      className="fixed inset-0 flex items-center justify-center z-50"
-      style={{ backgroundColor: 'var(--overlay-bg)' }}
-    >
-      <div
-        className="rounded-xl shadow max-w-3xl w-full max-h-[90vh] overflow-y-auto relative p-6"
-        style={{ backgroundColor: 'var(--modal-bg)', color: 'var(--text-default)' }}
-      >
-        <button
-          onClick={onClose}
-          className="absolute top-3 right-4 text-xl"
-          style={{ color: 'var(--text-muted)' }}
-          onMouseOver={(e) => (e.currentTarget.style.color = 'var(--text-default)')}
-          onMouseOut={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
-        >
-          ✕
-        </button>
+    <Dialog open onClose={onClose} className="fixed inset-0 z-50">
+      <div className="fixed inset-0 bg-black/50" />
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <div className="bg-background p-6 rounded-xl max-w-lg w-full shadow-xl space-y-4 relative">
 
-        {isCreateMode && newFantasy && setNewFantasy ? (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold mb-3 pr-10">{title || 'Tilføj ny fantasi'}</h2>
-            <input
-              type="text"
-              placeholder="Titel"
-              value={newFantasy.title}
-              onChange={(e) => setNewFantasy({ ...newFantasy, title: e.target.value })}
-              className="w-full px-4 py-2 border rounded"
-              style={{
-                borderColor: 'var(--border-color)',
-                color: 'var(--text-default)',
-                backgroundColor: 'var(--modal-bg)',
-              }}
-            />
-            <RichTextEditor
-              value={newFantasy.description}
-              onChange={(val) => setNewFantasy({ ...newFantasy, description: val })}
-            />
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="w-full"
-            />
-            {newFantasy.image_url && (
+          {/* Luk modal kryds */}
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+            aria-label="Luk modal"
+          >
+            <X size={24} />
+          </button>
+
+          <h2 className="text-2xl font-semibold">{title}</h2>
+
+          {extraImages.length > 0 && !isCreateMode && (
+            <div className="relative w-full h-56 mb-2 rounded overflow-hidden">
               <img
-                src={newFantasy.image_url}
-                alt=""
-                className="rounded w-full max-h-[300px] object-cover mb-4"
+                src={extraImages[currentImageIndex]}
+                alt={`Ekstra billede ${currentImageIndex + 1}`}
+                className="object-cover w-full h-full rounded"
               />
-            )}
-            <select
-              value={newFantasy.category || ''}
-              onChange={(e) => setNewFantasy({ ...newFantasy, category: e.target.value })}
-              className="w-full px-4 py-2 border rounded"
-              style={{
-                borderColor: 'var(--border-color)',
-                color: 'var(--text-default)',
-                backgroundColor: 'var(--modal-bg)',
-              }}
-            >
-              <option value="">Vælg kategori</option>
-              {fantasyCategories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-            <select
-              value={newFantasy.effort || ''}
-              onChange={(e) => setNewFantasy({ ...newFantasy, effort: e.target.value })}
-              className="w-full px-4 py-2 border rounded"
-              style={{
-                borderColor: 'var(--border-color)',
-                color: 'var(--text-default)',
-                backgroundColor: 'var(--modal-bg)',
-              }}
-            >
-              <option value="">Vælg effort</option>
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-            </select>
-            <button
-              onClick={onCreate}
-              className="px-4 py-2 rounded"
-              style={{
-                backgroundColor: 'var(--btn-primary-bg)',
-                color: 'var(--color-white)',
-              }}
-              onMouseOver={(e) =>
-                (e.currentTarget.style.backgroundColor = 'var(--btn-primary-hover)')
-              }
-              onMouseOut={(e) =>
-                (e.currentTarget.style.backgroundColor = 'var(--btn-primary-bg)')
-              }
-            >
-              Tilføj fantasi
-            </button>
-          </div>
-        ) : editing ? (
-          <div className="space-y-4">
-            <input
-              type="text"
-              value={edited?.title || ''}
-              onChange={(e) => setEdited({ ...edited!, title: e.target.value })}
-              className="w-full px-4 py-2 border rounded"
-              placeholder="Titel"
-              style={{
-                borderColor: 'var(--border-color)',
-                color: 'var(--text-default)',
-                backgroundColor: 'var(--modal-bg)',
-              }}
-            />
-            <RichTextEditor
-              value={edited?.description || ''}
-              onChange={(val) => setEdited({ ...edited!, description: val })}
-            />
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="w-full"
-            />
-            {edited?.image_url && (
-              <img
-                src={edited.image_url}
-                alt=""
-                className="rounded w-full max-h-[300px] object-cover mb-4"
+              <button
+                onClick={handlePrev}
+                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-1 rounded"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <button
+                onClick={handleNext}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-1 rounded"
+              >
+                <ChevronRight size={20} />
+              </button>
+              <div className="absolute bottom-2 right-2 text-xs bg-black/50 text-white px-2 py-0.5 rounded">
+                {currentImageIndex + 1} / {extraImages.length}
+              </div>
+            </div>
+          )}
+
+          {readOnly ? (
+            <>
+              <p className="font-semibold">{newFantasy.title}</p>
+              <div
+                className="prose max-w-none"
+                dangerouslySetInnerHTML={{ __html: newFantasy.description || '' }}
               />
-            )}
-            <select
-              value={edited?.category || ''}
-              onChange={(e) => setEdited({ ...edited!, category: e.target.value })}
-              className="w-full px-4 py-2 border rounded"
-              style={{
-                borderColor: 'var(--border-color)',
-                color: 'var(--text-default)',
-                backgroundColor: 'var(--modal-bg)',
-              }}
-            >
-              <option value="">Vælg kategori</option>
-              {fantasyCategories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-            <select
-              value={edited?.effort || ''}
-              onChange={(e) => setEdited({ ...edited!, effort: e.target.value })}
-              className="w-full px-4 py-2 border rounded"
-              style={{
-                borderColor: 'var(--border-color)',
-                color: 'var(--text-default)',
-                backgroundColor: 'var(--modal-bg)',
-              }}
-            >
-              <option value="">Vælg effort</option>
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-            </select>
-            <div className="flex flex-wrap justify-between items-center gap-2">
-              <div className="flex gap-2">
-                <button
-                  onClick={handleSave}
-                  className="px-4 py-2 rounded"
-                  style={{
-                    backgroundColor: 'var(--btn-primary-bg)',
-                    color: 'var(--color-white)',
-                  }}
-                  onMouseOver={(e) =>
-                    (e.currentTarget.style.backgroundColor = 'var(--btn-primary-hover)')
-                  }
-                  onMouseOut={(e) =>
-                    (e.currentTarget.style.backgroundColor = 'var(--btn-primary-bg)')
-                  }
-                >
-                  Gem
-                </button>
-                <button
-                  onClick={() => {
-                    setEditing(false);
-                    setEdited(fantasy ?? null);
-                  }}
-                  className="px-4 py-2"
-                  style={{ color: 'var(--btn-secondary-text)' }}
-                  onMouseOver={(e) =>
-                    (e.currentTarget.style.color = 'var(--btn-secondary-hover)')
-                  }
-                  onMouseOut={(e) =>
-                    (e.currentTarget.style.color = 'var(--btn-secondary-text)')
-                  }
-                >
+              {newFantasy.image_url && (
+                <img
+                  src={newFantasy.image_url}
+                  alt={newFantasy.title}
+                  className="w-full rounded mt-2"
+                />
+              )}
+              {extraImages.length > 0 && (
+                <div className="mt-2 flex space-x-2 overflow-x-auto">
+                  {extraImages.map((url, i) => (
+                    <img
+                      key={i}
+                      src={url}
+                      alt={`Ekstra billede ${i + 1}`}
+                      className="h-24 rounded"
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* BADGES NEDERST */}
+              <div className="mt-6 border-t pt-4 flex flex-wrap gap-2">
+                {newFantasy.category && (
+                  <TagBadge label={newFantasy.category} icon={<Tag size={14} />} color="purple" />
+                )}
+                {newFantasy.effort && (
+                  <TagBadge label={newFantasy.effort} icon={<Zap size={14} />} color="yellow" />
+                )}
+              </div>
+
+              {children}
+            </>
+          ) : (
+            <>
+              <input
+                type="text"
+                placeholder="Titel"
+                value={newFantasy.title || ''}
+                onChange={(e) =>
+                  setNewFantasy({ ...newFantasy, title: e.target.value })
+                }
+                className="w-full border p-2 rounded"
+              />
+
+              <textarea
+                placeholder="Beskrivelse"
+                value={newFantasy.description || ''}
+                onChange={(e) =>
+                  setNewFantasy({ ...newFantasy, description: e.target.value })
+                }
+                className="w-full border p-2 rounded h-24"
+              />
+
+              <select
+                value={newFantasy.category || ''}
+                onChange={(e) =>
+                  setNewFantasy({ ...newFantasy, category: e.target.value })
+                }
+                className="w-full border p-2 rounded"
+              >
+                <option value="">Vælg kategori</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.name}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={newFantasy.effort || ''}
+                onChange={(e) =>
+                  setNewFantasy({ ...newFantasy, effort: e.target.value })
+                }
+                className="w-full border p-2 rounded"
+              >
+                <option value="">Vælg indsats</option>
+                <option value="Low">Lav</option>
+                <option value="Medium">Mellem</option>
+                <option value="High">Høj</option>
+              </select>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Upload hovedbillede:
+                </label>
+                <input type="file" onChange={handleImageUpload} />
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={uploadExtras}
+                    onChange={(e) => setUploadExtras(e.target.checked)}
+                  />
+                  Ekstra tilføjelser (flere billeder)
+                </label>
+
+                {uploadExtras && (
+                  <div className="mt-2">
+                    <input type="file" multiple onChange={handleExtraImagesUpload} />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 mt-4">
+                <button onClick={onClose} className="btn">
                   Annuller
                 </button>
+                {isCreateMode ? (
+                  <button
+                    onClick={handleSubmit}
+                    className="btn-primary"
+                    disabled={uploading}
+                  >
+                    Tilføj fantasi
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        if (fantasy && onEdit) {
+                          onEdit({
+                            ...fantasy,
+                            ...newFantasy,
+                            extra_images: newFantasy.extra_images || [],
+                          });
+                        }
+                      }}
+                      className="btn-primary"
+                    >
+                      Gem
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (fantasy && fantasy.id && onDelete) {
+                          onDelete(fantasy.id);
+                        }
+                      }}
+                      className="btn-destructive"
+                    >
+                      Slet
+                    </button>
+                  </>
+                )}
               </div>
-              {fantasy?.id && (
-                <button
-                  onClick={handleDelete}
-                  className="text-sm ml-auto"
-                  style={{ color: 'var(--btn-danger-text)' }}
-                  onMouseOver={(e) =>
-                    (e.currentTarget.style.color = 'var(--btn-danger-hover)')
-                  }
-                  onMouseOut={(e) =>
-                    (e.currentTarget.style.color = 'var(--btn-danger-text)')
-                  }
-                >
-                  🗑️ Slet
-                </button>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="mb-4">
-            <h2 className="text-2xl font-bold mb-3 pr-10">{fantasy?.title}</h2>
-            {fantasy?.image_url && (
-              <img
-                src={fantasy.image_url}
-                alt=""
-                className="mb-4 rounded w-full max-h-[350px] object-cover"
-              />
-            )}
-            <div
-              className="prose max-w-none leading-relaxed [&_p]:mb-4"
-              style={{ color: 'var(--text-secondary)' }}
-              dangerouslySetInnerHTML={{ __html: fantasy?.description || '' }}
-            />
-            <div className="mt-4 flex flex-wrap gap-2 text-sm font-medium">
-              {fantasy?.category && (
-                <Badge
-                  variant="outline"
-                  className="gap-1"
-                  style={{
-                    backgroundColor: 'var(--badge-bg-info)',
-                    color: 'var(--badge-text-info)',
-                  }}
-                >
-                  <Tag size={14} /> {fantasy.category}
-                </Badge>
-              )}
-              {fantasy?.effort && (
-                <Badge
-                  variant="outline"
-                  className="gap-1"
-                  style={{
-                    backgroundColor: 'var(--badge-bg-warning)',
-                    color: 'var(--badge-text-warning)',
-                  }}
-                >
-                  <Zap size={14} /> {fantasy.effort}
-                </Badge>
-              )}
-              {fantasy?.fulfilled_date && (
-                <Badge
-                  variant="outline"
-                  className="gap-1"
-                  style={{
-                    backgroundColor: 'var(--badge-bg-muted)',
-                    color: 'var(--badge-text-muted)',
-                  }}
-                >
-                  <Calendar size={14} /> Opfyldt: {fantasy.fulfilled_date}
-                </Badge>
-              )}
-            </div>
-            <div className="mt-6">
-              <button
-                className="px-4 py-2 rounded"
-                style={{
-                  backgroundColor: 'var(--blue-600)',
-                  color: 'var(--color-white)',
-                }}
-                onClick={() => setEditing(true)}
-                onMouseOver={(e) =>
-                  (e.currentTarget.style.backgroundColor = 'var(--blue-700)')
-                }
-                onMouseOut={(e) =>
-                  (e.currentTarget.style.backgroundColor = 'var(--blue-600)')
-                }
-              >
-                ✏️ Redigér
-              </button>
-            </div>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

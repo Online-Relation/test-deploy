@@ -1,4 +1,3 @@
-// components/FantasyBoard.tsx
 'use client';
 
 import { useCategory } from '@/context/CategoryContext';
@@ -14,12 +13,12 @@ import {
   DndContext,
   closestCenter,
   useDraggable,
-  useDroppable,
 } from '@dnd-kit/core';
-import { Tag, Zap, Star, AlertCircle } from 'lucide-react';
+import { Tag, Zap, Star, AlertCircle, Award, ImageIcon } from 'lucide-react';
 import Modal from '@/components/ui/modal';
 import { TagBadge } from '@/components/ui/TagBadge';
 import { supabase } from '@/lib/supabaseClient';
+import { useState } from 'react';
 
 const fantasyStatuses = [
   { key: 'idea', label: 'Fantasier' },
@@ -34,23 +33,23 @@ export default function FantasyBoard() {
   const { fantasyCategories: rawCategories } = useCategory();
   const { addXp } = useXp();
 
+  const [selectedFantasy, setSelectedFantasy] = useState<Fantasy | null>(null);
+  const [editingFantasy, setEditingFantasy] = useState<Fantasy | null>(null);
+
   const {
     fantasies,
     profileMap,
     xpMapStine,
     xpMapCurrent,
-    selectedFantasy,
     filterCategory,
     showAddModal,
     newFantasyData,
-
     setFilterCategory,
     setShowAddModal,
     handleCreateNewFantasy,
     handleDragEnd,
     handleDeleteFantasy,
     setNewFantasyData,
-    setSelectedFantasy,
   } = useFantasyBoardLogic();
 
   const fantasyCategories: CategoryEntry[] = rawCategories.map((cat) =>
@@ -119,6 +118,11 @@ export default function FantasyBoard() {
       fantasy.description.trim() === '' ||
       fantasy.description === '<p><br></p>';
 
+    const fulfilledXpLabel =
+      fantasy.status === 'fulfilled' && fantasy.effort
+        ? `Tildelt: ${xpMapStine[`complete_fantasy_${fantasy.effort.toLowerCase()}`] || 0} XP`
+        : null;
+
     return (
       <div
         ref={setNodeRef}
@@ -131,7 +135,7 @@ export default function FantasyBoard() {
           {...attributes}
           className="absolute top-2 right-2 cursor-grab text-muted-foreground hover:text-foreground z-10"
         >
-          ⠿
+          ⠃
         </button>
 
         {fantasy.image_url && (
@@ -148,6 +152,15 @@ export default function FantasyBoard() {
             title="Manglende beskrivelse"
           >
             <AlertCircle size={16} />
+          </div>
+        )}
+
+        {fantasy.extra_images && fantasy.extra_images.length > 0 && (
+          <div
+            className="absolute top-2 left-10 bg-blue-600 text-white rounded-full px-2 py-1 text-xs flex items-center gap-1 z-10"
+            title="Ekstra billeder"
+          >
+            <ImageIcon size={14} /> {fantasy.extra_images.length}
           </div>
         )}
 
@@ -182,6 +195,13 @@ export default function FantasyBoard() {
                 color="yellow"
               />
             )}
+            {fulfilledXpLabel && (
+              <TagBadge
+                label={fulfilledXpLabel}
+                icon={<Award size={14} />}
+                color="green"
+              />
+            )}
             {fantasy.user_id && profileMap[fantasy.user_id] && (
               <TagBadge
                 label={profileMap[fantasy.user_id]}
@@ -196,47 +216,6 @@ export default function FantasyBoard() {
             </div>
           )}
         </div>
-      </div>
-    );
-  }
-
-  function DroppableColumn({
-    status,
-    fantasies,
-    onCardClick,
-    profileMap,
-    xpMapStine,
-    fantasyCategories,
-  }: {
-    status: string;
-    fantasies: Fantasy[];
-    onCardClick: (f: Fantasy) => void;
-    profileMap: ProfileMap;
-    xpMapStine: XpMap;
-    fantasyCategories: CategoryEntry[];
-  }) {
-    const { isOver, setNodeRef } = useDroppable({ id: status });
-
-    return (
-      <div
-        ref={setNodeRef}
-        className={`p-4 rounded shadow min-h-[300px] transition-colors ${
-          isOver ? 'bg-primary/10' : 'bg-muted'
-        }`}
-      >
-        <h2 className="text-xl font-semibold mb-4 text-foreground">
-          {fantasyStatuses.find((s) => s.key === status)?.label || status}
-        </h2>
-        {fantasies.map((fantasy) => (
-          <DraggableCard
-            key={fantasy.id}
-            fantasy={fantasy}
-            onView={() => setSelectedFantasy(fantasy)}
-            profileMap={profileMap}
-            xpMapStine={xpMapStine}
-            fantasyCategories={fantasyCategories}
-          />
-        ))}
       </div>
     );
   }
@@ -271,35 +250,60 @@ export default function FantasyBoard() {
       <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {fantasyStatuses.map(({ key }) => (
-            <DroppableColumn
-              key={key}
-              status={key}
-              fantasies={filteredFantasies.filter((f) => f.status === key)}
-              onCardClick={(f) => setSelectedFantasy(f)}
-              profileMap={profileMap}
-              xpMapStine={xpMapStine}
-              fantasyCategories={fantasyCategories}
-            />
+            <div key={key}>
+              <h2 className="text-xl font-semibold mb-4 text-foreground">
+                {fantasyStatuses.find((s) => s.key === key)?.label || key}
+              </h2>
+              {filteredFantasies
+                .filter((f) => f.status === key)
+                .map((fantasy) => (
+                  <DraggableCard
+                    key={fantasy.id}
+                    fantasy={fantasy}
+                    onView={() => setSelectedFantasy(fantasy)}
+                    profileMap={profileMap}
+                    xpMapStine={xpMapStine}
+                    fantasyCategories={fantasyCategories}
+                  />
+                ))}
+            </div>
           ))}
         </div>
       </DndContext>
 
-      {showAddModal && (
-        <Modal
-          isCreateMode
-          title="Tilføj ny fantasi"
-          onClose={() => setShowAddModal(false)}
-          onCreate={handleCreateNewFantasy}
-          newFantasy={newFantasyData}
-          setNewFantasy={(f) => setNewFantasyData(f)}
-        />
-      )}
+      {/* Visningsmodal */}
+    {selectedFantasy && (
+  <Modal
+    title={selectedFantasy.title}
+    onClose={() => setSelectedFantasy(null)}
+    fantasy={selectedFantasy}
+    newFantasy={newFantasyData}
+    setNewFantasy={setNewFantasyData}
+    readOnly={true}      // <-- Her skal den tilføjes!
+    children={
+      <button
+        className="btn-primary mt-4"
+        onClick={() => {
+          setEditingFantasy(selectedFantasy);
+          setSelectedFantasy(null);
+        }}
+      >
+        Redigér
+      </button>
+    }
+  />
+)}
 
-      {selectedFantasy && (
+
+      {/* Redigeringsmodal */}
+      {editingFantasy && (
         <Modal
-          fantasy={selectedFantasy}
-          onClose={() => setSelectedFantasy(null)}
-          onEdit={async (updated) => {
+          title="Redigér fantasi"
+          onClose={() => setEditingFantasy(null)}
+          fantasy={editingFantasy}
+          newFantasy={newFantasyData}
+          setNewFantasy={setNewFantasyData}
+          onEdit={async (updated: Fantasy) => {
             const { error } = await supabase
               .from('fantasies')
               .update({
@@ -308,17 +312,31 @@ export default function FantasyBoard() {
                 category: updated.category,
                 effort: updated.effort,
                 image_url: updated.image_url,
+                extra_images: updated.extra_images,
               })
               .eq('id', updated.id);
 
             if (error) {
               console.error('Fejl ved opdatering:', error.message);
             }
-            setSelectedFantasy(null);
+            setEditingFantasy(null);
           }}
-          onDelete={async (id) => {
+          onDelete={async (id: string) => {
             await handleDeleteFantasy(id);
+            setEditingFantasy(null);
           }}
+        />
+      )}
+
+      {/* Opret modal */}
+      {showAddModal && (
+        <Modal
+          isCreateMode
+          title="Tilføj ny fantasi"
+          onClose={() => setShowAddModal(false)}
+          onCreate={handleCreateNewFantasy}
+          newFantasy={newFantasyData}
+          setNewFantasy={setNewFantasyData}
         />
       )}
     </div>

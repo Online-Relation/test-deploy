@@ -16,6 +16,7 @@ export interface Fantasy {
   xp_granted?: boolean;
   fulfilled_date?: string;
   user_id?: string;
+  extra_images?: string[];
 }
 
 export interface ProfileMap {
@@ -26,7 +27,6 @@ export interface XpMap {
   [key: string]: number;
 }
 
-// Remember to export CategoryEntry so FantasyBoard kan importere den
 export interface CategoryEntry {
   id: string;
   name: string;
@@ -40,19 +40,21 @@ export interface UseFantasyBoardResult {
   selectedFantasy: Fantasy | null;
   filterCategory: string | null;
   showAddModal: boolean;
-  newFantasyData: Omit<Fantasy, 'id'>;
+  newFantasyData: Omit<Fantasy, 'id'> & { extra_images?: string[]; hasExtras?: boolean };
 
   setFilterCategory: (cat: string | null) => void;
   setShowAddModal: (b: boolean) => void;
   handleCreateNewFantasy: () => Promise<void>;
   handleDragEnd: (event: any) => Promise<void>;
   handleDeleteFantasy: (id: string) => Promise<void>;
-  setNewFantasyData: (f: Omit<Fantasy, 'id'>) => void;
+  setNewFantasyData: (f: Omit<Fantasy, 'id'> & { extra_images?: string[]; hasExtras?: boolean }) => void;
   setSelectedFantasy: (f: Fantasy | null) => void;
+  fetchFantasies: () => Promise<void>;
 }
 
 export function useFantasyBoardLogic(): UseFantasyBoardResult {
-  const { user, role } = useUserContext();
+  const { user } = useUserContext();
+  const [role, setRole] = useState<string>('stine');
   const [fantasies, setFantasies] = useState<Fantasy[]>([]);
   const [profileMap, setProfileMap] = useState<ProfileMap>({});
   const [xpMapStine, setXpMapStine] = useState<XpMap>({});
@@ -60,7 +62,7 @@ export function useFantasyBoardLogic(): UseFantasyBoardResult {
   const [selectedFantasy, setSelectedFantasy] = useState<Fantasy | null>(null);
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newFantasyData, setNewFantasyData] = useState<Omit<Fantasy, 'id'>>({
+  const [newFantasyData, setNewFantasyData] = useState<Omit<Fantasy, 'id'> & { extra_images?: string[]; hasExtras?: boolean }>({
     title: '',
     description: '',
     image_url: '',
@@ -68,17 +70,44 @@ export function useFantasyBoardLogic(): UseFantasyBoardResult {
     effort: '',
     status: 'idea',
     user_id: user?.id || '',
+    extra_images: [],
+    hasExtras: false,
   });
+
+const fetchFantasies = async () => {
+  const { data: dataFant, error: errFant } = await supabase
+    .from('fantasies')
+    .select(`
+      id,
+      title,
+      description,
+      category,
+      effort,
+      status,
+      image_url,
+      extra_images,
+      xp_granted,
+      fulfilled_date,
+      user_id
+    `);
+  if (!errFant && dataFant) setFantasies(dataFant);
+};
+
 
   useEffect(() => {
     async function fetchAll() {
-      // 1) Hent alle fantasier
-      const { data: dataFant, error: errFant } = await supabase
-        .from('fantasies')
-        .select('*');
-      if (!errFant && dataFant) setFantasies(dataFant);
+      if (user?.id) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (!profileError && profileData?.role) {
+          setRole(profileData.role);
+        }
+      }
+      await fetchFantasies();
 
-      // 2) Hent alle profiler til mapping user_id → display_name
       const { data: dataProf, error: errProf } = await supabase
         .from('profiles')
         .select('id, display_name');
@@ -88,7 +117,6 @@ export function useFantasyBoardLogic(): UseFantasyBoardResult {
         setProfileMap(map);
       }
 
-      // 3a) Hent XP-opsætning for Stine (bruges i badge-visning)
       const { data: dataStine, error: errStine } = await supabase
         .from('xp_settings')
         .select('action, effort, xp')
@@ -103,7 +131,6 @@ export function useFantasyBoardLogic(): UseFantasyBoardResult {
         setXpMapStine(mapSt);
       }
 
-      // 3b) Hent XP-opsætning for den nuværende bruger (bruges ved drag/drop og oprettelse)
       const { data: dataCur, error: errCur } = await supabase
         .from('xp_settings')
         .select('action, effort, xp')
@@ -122,48 +149,59 @@ export function useFantasyBoardLogic(): UseFantasyBoardResult {
     fetchAll();
   }, [role]);
 
-  // Tilføj ny fantasi + evt. “add_fantasy” XP til Stine
-  const handleCreateNewFantasy = async () => {
-    const toInsert = { ...newFantasyData, user_id: user?.id || '' };
-    const { data, error } = await supabase
-      .from('fantasies')
-      .insert(toInsert)
-      .select()
-      .maybeSingle();
+const handleCreateNewFantasy = async () => {
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
 
-    if (!error && data) {
-      setFantasies((prev) => [...prev, data]);
+  if (sessionError || !session) {
+    console.error('Session-fejl:', sessionError?.message);
+    return;
+  }
 
-      // Hvis Stine var logget ind, tildel hende “add_fantasy” XP
-      if (role === 'stine' && data.effort) {
-        const effLower = data.effort.toLowerCase();
-        const xpToGive = xpMapCurrent[`add_fantasy_${effLower}`] || 0;
-        if (xpToGive > 0) {
-          await supabase.from('xp_log').insert({
-            user_id: user?.id,
-            change: xpToGive,
-            description: `add_fantasy – ${data.title}`,
-            role,
-          });
-        }
-      }
+  const user_id = session.user.id;
 
-      setShowAddModal(false);
-      setNewFantasyData({
-        title: '',
-        description: '',
-        image_url: '',
-        category: '',
-        effort: '',
-        status: 'idea',
-        user_id: user?.id || '',
-      });
-    } else {
-      console.error('Fejl ved oprettelse:', error?.message);
-    }
-  };
+if (!newFantasyData.title) {
+  console.warn('Titel er påkrævet.');
+  return;
+}
 
-  // Drag & drop: opdater status + evt. “plan_fantasy”/“complete_fantasy” XP
+
+  const { error } = await supabase.from('fantasies').insert({
+    title: newFantasyData.title,
+    description: newFantasyData.description,
+    category: newFantasyData.category,
+    effort: newFantasyData.effort,
+    image_url: newFantasyData.image_url || null,
+    extra_images: newFantasyData.extra_images || [],
+    status: 'idea',
+    user_id,
+  });
+
+  if (error) {
+    console.error('Fejl ved oprettelse:', error.message);
+    return;
+  }
+
+  setShowAddModal(false);
+  setNewFantasyData({
+    title: '',
+    description: '',
+    category: '',
+    effort: '',
+    image_url: '',
+    extra_images: [],
+    status: 'idea',
+    user_id: '', // reset
+    hasExtras: false,
+  });
+
+  await fetchFantasies();
+};
+
+
+
   const handleDragEnd = async (event: any) => {
     const { active, over } = event;
     if (!over) return;
@@ -180,12 +218,10 @@ export function useFantasyBoardLogic(): UseFantasyBoardResult {
       updateData.fulfilled_date = new Date().toISOString().split('T')[0];
     }
 
-    // Opdater fantasy i Supabase
     await supabase.from('fantasies').update(updateData).eq('id', fantasyId);
 
     const effLower = moved.effort?.toLowerCase();
     if (effLower && role === 'stine') {
-      // idé → planlagt → “plan_fantasy”
       if (prevStatus === 'idea' && newStatus === 'planned') {
         const xpToGive = xpMapCurrent[`plan_fantasy_${effLower}`] || 0;
         if (xpToGive > 0) {
@@ -197,7 +233,6 @@ export function useFantasyBoardLogic(): UseFantasyBoardResult {
           });
         }
       }
-      // planlagt → opfyldt → “complete_fantasy”
       if (prevStatus === 'planned' && newStatus === 'fulfilled') {
         const xpToGive = xpMapCurrent[`complete_fantasy_${effLower}`] || 0;
         if (xpToGive > 0) {
@@ -218,7 +253,6 @@ export function useFantasyBoardLogic(): UseFantasyBoardResult {
     );
   };
 
-  // Slet fantasi i Supabase + fjern fra lokal state
   const handleDeleteFantasy = async (id: string) => {
     const { error } = await supabase.from('fantasies').delete().eq('id', id);
     if (!error) {
@@ -246,5 +280,6 @@ export function useFantasyBoardLogic(): UseFantasyBoardResult {
     handleDeleteFantasy,
     setNewFantasyData,
     setSelectedFantasy,
+    fetchFantasies,
   };
 }

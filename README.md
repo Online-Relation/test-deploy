@@ -945,3 +945,29 @@ Felter: id (UUID), user_id (UUID, FK → profiles.id), description (text), creat
 Opdatering af profiles
 
 Tilføjet kolonne buksedragt (text) til tøjstørrelser
+
+## Opdatering d. 10/6 - 2025 ##
+Funktionalitet implementeret
+Fantasier – Billeder og tilføjelser
+
+Nyt felt hasExtras tilføjet i fantasies-tabellen for at markere fantasier med ekstra tilføjelser.
+
+extra_images array understøttes nu i både database og modal.
+
+Modal har fået et nyt felt (checkbox) til at aktivere ekstra upload.
+
+Understøttelse af multiple image upload, som gemmes i Supabase Storage under fantasies/extras/.
+
+Ved visning i modal:
+
+Hvis extra_images er til stede, vises billedekarusel med pile til at navigere mellem billederne.
+
+Hvis kun image_url findes, vises dette som fallback.
+
+Alle funktioner fra tidligere version (titel, beskrivelse, kategori, effort, redigering, sletning) er bevaret og ikke strippet.
+
+Rettelser og stabilisering
+Forhindrede stripning af funktioner i Modal.tsx ved bevidst bevaring af eksisterende funktioner under tilføjelse af billedekarusel.
+
+Rollehentning for XP og adgang kontrolleres fortsat via profiles.
+
