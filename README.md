@@ -522,7 +522,7 @@ Klar til overlevering. Næste udvikler kan nu sætte sig ind i hele systemets st
 - Historik vises opdelt for Mads og Stine, kun for tidligere uger
 - Brugerrolle fastlægges via `supabase.auth.getSession()`
 
-### Databaseændringer
+## Databaseændringer
 - Ny tabel: `checkin`
   - Felter: `id`, `user_id`, `need_text`, `week_number`, `year`, `status`, `xp_awarded`, `evaluator_id`
 - Tabel: `xp_log`
@@ -564,7 +564,7 @@ evaluate_partial
 
 evaluate_rejected
 
-##### Opdatering 5/6 - 2025 #####
+## Opdatering 5/6 - 2025
 
 ✅ Mads tilføjer fantasi → får 1 XP
 
@@ -654,7 +654,7 @@ Administrerbare XP-indstillinger
 
 Klar til udvidelse med niveauer, statistik og historik
 
-#### Dagsrapport d.6/6 - 2025 ####
+## Dagsrapport d.6/6 - 2025
 Hvad vi har lavet i dag
 Tilbageført til fungerende version af layout og styling uden global padding (p-6) på .card i globals.css.
 
@@ -686,7 +686,7 @@ Modal til oprettelse og redigering fungerer som tidligere, uden globale stylingk
 
 Brug af Tailwind CSS variabler til farver og tekst i globale styles.
 
-#### Opdateret: 7. juni 2025 ####
+## Opdateret: 7. juni 2025
 
 
 Oprettet mapper for Check-in undersider i app/checkin:
@@ -725,7 +725,7 @@ To-Do-liste, Date Ideas, Manifestation, Karriere, Bucketlist
 
 Indstillings­sider til XP‑opsætning, Rewards, Kategorier og Adgangskontroller
 
-#### Opdateret: 9. juni 2025 ####
+#### Opdateret: 9. juni 2025
 Projektoversigt
 
 Vi har udviklet en ny side /bucketlist-couple i vores Next.js-app, hvor par kan oprette, redigere og følge deres fælles bucket list.
@@ -811,3 +811,27 @@ Test og QA af billedupload.
 Implementere filtrering pr. tidsperiode i Timeline.
 
 Tilføje bruger-feedback (notifikation ved færdigt delmål).
+
+## 2025-06-09
+
+- **BucketContext**: Added support for deadlines on buckets and subgoals, plus subgoal owner assignment; updated state and methods in `context/BucketContext.tsx`.
+- **Bucketlist Couple Page** (`app/bucketlist-couple/page.tsx`): Integrated deadline and owner fields in create/edit modal; default view set to Board; fetched `profiles.display_name` for owner dropdown.
+- **BucketTimeline** (`components/BucketTimeline.tsx`): Enhanced timeline to show bucket deadlines, subgoal deadlines, and owner avatars (initials); styling aligned with board cards.
+- **Database**:
+  - `bucketlist_couple`: Added `deadline` column; updated JSON `goals` objects to include `dueDate` and `owner` fields.
+  - `profiles`: Utilizing `display_name` for dropdown.
+  - `bucket_categories`: unchanged.
+
+## 2025-06-09
+Bucketlist: billedupload og redigering
+Tilføjet billedupload til både oprettelse og redigering af mål i bucketlist_couple.
+
+Billeder uploades til Supabase Storage under bucket bucket-images.
+
+Den offentlige billed-URL gemmes i feltet image_url på den enkelte bucket.
+
+updateBucket-funktionen i BucketContext er udvidet med imageUrl som parameter.
+
+addBucket og updateBucket håndterer begge nu valgfrit billede og gemmer det korrekt i databasen.
+
+Fejlhåndtering ved upload er tilføjet, og fetchBuckets() kaldes ved success for at sikre UI-opdatering.

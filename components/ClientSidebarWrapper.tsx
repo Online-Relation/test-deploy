@@ -3,12 +3,16 @@
 
 import { useUserContext } from '@/context/UserContext';
 import Sidebar from './Sidebar';
+import { useHasMounted } from '@/hooks/useHasMounted';
+
 
 export default function ClientSidebarWrapper() {
+  const hasMounted = useHasMounted();
   const { user, loading } = useUserContext();
 
-  if (loading) return null;  // Auth loader stadig
-  if (!user) return null;    // Ikke logget ind
+  if (!hasMounted) return null; // Forhindrer SSR-hydration-fejl
+  if (loading) return null;
+  if (!user) return null;
 
   return <Sidebar />;
 }

@@ -44,7 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="/favicon-16x16.png"
         />
         {/* Web manifest */}
-        <link rel="manifest" href="/site.webmanifest" />
+
       </head>
       <body className="flex bg-background text-foreground">
         <UserProvider>
