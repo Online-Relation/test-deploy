@@ -71,8 +71,10 @@ await addBucket(
   newBucketTitle.trim(),
   newBucketDesc.trim(),
   newBucketCat,
-  newBucketDeadline || undefined
+  newBucketDeadline || undefined,
+  newImageFile || undefined
 );
+
 
 
     setNewBucketTitle('');
@@ -104,13 +106,15 @@ await addBucket(
       }
     }
 
-    await updateBucket(
-      activeBucketId!,
-      newBucketTitle.trim(),
-      newBucketDesc.trim(),
-      newBucketCat,
-      newBucketDeadline || undefined
-    );
+ await updateBucket(
+  activeBucketId!,
+  newBucketTitle.trim(),
+  newBucketDesc.trim(),
+  newBucketCat,
+  newBucketDeadline || undefined,
+  newImageFile || undefined
+);
+
 
     setOpen(false);
   };

@@ -31,14 +31,16 @@ type BucketContextType = {
     title: string,
     description: string,
     category: string,
-    deadline?: string
+    deadline?: string,
+    imageFile?: File
   ) => Promise<void>;
   updateBucket: (
     id: string,
     title: string,
     description: string,
     category: string,
-    deadline?: string
+    deadline?: string,
+    imageFile?: File
   ) => Promise<void>;
   addSubgoal: (
     bucketId: string,
@@ -82,18 +84,45 @@ export const BucketProvider = ({ children }: { children: React.ReactNode }) => {
     fetchBuckets();
   }, []);
 
+  const uploadBucketImage = async (file: File): Promise<string | undefined> => {
+    const ext = file.name.split('.').pop();
+    const fileName = `bucket-${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from('bucketlist-couple')
+      .upload(`bucket-images/${fileName}`, file, { upsert: true });
+
+    if (uploadError) {
+      console.error('Fejl ved upload af bucket-billede:', uploadError.message);
+      return undefined;
+    }
+
+    const { data: publicData } = supabase.storage
+      .from('bucketlist-couple')
+      .getPublicUrl(`bucket-images/${fileName}`);
+
+    return publicData?.publicUrl;
+  };
+
   const addBucket = async (
     title: string,
     description: string,
     category: string,
-    deadline?: string
+    deadline?: string,
+    imageFile?: File
   ) => {
+    let image_url: string | undefined;
+
+    if (imageFile) {
+      image_url = await uploadBucketImage(imageFile);
+    }
+
     const { error } = await supabase.from('bucketlist_couple').insert([
       {
         title,
         description,
         category,
         deadline,
+        image_url,
       },
     ]);
 
@@ -109,11 +138,19 @@ export const BucketProvider = ({ children }: { children: React.ReactNode }) => {
     title: string,
     description: string,
     category: string,
-    deadline?: string
+    deadline?: string,
+    imageFile?: File
   ) => {
+    let updates: Partial<Bucket> = { title, description, category, deadline };
+
+    if (imageFile) {
+      const image_url = await uploadBucketImage(imageFile);
+      updates.image_url = image_url;
+    }
+
     const { error } = await supabase
       .from('bucketlist_couple')
-      .update({ title, description, category, deadline })
+      .update(updates)
       .eq('id', id);
 
     if (!error) {
@@ -155,68 +192,66 @@ export const BucketProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-const toggleSubgoalDone = async (
-  bucketId: string,
-  subgoalId: string,
-  done: boolean
-) => {
-  const target = buckets.find(b => b.id === bucketId);
-  if (!target) return;
+  const toggleSubgoalDone = async (
+    bucketId: string,
+    subgoalId: string,
+    done: boolean
+  ) => {
+    const target = buckets.find(b => b.id === bucketId);
+    if (!target) return;
 
-  const updatedGoals = target.goals.map(g =>
-    g.id === subgoalId ? { ...g, done } : g
-  );
+    const updatedGoals = target.goals.map(g =>
+      g.id === subgoalId ? { ...g, done } : g
+    );
 
-  const { error } = await supabase
-    .from('bucketlist_couple')
-    .update({ goals: updatedGoals })
-    .eq('id', bucketId);
+    const { error } = await supabase
+      .from('bucketlist_couple')
+      .update({ goals: updatedGoals })
+      .eq('id', bucketId);
 
-  if (error) {
-    console.error('Fejl ved at toggl’e delmål:', error.message);
-    return;
-  }
-
-  setBuckets(prev =>
-    prev.map(b =>
-      b.id === bucketId ? { ...b, goals: updatedGoals } : b
-    )
-  );
-
-  // Log XP hvis delmålet markeres som done
-  if (done) {
-    const ownerId = target.goals.find(g => g.id === subgoalId)?.owner;
-    if (!ownerId) return;
-
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', ownerId)
-      .maybeSingle();
-
-    const role = profileData?.role;
-    if (!role) return;
-
-    const { data: xpSetting } = await supabase
-      .from('xp_settings')
-      .select('xp')
-      .eq('role', role)
-      .eq('action', 'complete_subgoal')
-      .maybeSingle();
-
-    const xp = xpSetting?.xp || 0;
-
-    if (xp > 0) {
-      await supabase.from('xp_log').insert({
-        change: xp,
-        user_id: ownerId,
-        role,
-        description: `Delmål fuldført`,
-      });
+    if (error) {
+      console.error('Fejl ved at toggl’e delmål:', error.message);
+      return;
     }
-  }
-};
 
+    setBuckets(prev =>
+      prev.map(b =>
+        b.id === bucketId ? { ...b, goals: updatedGoals } : b
+      )
+    );
+
+    if (done) {
+      const ownerId = target.goals.find(g => g.id === subgoalId)?.owner;
+      if (!ownerId) return;
+
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', ownerId)
+        .maybeSingle();
+
+      const role = profileData?.role;
+      if (!role) return;
+
+      const { data: xpSetting } = await supabase
+        .from('xp_settings')
+        .select('xp')
+        .eq('role', role)
+        .eq('action', 'complete_subgoal')
+        .maybeSingle();
+
+      const xp = xpSetting?.xp || 0;
+
+      if (xp > 0) {
+        await supabase.from('xp_log').insert({
+          change: xp,
+          user_id: ownerId,
+          role,
+          description: `Delmål fuldført`,
+        });
+      }
+    }
+  };
 
   const uploadSubgoalImage = async (
     bucketId: string,
