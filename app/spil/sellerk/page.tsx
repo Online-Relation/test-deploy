@@ -139,29 +139,35 @@ export default function SellerkGamePage() {
     setIsWildcard((usedIds.length + 1) % 20 === 0);
   }, [usedIds]);
 
-  const drawCard = async (type: "truth" | "dare") => {
-    const userId = userIdMap[turn];
-    if (!userId) return;
+const drawCard = async (type: "truth" | "dare") => {
+  const userId = userIdMap[turn];
+  if (!userId) return;
 
-    const { data: allCards } = await supabase.from("truth_dare_cards").select("*").eq("type", type);
-    if (!allCards) return;
+  const { data: allCards } = await supabase.from("truth_dare_cards").select("*").eq("type", type);
+  if (!allCards) return;
 
-    const { data: log } = await supabase.from("truth_dare_log").select("card_id").eq("user_id", userId);
-    const usedCardIds = new Set(log?.map((entry) => entry.card_id));
-    const availableCards = allCards.filter((card) => !usedCardIds.has(card.id));
+  const { data: log } = await supabase.from("truth_dare_log").select("card_id").eq("user_id", userId);
+  const usedCardIds = new Set(log?.map((entry) => entry.card_id));
 
-    if (availableCards.length === 0) {
-      setCurrentCard({ id: "none", text: "Ingen kort tilbage i bunken.", type });
-      setShowTypeChoice(false);
-      return;
-    }
+  const availableCards = allCards.filter((card) => {
+    const notUsed = !usedCardIds.has(card.id);
+    const matchesTheme = theme === "default" || card.category === theme;
+    return notUsed && matchesTheme;
+  });
 
-    const selected = availableCards[Math.floor(Math.random() * availableCards.length)];
-
-    setCurrentCard(selected);
-    setUsedIds((prev) => [...prev, selected.id]);
+  if (availableCards.length === 0) {
+    setCurrentCard({ id: "none", text: "Ingen kort tilbage i bunken.", type });
     setShowTypeChoice(false);
-  };
+    return;
+  }
+
+  const selected = availableCards[Math.floor(Math.random() * availableCards.length)];
+
+  setCurrentCard(selected);
+  setUsedIds((prev) => [...prev, selected.id]);
+  setShowTypeChoice(false);
+};
+
 
   const logXP = async (action: string) => {
     if (!user || !currentCard || currentCard.id === "none") return;
@@ -178,10 +184,12 @@ export default function SellerkGamePage() {
     });
 
     const targetUserId = userIdMap[turn];
-    await supabase.from("truth_dare_log").insert({
-      user_id: targetUserId,
-      card_id: currentCard.id,
-    });
+await supabase.from("truth_dare_log").insert({
+  user_id: targetUserId,
+  card_id: currentCard.id,
+});
+
+setUsedCardIdsForTurn((prev) => [...prev, currentCard.id]);
 
     setStats((prev) => {
       const copy = { ...prev };
@@ -202,11 +210,38 @@ export default function SellerkGamePage() {
 
   const themeStyle = themeStyles[theme] || themeStyles.default;
 
- return (
-    <div className={`flex flex-col items-center justify-center min-h-screen gap-6 pt-6 px-4 pb-12 max-w-xl mx-auto border rounded-xl ${themeStyle.background}`}>
-      <h1 className="text-xl font-bold mb-4 text-center">Sandhed eller Konsekvens</h1>
+  const [usedCardIdsForTurn, setUsedCardIdsForTurn] = useState<string[]>([]);
 
-      <div className="flex flex-wrap gap-2 mb-4 justify-center">
+  useEffect(() => {
+    const fetchUsedCards = async () => {
+      const userId = userIdMap[turn];
+      if (!userId) return;
+      const { data } = await supabase
+        .from("truth_dare_log")
+        .select("card_id")
+        .eq("user_id", userId);
+      setUsedCardIdsForTurn(data?.map((entry) => entry.card_id) || []);
+    };
+
+    fetchUsedCards();
+  }, [turn, userIdMap]);
+
+  useEffect(() => {
+    if (currentCard && currentCard.id !== "none") {
+      setUsedCardIdsForTurn((prev) => {
+        if (!prev.includes(currentCard.id)) {
+          return [...prev, currentCard.id];
+        }
+        return prev;
+      });
+    }
+  }, [currentCard]);
+
+  return (
+    <div className={`flex flex-col items-center justify-center min-h-screen gap-6 pt-2 px-4 pb-12 max-w-xl mx-auto border rounded-xl ${themeStyle.background}`}>
+      <h1 className="text-xl font-bold mb-2 text-center">Sandhed eller Konsekvens</h1>
+
+      <div className="flex flex-wrap gap-2 justify-center">
         {["default", ...availableThemes].map((key) => (
           <button
             key={key}
@@ -222,36 +257,58 @@ export default function SellerkGamePage() {
 
       <div className="text-sm text-muted-foreground mb-2">Runde {usedIds.length + 1}</div>
 
+      <div className="flex gap-8 items-center">
+        {Object.entries(players).map(([key, player]) => {
+          const isActive = key === turn;
+          const remainingTruth = questions.filter(
+            (q) => q.category === theme && q.type === "truth" && !usedCardIdsForTurn.includes(q.id)
+          ).length;
+          const remainingDare = questions.filter(
+            (q) => q.category === theme && q.type === "dare" && !usedCardIdsForTurn.includes(q.id)
+          ).length;
+
+          return (
+            <div
+              key={player.id}
+              className={`flex flex-col items-center gap-1 ${isActive ? "opacity-100" : "opacity-40"}`}
+            >
+              <div className="w-24 h-24 relative rounded-full overflow-hidden border-2 border-white shadow-md">
+                {player.avatar && (
+                  <Image src={player.avatar} alt={player.name} fill className="object-cover" />
+                )}
+              </div>
+              <div className="text-sm font-medium">{player.name}</div>
+              <div className="text-xs text-muted-foreground">
+                ✅ {stats[key as "mads" | "stine"].success} / ❌ {stats[key as "mads" | "stine"].skipped}
+              </div>
+              <div className="text-xs text-green-700 font-semibold">
+                XP: {earnedXP[key as "mads" | "stine"]}
+              </div>
+              {theme !== "default" && (
+                <motion.div
+                  key={isActive ? "visible" : "hidden"}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: isActive ? 1 : 0, height: isActive ? "auto" : 0 }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="overflow-hidden"
+                >
+                  <div className="text-[11px] text-muted-foreground text-center mt-1">
+                    Sandhed: {remainingTruth} kort<br />
+                    Konsekvens: {remainingDare} kort
+                  </div>
+                </motion.div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
       {isWildcard && showTypeChoice && (
         <div className="text-center text-pink-600 font-semibold text-lg">
           🎲 Wildcard! Den anden vælger om du skal tage sandhed eller konsekvens
         </div>
       )}
-    
-
-      <div className="flex gap-8 items-center">
-        {Object.entries(players).map(([key, player]) => (
-          <div
-            key={player.id}
-            className={`flex flex-col items-center gap-1 ${
-              key === turn ? "opacity-100" : "opacity-40"
-            }`}
-          >
-            <div className="w-16 h-16 relative rounded-full overflow-hidden border-2 border-white shadow-md">
-              {player.avatar && (
-                <Image src={player.avatar} alt={player.name} fill className="object-cover" />
-              )}
-            </div>
-            <div className="text-sm font-medium">{player.name}</div>
-            <div className="text-xs text-muted-foreground">
-              ✅ {stats[key as "mads" | "stine"].success} / ❌ {stats[key as "mads" | "stine"].skipped}
-            </div>
-            <div className="text-xs text-green-700 font-semibold">
-              XP: {earnedXP[key as "mads" | "stine"]}
-            </div>
-          </div>
-        ))}
-      </div>
 
       <AnimatePresence>
         {showTypeChoice ? (
