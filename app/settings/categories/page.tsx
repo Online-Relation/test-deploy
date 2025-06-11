@@ -18,19 +18,19 @@ const colorClasses = [
 ];
 
 export default function CategoriesPage() {
-  // State for each category type
   const [fantasyCategories, setFantasyCategories] = useState<Entry[]>([]);
   const [types, setTypes] = useState<Entry[]>([]);
   const [giftCategories, setGiftCategories] = useState<Entry[]>([]);
   const [bucketCategories, setBucketCategories] = useState<Entry[]>([]);
   const [tags, setTags] = useState<Entry[]>([]);
+  const [themes, setThemes] = useState<Entry[]>([]);
 
-  // Inputs
   const [newFantasyCategory, setNewFantasyCategory] = useState('');
   const [newType, setNewType] = useState('');
   const [newGiftCategory, setNewGiftCategory] = useState('');
   const [newBucketCategory, setNewBucketCategory] = useState('');
   const [newTag, setNewTag] = useState('');
+  const [newTheme, setNewTheme] = useState('');
 
   const [loading, setLoading] = useState(false);
 
@@ -42,19 +42,22 @@ export default function CategoriesPage() {
       { data: tp },
       { data: gc },
       { data: bc },
-      { data: tg }
+      { data: tg },
+      { data: th }
     ] = await Promise.all([
       supabase.from('fantasy_categories').select('*'),
       supabase.from('fantasy_types').select('*'),
       supabase.from('gift_categories').select('*'),
       supabase.from('bucket_categories').select('*'),
-      supabase.from('tags').select('*')
+      supabase.from('tags').select('*'),
+      supabase.from('game_themes').select('*')
     ]);
     if (fc) setFantasyCategories(fc as Entry[]);
     if (tp) setTypes(tp as Entry[]);
     if (gc) setGiftCategories(gc as Entry[]);
     if (bc) setBucketCategories(bc as Entry[]);
     if (tg) setTags(tg as Entry[]);
+    if (th) setThemes(th as Entry[]);
   }
 
   async function addEntry(
@@ -88,7 +91,6 @@ export default function CategoriesPage() {
     <div className="p-6 max-w-xl mx-auto space-y-8">
       <h1 className="text-2xl font-bold">Kategorier, Typer og Tags</h1>
 
-      {/* Fantasikategorier */}
       <Section
         title="Fantasikategorier"
         items={fantasyCategories}
@@ -98,7 +100,6 @@ export default function CategoriesPage() {
         onDelete={id => deleteEntry('fantasy_categories', id, setFantasyCategories)}
       />
 
-      {/* Gavetyper */}
       <Section
         title="Gavetyper"
         items={types}
@@ -108,7 +109,6 @@ export default function CategoriesPage() {
         onDelete={id => deleteEntry('fantasy_types', id, setTypes)}
       />
 
-      {/* Gavekategorier */}
       <Section
         title="Gavekategorier"
         items={giftCategories}
@@ -118,7 +118,6 @@ export default function CategoriesPage() {
         onDelete={id => deleteEntry('gift_categories', id, setGiftCategories)}
       />
 
-      {/* Bucketlist-kategorier */}
       <Section
         title="Bucketlist-kategorier"
         items={bucketCategories}
@@ -129,47 +128,28 @@ export default function CategoriesPage() {
       />
 
       {/* Tags */}
-      <div>
-        <h2 className="text-lg font-semibold mb-2">Tags</h2>
-        <div className="flex gap-2 mb-2">
-          <input
-            type="text"
-            placeholder="Ny tag (fx romantisk, overraskelse)"
-            value={newTag}
-            onChange={e => setNewTag(e.target.value)}
-            className="flex-grow px-4 py-2 border rounded"
-          />
-          <button
-            onClick={() => addEntry('tags', newTag, setTags, setNewTag)}
-            disabled={loading}
-            className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800"
-          >
-            Tilføj
-          </button>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {tags.map((tag, idx) => (
-            <span
-              key={tag.id}
-              className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${colorClasses[idx % colorClasses.length]}`}
-            >
-              {tag.name}
-              <button
-                onClick={() => deleteEntry('tags', tag.id, setTags)}
-                className="ml-2 text-black hover:text-red-600"
-                title="Slet tag"
-              >
-                <X size={14} />
-              </button>
-            </span>
-          ))}
-        </div>
-      </div>
+      <Section
+        title="Tags"
+        items={tags}
+        newValue={newTag}
+        onChange={setNewTag}
+        onAdd={() => addEntry('tags', newTag, setTags, setNewTag)}
+        onDelete={id => deleteEntry('tags', id, setTags)}
+      />
+
+      {/* Spiltemaer */}
+      <Section
+        title="Spiltemaer"
+        items={themes}
+        newValue={newTheme}
+        onChange={setNewTheme}
+        onAdd={() => addEntry('game_themes', newTheme, setThemes, setNewTheme)}
+        onDelete={id => deleteEntry('game_themes', id, setThemes)}
+      />
     </div>
   );
 }
 
-// Genbrugelig sektion-komponent
 function Section({
   title,
   items,

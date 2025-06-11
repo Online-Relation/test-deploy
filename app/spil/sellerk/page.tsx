@@ -1,4 +1,4 @@
-// app/spil/sellerk/page.tsx
+// /app/spil/sellerk/page.tsx
 
 "use client";
 
@@ -32,79 +32,108 @@ interface XpSetting {
   xp: number;
 }
 
+interface Stats {
+  success: number;
+  skipped: number;
+}
+
+interface ThemeRow {
+  name: string;
+  background_class?: string;
+  card_class?: string;
+  button_class?: string;
+}
+
+const predefinedThemes: Record<string, { background: string; card: string; button: string }> = {
+  default: {
+    background: "bg-white",
+    card: "border-pink-200",
+    button: "bg-black text-white",
+  },
+};
+
 export default function SellerkGamePage() {
   const { user } = useUserContext();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [usedIds, setUsedIds] = useState<string[]>([]);
   const [currentCard, setCurrentCard] = useState<Question | null>(null);
   const [showTypeChoice, setShowTypeChoice] = useState(true);
+  const [isWildcard, setIsWildcard] = useState(false);
   const [turn, setTurn] = useState<"mads" | "stine">("mads");
+  const [theme, setTheme] = useState("default");
+  const [availableThemes, setAvailableThemes] = useState<string[]>([]);
+  const [themeStyles, setThemeStyles] = useState<Record<string, { background: string; card: string; button: string }>>(predefinedThemes);
   const [players, setPlayers] = useState<Record<"mads" | "stine", Player>>({
     mads: { id: "mads", name: "Mads", avatar: null },
     stine: { id: "stine", name: "Stine", avatar: null },
   });
   const [xpMap, setXpMap] = useState<Record<string, number>>({});
+  const [stats, setStats] = useState<Record<"mads" | "stine", Stats>>({
+    mads: { success: 0, skipped: 0 },
+    stine: { success: 0, skipped: 0 },
+  });
+  const [earnedXP, setEarnedXP] = useState<Record<"mads" | "stine", number>>({
+    mads: 0,
+    stine: 0,
+  });
 
   useEffect(() => {
-    const fetchQuestions = async () => {
-      const { data, error } = await supabase
-        .from("truth_dare_cards")
-        .select("id, text, type, difficulty, category, created_at");
+    const fetchData = async () => {
+      const [{ data: qData }, { data: profileData }, { data: xpData }, { data: themeData }] = await Promise.all([
+        supabase.from("truth_dare_cards").select("id, text, type, difficulty, category, created_at"),
+        supabase.from("profiles").select("role, display_name, avatar_url").in("role", ["mads", "stine"]),
+        supabase.from("xp_settings").select("role, action, effort, xp").in("action", ["complete_truth_dare", "reject_truth_dare"]),
+        supabase.from("game_themes").select("name, background_class, card_class, button_class"),
+      ]);
 
-      if (error) {
-        console.error("Fejl ved hentning af spørgsmål:", error.message);
-        return;
+      if (qData) setQuestions(qData);
+
+      if (profileData) {
+        const newPlayers = { ...players };
+        profileData.forEach((p) => {
+          const role = p.role as "mads" | "stine";
+          newPlayers[role] = {
+            id: role,
+            name: p.display_name,
+            avatar: p.avatar_url,
+          };
+        });
+        setPlayers(newPlayers);
       }
 
-      setQuestions(data || []);
-    };
-
-    const fetchAvatars = async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("role, display_name, avatar_url")
-        .in("role", ["mads", "stine"]);
-
-      if (error) {
-        console.error("Fejl ved hentning af avatars:", error.message);
-        return;
+      if (xpData) {
+        const map: Record<string, number> = {};
+        xpData.forEach((entry: XpSetting) => {
+          const key = `${entry.role}_${entry.action}_${entry.effort ?? "none"}`;
+          map[key] = entry.xp;
+        });
+        setXpMap(map);
       }
 
-      const newPlayers = { ...players };
-      data?.forEach((p) => {
-        const role = p.role as "mads" | "stine";
-        newPlayers[role] = {
-          id: role,
-          name: p.display_name,
-          avatar: p.avatar_url,
-        };
-      });
-      setPlayers(newPlayers);
-    };
+      if (themeData) {
+        const names: string[] = [];
+        const styles: Record<string, { background: string; card: string; button: string }> = { ...predefinedThemes };
 
-    const fetchXp = async () => {
-      const { data, error } = await supabase
-        .from("xp_settings")
-        .select("role, action, effort, xp")
-        .in("action", ["complete_truth_dare", "reject_truth_dare"]);
+        themeData.forEach((t: ThemeRow, i) => {
+          names.push(t.name);
+          styles[t.name] = {
+            background: t.background_class || (i % 2 === 0 ? "bg-blue-50" : "bg-green-50"),
+            card: t.card_class || (i % 2 === 0 ? "border-blue-300" : "border-green-300"),
+            button: t.button_class || (i % 2 === 0 ? "bg-blue-600 text-white" : "bg-green-600 text-white"),
+          };
+        });
 
-      if (error) {
-        console.error("Fejl ved hentning af XP:", error.message);
-        return;
+        setAvailableThemes(names);
+        setThemeStyles(styles);
       }
-
-      const map: Record<string, number> = {};
-      data?.forEach((entry: XpSetting) => {
-        const key = `${entry.role}_${entry.action}_${entry.effort ?? "none"}`;
-        map[key] = entry.xp;
-      });
-      setXpMap(map);
     };
 
-    fetchQuestions();
-    fetchAvatars();
-    fetchXp();
+    fetchData();
   }, []);
+
+  useEffect(() => {
+    setIsWildcard((usedIds.length + 1) % 20 === 0);
+  }, [usedIds]);
 
   const drawCard = (type: "truth" | "dare") => {
     const available = questions.filter(
@@ -112,28 +141,33 @@ export default function SellerkGamePage() {
     );
     if (available.length === 0) return;
     const random = available[Math.floor(Math.random() * available.length)];
-    setUsedIds([...usedIds, random.id]);
+    setUsedIds((prev) => [...prev, random.id]);
     setCurrentCard(random);
     setShowTypeChoice(false);
   };
 
   const logXP = async (action: string) => {
     if (!user || !currentCard) return;
+
     const effortKey = currentCard.difficulty ?? "none";
     const xpKey = `${turn}_${action}_${effortKey}`;
     const xp = xpMap[xpKey] ?? 0;
 
-    const { error } = await supabase.from("xp_log").insert({
+    await supabase.from("xp_log").insert({
       user_id: user.id,
       role: turn,
       change: xp,
       description: `Sandhed eller konsekvens (${action === "reject_truth_dare" ? "fravalgt" : currentCard.type})`,
     });
 
-    if (error) {
-      console.error("Kunne ikke logge XP:", error.message);
-    }
+    setStats((prev) => {
+      const copy = { ...prev };
+      if (action === "reject_truth_dare") copy[turn].skipped++;
+      else copy[turn].success++;
+      return copy;
+    });
 
+    setEarnedXP((prev) => ({ ...prev, [turn]: prev[turn] + xp }));
     nextTurn();
   };
 
@@ -143,9 +177,34 @@ export default function SellerkGamePage() {
     setTurn((prev) => (prev === "mads" ? "stine" : "mads"));
   };
 
+  const themeStyle = themeStyles[theme] || themeStyles.default;
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen gap-6 p-4">
-      <h1 className="text-2xl font-bold">🔥 Fræk Sandhed eller Konsekvens</h1>
+    <div className={`flex flex-col items-center justify-center min-h-screen gap-6 p-4 border rounded-xl max-w-xl mx-auto ${themeStyle.background}`}>
+      <div className="flex flex-wrap gap-2 mb-2">
+        {["default", ...availableThemes].map((key) => (
+          <button
+            key={key}
+            onClick={() => setTheme(key)}
+            className={`px-3 py-1 rounded-full text-sm border ${
+              theme === key ? "bg-black text-white" : themeStyles[key]?.button || "bg-gray-200 hover:bg-gray-300"
+            }`}
+          >
+            {key.charAt(0).toUpperCase() + key.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      <h1 className="text-2xl font-bold">Sandhed eller Konsekvens</h1>
+
+      <div className="text-sm text-muted-foreground">Runde {usedIds.length + 1}</div>
+
+      {isWildcard && showTypeChoice && (
+        <div className="text-center text-pink-600 font-semibold text-lg">
+          🎲 Wildcard! Den anden vælger om du skal tage sandhed eller konsekvens
+        </div>
+      )}
+    
 
       <div className="flex gap-8 items-center">
         {Object.entries(players).map(([key, player]) => (
@@ -161,6 +220,12 @@ export default function SellerkGamePage() {
               )}
             </div>
             <div className="text-sm font-medium">{player.name}</div>
+            <div className="text-xs text-muted-foreground">
+              ✅ {stats[key as "mads" | "stine"].success} / ❌ {stats[key as "mads" | "stine"].skipped}
+            </div>
+            <div className="text-xs text-green-700 font-semibold">
+              XP: {earnedXP[key as "mads" | "stine"]}
+            </div>
           </div>
         ))}
       </div>
@@ -174,23 +239,31 @@ export default function SellerkGamePage() {
             exit={{ opacity: 0, scale: 0.9 }}
             className="flex flex-col gap-4"
           >
-            <Button onClick={() => drawCard("truth")} className="w-48 text-lg">
+            <Button onClick={() => drawCard("truth")} className={`w-48 text-lg ${themeStyle.button}`}>
               Sandhed
             </Button>
-            <Button onClick={() => drawCard("dare")} className="w-48 text-lg">
+            <Button onClick={() => drawCard("dare")} className={`w-48 text-lg ${themeStyle.button}`}>
               Konsekvens
             </Button>
           </motion.div>
         ) : (
           <motion.div
             key="card"
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -50, scale: 0.9 }}
+            transition={{ duration: 0.4, type: "spring" }}
             className="w-full max-w-md"
           >
-            <Card className="p-6 text-center shadow-xl rounded-2xl">
-              <p className="text-xl font-semibold">{currentCard?.text}</p>
+            <Card className={`p-6 text-center shadow-xl rounded-2xl border-2 ${themeStyle.card}`}>
+              <motion.p
+                className="text-xl font-semibold"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                {currentCard?.text}
+              </motion.p>
               <div className="mt-2 text-sm text-muted-foreground">
                 {currentCard?.category} • {currentCard?.difficulty}
               </div>
@@ -199,7 +272,7 @@ export default function SellerkGamePage() {
               {currentCard?.type === "dare" && (
                 <Button variant="destructive" onClick={() => logXP("reject_truth_dare")}>Jeg sprang fra</Button>
               )}
-              <Button onClick={() => logXP("complete_truth_dare")}>Jeg fuldførte det!</Button>
+              <Button onClick={() => logXP("complete_truth_dare")} className={themeStyle.button}>Jeg fuldførte det!</Button>
             </div>
           </motion.div>
         )}
