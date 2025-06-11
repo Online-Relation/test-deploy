@@ -971,3 +971,51 @@ Forhindrede stripning af funktioner i Modal.tsx ved bevidst bevaring af eksister
 
 Rollehentning for XP og adgang kontrolleres fortsat via profiles.
 
+Opdatering pr. 2025-06-10
+Hvad vi har lavet i denne session
+FantasyBoard komponenten
+
+Genoprettet og rettet supabase-import og kald, så alle funktioner nu virker korrekt.
+
+Tilføjet håndtering af XP, filtrering, kategorier og drag-and-drop (DND-kit).
+
+Rettet bug, så kort kan flyttes korrekt på desktop (drag-and-drop).
+
+Sikret korrekt visning af billeder, beskrivelse og badges på kort.
+
+Tilføjet visning af oprettelsesdato og planlagt dato på kortene.
+
+Implementeret læse- og redigeringsmodal med RichTextEditor og billedupload (inkl. galleri).
+
+Implementeret luk-knap og korrekt håndtering af ekstra billeder i modal.
+
+Mobiltilpasning med dropdown til status (idea, planned, fulfilled).
+
+Rettet håndtering af opdatering og sletning af fantasier via modal.
+
+useFantasyBoardLogic hook
+
+Udvidet data med created_date og planned_date felter.
+
+Håndtering af opdatering af datoer ved oprettelse og flytning mellem statusser.
+
+Ryddet op og sikret supabase-kald til fetch, update, delete, og XP-log.
+
+Modal komponenten
+
+Genindført RichTextEditor til beskrivelse med fuld funktionalitet inkl. formatering.
+
+Tilføjet understøttelse af ekstra billedupload og visning i galleri.
+
+Implementeret luk-knap (krydset øverst).
+
+Sikret mobilvenlig status-dropdown.
+
+Rydelig visning af badges i modal (kategori, indsats).
+
+Databaseændringer
+fantasies tabellen er udvidet med følgende nye kolonner:
+
+created_date (date) — dato for oprettelse af fantasi
+
+

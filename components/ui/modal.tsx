@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Fantasy } from '@/hooks/useFantasyBoardLogic';
 import { ChevronLeft, ChevronRight, X, Tag, Zap } from 'lucide-react';
 import { TagBadge } from '@/components/ui/TagBadge';
-import RichTextEditor from '@/components/ui/RichTextEditor'; // <--- importér editoren
+import RichTextEditor from '@/components/ui/RichTextEditor';
 
 type FantasyInput = Omit<Fantasy, 'id'> & {
   extra_images?: string[];
@@ -120,6 +120,7 @@ export default function Modal({
       urls.push(publicUrl);
     }
 
+    // Vi samler tidligere extra_images med nye billeder, så intet går tabt
     const allImages = [...(newFantasy.extra_images || []), ...urls];
     setExtraImages(allImages);
     setNewFantasy({ ...newFantasy, extra_images: allImages });
@@ -170,6 +171,7 @@ export default function Modal({
 
           <h2 className="text-2xl font-semibold">{title}</h2>
 
+          {/* Vis galleri */}
           {extraImages.length > 0 && !isCreateMode && (
             <div className="relative w-full h-56 mb-2 rounded overflow-hidden">
               <img
@@ -246,7 +248,6 @@ export default function Modal({
                 className="w-full border p-2 rounded"
               />
 
-              {/* Her erstatter vi textarea med RichTextEditor */}
               <RichTextEditor
                 value={newFantasy.description || ''}
                 onChange={(val) =>

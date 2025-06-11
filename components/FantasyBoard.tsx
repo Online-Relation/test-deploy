@@ -2,6 +2,8 @@
 
 import { useCategory } from '@/context/CategoryContext';
 import { useXp } from '@/context/XpContext';
+import { supabase } from '@/lib/supabaseClient';  // <== Her er importen til supabase
+
 import {
   useFantasyBoardLogic,
   Fantasy,
@@ -17,7 +19,6 @@ import {
 import { Tag, Zap, Star, AlertCircle, Award, ImageIcon } from 'lucide-react';
 import Modal from '@/components/ui/modal';
 import { TagBadge } from '@/components/ui/TagBadge';
-import { supabase } from '@/lib/supabaseClient';
 import { useState } from 'react';
 
 const fantasyStatuses = [
@@ -134,6 +135,7 @@ export default function FantasyBoard() {
           {...listeners}
           {...attributes}
           className="absolute top-2 right-2 cursor-grab text-muted-foreground hover:text-foreground z-10"
+          onClick={(e) => e.stopPropagation()}
         >
           ⠃
         </button>
@@ -156,19 +158,28 @@ export default function FantasyBoard() {
         )}
 
         {fantasy.extra_images && fantasy.extra_images.length > 0 && (
-  <div
-    className="absolute top-2 left-10 bg-blue-600 text-white rounded-full px-2 py-1 text-xs flex items-center gap-1 z-10"
-    title="Ekstra billeder"
-  >
-    <ImageIcon size={14} /> {fantasy.extra_images.length}
-  </div>
-)}
+          <div
+            className="absolute top-2 left-10 bg-blue-600 text-white rounded-full px-2 py-1 text-xs flex items-center gap-1 z-10"
+            title="Ekstra billeder"
+          >
+            <ImageIcon size={14} /> {fantasy.extra_images.length}
+          </div>
+        )}
 
+        <div className="p-5 space-y-1">
+          <h3 className="font-semibold text-lg text-foreground">{fantasy.title}</h3>
 
-        <div className="p-5 space-y-2">
-          <h3 className="font-semibold text-lg text-foreground">
-            {fantasy.title}
-          </h3>
+          {fantasy.created_date && (
+            <div className="text-xs text-muted-foreground">
+              Tilføjet: {fantasy.created_date}
+            </div>
+          )}
+          {fantasy.planned_date && (
+            <div className="text-xs text-muted-foreground">
+              Planlagt: {fantasy.planned_date}
+            </div>
+          )}
+
           <div
             className="text-sm text-muted-foreground prose max-w-none line-clamp-5"
             dangerouslySetInnerHTML={{ __html: fantasy.description }}
@@ -272,31 +283,29 @@ export default function FantasyBoard() {
         </div>
       </DndContext>
 
-      {/* Visningsmodal */}
-    {selectedFantasy && (
-  <Modal
-    title={selectedFantasy.title}
-    onClose={() => setSelectedFantasy(null)}
-    fantasy={selectedFantasy}
-    newFantasy={newFantasyData}
-    setNewFantasy={setNewFantasyData}
-    readOnly={true}      // <-- Her skal den tilføjes!
-    children={
-      <button
-        className="btn-primary mt-4"
-        onClick={() => {
-          setEditingFantasy(selectedFantasy);
-          setSelectedFantasy(null);
-        }}
-      >
-        Redigér
-      </button>
-    }
-  />
-)}
+      {selectedFantasy && (
+        <Modal
+          title={selectedFantasy.title}
+          onClose={() => setSelectedFantasy(null)}
+          fantasy={selectedFantasy}
+          newFantasy={newFantasyData}
+          setNewFantasy={setNewFantasyData}
+          readOnly={true}
+          children={
+            <button
+              className="btn-primary mt-4"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingFantasy(selectedFantasy);
+                setSelectedFantasy(null);
+              }}
+            >
+              Redigér
+            </button>
+          }
+        />
+      )}
 
-
-      {/* Redigeringsmodal */}
       {editingFantasy && (
         <Modal
           title="Redigér fantasi"
@@ -314,6 +323,7 @@ export default function FantasyBoard() {
                 effort: updated.effort,
                 image_url: updated.image_url,
                 extra_images: updated.extra_images,
+                status: updated.status, // Opdater status her
               })
               .eq('id', updated.id);
 
@@ -329,7 +339,6 @@ export default function FantasyBoard() {
         />
       )}
 
-      {/* Opret modal */}
       {showAddModal && (
         <Modal
           isCreateMode

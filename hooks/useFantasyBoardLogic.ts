@@ -15,6 +15,8 @@ export interface Fantasy {
   status: 'idea' | 'planned' | 'fulfilled';
   xp_granted?: boolean;
   fulfilled_date?: string;
+  created_date?: string;
+  planned_date?: string;
   user_id?: string;
   extra_images?: string[];
 }
@@ -88,6 +90,8 @@ export function useFantasyBoardLogic(): UseFantasyBoardResult {
         extra_images,
         xp_granted,
         fulfilled_date,
+        created_date,
+        planned_date,
         user_id
       `);
     if (!errFant && dataFant) setFantasies(dataFant);
@@ -166,10 +170,7 @@ export function useFantasyBoardLogic(): UseFantasyBoardResult {
       return;
     }
 
-    // Fjern hovedbilledet fra extra_images, hvis det findes der
-    const extraImages = (newFantasyData.extra_images || []).filter(
-      (url) => url !== newFantasyData.image_url
-    );
+    const now = new Date().toISOString().split('T')[0];
 
     const { error } = await supabase.from('fantasies').insert({
       title: newFantasyData.title,
@@ -177,9 +178,11 @@ export function useFantasyBoardLogic(): UseFantasyBoardResult {
       category: newFantasyData.category,
       effort: newFantasyData.effort,
       image_url: newFantasyData.image_url || null,
-      extra_images: extraImages,
+      extra_images: newFantasyData.extra_images || [],
       status: 'idea',
       user_id,
+      created_date: now,
+      planned_date: null,
     });
 
     if (error) {
@@ -203,23 +206,32 @@ export function useFantasyBoardLogic(): UseFantasyBoardResult {
     await fetchFantasies();
   };
 
-  const handleDragEnd = async (event: any) => {
-    const { active, over } = event;
-    if (!over) return;
+ const handleDragEnd = async (event: any) => {
+  const { active, over } = event;
+  console.log('Drag ended:', { activeId: active.id, overId: over?.id });
 
-    const newStatus = over.id as 'idea' | 'planned' | 'fulfilled';
-    const fantasyId = active.id as string;
-    const moved = fantasies.find((f) => f.id === fantasyId);
-    if (!moved || moved.status === newStatus) return;
+  if (!over) return;
 
-    const prevStatus = moved.status;
-    const updateData: Partial<Fantasy> = { status: newStatus };
-    if (prevStatus === 'planned' && newStatus === 'fulfilled') {
-      updateData.xp_granted = true;
-      updateData.fulfilled_date = new Date().toISOString().split('T')[0];
-    }
+  const newStatus = over.id as 'idea' | 'planned' | 'fulfilled';
+  const fantasyId = active.id as string;
+  const moved = fantasies.find((f) => f.id === fantasyId);
+  if (!moved || moved.status === newStatus) {
+    console.log('No status change needed');
+    return;
+  }
 
-    await supabase.from('fantasies').update(updateData).eq('id', fantasyId);
+  const prevStatus = moved.status;
+  const updateData: Partial<Fantasy> = { status: newStatus };
+
+  if (prevStatus === 'idea' && newStatus === 'planned') {
+    updateData.planned_date = new Date().toISOString().split('T')[0]; // sætter planned_date
+  }
+  if (prevStatus === 'planned' && newStatus === 'fulfilled') {
+    updateData.xp_granted = true;
+    updateData.fulfilled_date = new Date().toISOString().split('T')[0];
+  }
+
+  await supabase.from('fantasies').update(updateData).eq('id', fantasyId);
 
     const effLower = moved.effort?.toLowerCase();
     if (effLower && role === 'stine') {
