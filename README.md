@@ -1119,3 +1119,72 @@ Alle funktioner til valg, visning og opdatering af adgang er bevaret
 Dropdown med brugere og checkboxes per menu entry
 
 Opdatering sker via upsert til access_control
+
+## Opdatering – 2025-06-11 ##
+Funktionalitet tilføjet i /app/spil/sellerk/page.tsx
+Brugerbaseret tracking af brugte kort
+
+Når en spiller (Mads eller Stine) trækker og fuldfører et kort, gemmes det i truth_dare_log.
+
+Systemet sikrer, at hver spiller skal besvare samme kort, men kort aldrig gentages for en spiller.
+
+usedCardIdsForTurn holder styr på hvilke kort den aktuelle spiller har brugt.
+
+Wildcards hver 20. kort
+
+Et wildcard aktiveres automatisk for hver 20. tur med specialbesked og tvungen valg af type.
+
+Visning af hvor mange kort der er tilbage
+
+Viser hvor mange truth og dare kort den aktive spiller har tilbage inden for det valgte tema.
+
+Antallet opdateres automatisk og vises under profilbilledet for aktiv spiller.
+
+Glidende animation af kort-tilgængelighedsboksen
+
+Når turen skifter, vises/hides boksen med glidende animation under profilbillederne.
+
+Forbedret layout og responsivt design
+
+Større profilbilleder (w-24 h-24)
+
+CTA'er (Sandhed, Konsekvens, Jeg fuldførte det) har nu pænere animation ved visning.
+
+Mindre afstande mellem komponenter for mobiloptimering.
+
+Temafarver og chips
+
+Nye temaer glow, sol, romantik har fået farveindstillinger (baggrund, kortkant, knapfarve).
+
+Aktiv chip vises tydeligere med scale, farvet baggrund og border.
+
+Inaktive chips er lidt nedtonede (opacity-80) og har hover-effekt.
+
+Default chip-funktionalitet
+
+Hvis man spiller med temaet default, vælges kort tilfældigt uanset kategori.
+
+Viser samlet antal tilbageværende truth og dare kort i hele databasen for den aktive spiller.
+
+Ændringer i databasen (Supabase)
+Ny tabel: truth_dare_log
+
+Kolonner: user_id, card_id
+
+Logger hvilke kort hver spiller har haft, så de ikke får dem igen.
+
+Indhold i truth_dare_cards
+
++300 kort importeret med category sat til fx "Frækkeste".
+
+CSV'er opdateret til at have store begyndelsesbogstaver på kategorier.
+
+Indhold i game_themes
+
+Nye rækker tilføjet:
+
+glow: gule farver
+
+sol: lysegul/solskin
+
+romantik: lyserød/romantisk

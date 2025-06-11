@@ -151,7 +151,8 @@ const drawCard = async (type: "truth" | "dare") => {
 
   const availableCards = allCards.filter((card) => {
     const notUsed = !usedCardIds.has(card.id);
-    const matchesTheme = theme === "default" || card.category === theme;
+    const matchesTheme = theme === "default" ? true : card.category === theme;
+
     return notUsed && matchesTheme;
   });
 
@@ -210,7 +211,8 @@ setUsedCardIdsForTurn((prev) => [...prev, currentCard.id]);
 
   const themeStyle = themeStyles[theme] || themeStyles.default;
 
-  const [usedCardIdsForTurn, setUsedCardIdsForTurn] = useState<string[]>([]);
+  // Indsættet her:
+    const [usedCardIdsForTurn, setUsedCardIdsForTurn] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchUsedCards = async () => {
@@ -246,8 +248,10 @@ setUsedCardIdsForTurn((prev) => [...prev, currentCard.id]);
           <button
             key={key}
             onClick={() => setTheme(key)}
-            className={`px-3 py-1 rounded-full text-sm border ${
-              theme === key ? "bg-black text-white" : themeStyles[key]?.button || "bg-gray-200 hover:bg-gray-300"
+            className={`px-3 py-1 rounded-full text-sm border transition-all duration-200 ${
+              theme === key
+                ? "border-yellow-400 bg-yellow-100 text-black scale-105"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200 opacity-80"
             }`}
           >
             {key.charAt(0).toUpperCase() + key.slice(1)}
@@ -260,12 +264,16 @@ setUsedCardIdsForTurn((prev) => [...prev, currentCard.id]);
       <div className="flex gap-8 items-center">
         {Object.entries(players).map(([key, player]) => {
           const isActive = key === turn;
-          const remainingTruth = questions.filter(
-            (q) => q.category === theme && q.type === "truth" && !usedCardIdsForTurn.includes(q.id)
-          ).length;
-          const remainingDare = questions.filter(
-            (q) => q.category === theme && q.type === "dare" && !usedCardIdsForTurn.includes(q.id)
-          ).length;
+          const remainingTruth =
+  theme === "default"
+    ? questions.filter((q) => q.type === "truth" && !usedCardIdsForTurn.includes(q.id)).length
+    : questions.filter((q) => q.category === theme && q.type === "truth" && !usedCardIdsForTurn.includes(q.id)).length;
+
+const remainingDare =
+  theme === "default"
+    ? questions.filter((q) => q.type === "dare" && !usedCardIdsForTurn.includes(q.id)).length
+    : questions.filter((q) => q.category === theme && q.type === "dare" && !usedCardIdsForTurn.includes(q.id)).length;
+
 
           return (
             <div
@@ -285,19 +293,23 @@ setUsedCardIdsForTurn((prev) => [...prev, currentCard.id]);
                 XP: {earnedXP[key as "mads" | "stine"]}
               </div>
               {theme !== "default" && (
-                <motion.div
-                  key={isActive ? "visible" : "hidden"}
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: isActive ? 1 : 0, height: isActive ? "auto" : 0 }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="overflow-hidden"
-                >
-                  <div className="text-[11px] text-muted-foreground text-center mt-1">
-                    Sandhed: {remainingTruth} kort<br />
-                    Konsekvens: {remainingDare} kort
-                  </div>
-                </motion.div>
+                <AnimatePresence mode="wait">
+                  {isActive && (
+                    <motion.div
+                      key="countbox"
+                      initial={{ opacity: 0, height: 0, y: -10 }}
+                      animate={{ opacity: 1, height: "auto", y: 0 }}
+                      exit={{ opacity: 0, height: 0, y: -10 }}
+                      transition={{ duration: 0.25 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="text-[11px] text-muted-foreground text-center mt-1">
+                        Sandhed: {remainingTruth} kort<br />
+                        Konsekvens: {remainingDare} kort
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               )}
             </div>
           );
@@ -310,7 +322,7 @@ setUsedCardIdsForTurn((prev) => [...prev, currentCard.id]);
         </div>
       )}
 
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {showTypeChoice ? (
           <motion.div
             key="choice"
@@ -348,15 +360,22 @@ setUsedCardIdsForTurn((prev) => [...prev, currentCard.id]);
                 {currentCard?.category} • {currentCard?.difficulty}
               </div>
             </Card>
-            <div className="flex justify-center gap-4 mt-6">
+            <motion.div
+              className="flex justify-center gap-4 mt-6"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.2 }}
+            >
               {currentCard?.type === "dare" && (
                 <Button variant="destructive" onClick={() => logXP("reject_truth_dare")}>Jeg sprang fra</Button>
               )}
               <Button onClick={() => logXP("complete_truth_dare")} className={themeStyle.button}>Jeg fuldførte det!</Button>
-            </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
     </div>
   );
+
 }

@@ -9,6 +9,7 @@ import { useXp } from '@/context/XpContext';
 import { useHasMounted } from '@/hooks/useHasMounted';
 import { useUserContext } from '@/context/UserContext';
 import { supabase } from '@/lib/supabaseClient';
+import { Palette } from 'lucide-react';
 import {
   LayoutDashboard,
   ListTodo,
@@ -72,13 +73,14 @@ const accessHierarchy: AccessEntry[] = [
       { key: 'settings/points', label: 'Points', href: '/settings/points', children: [] },
       { key: 'settings/rewards', label: 'Rewards', href: '/settings/rewards', children: [] },
       { key: 'settings/categories', label: 'Categories', href: '/settings/categories', children: [] },
+      { key: 'settings/game-themes', label: 'Temaer', href: '/settings/game-themes', children: [] },
       { key: 'settings/access', label: 'Profiladgange', href: '/settings/access', children: [] },
     ],
   },
 ];
 
 const iconMap: Record<string, ReactNode> = {
-  dashboard: <LayoutDashboard size={20} />, todo: <ListTodo size={20} />, 'tasks-couple': <ListTodo size={20} />, dates: <Heart size={20} />, fantasy: <Sparkles size={20} />, 'fantasy/fantasier': <Sparkles size={20} />, 'fantasy/sex': <Heart size={20} />, 'bucketlist-couple': <Backpack size={20} />, checkin: <HeartHandshake size={20} />, manifestation: <BrainCircuit size={20} />, career: <Briefcase size={20} />, profile: <Settings size={20} />, settings: <Settings size={20} />, kommunikation: <Sparkles size={20} />, 'kommunikation/kompliment': <HeartHandshake size={20} />, 'kommunikation/spoergsmaal': <BrainCircuit size={20} />, 'kommunikation/random': <Sparkles size={20} />, spil: <ListTodo size={20} />, 'spil/sellerk': <Sparkles size={20} />
+  dashboard: <LayoutDashboard size={20} />, todo: <ListTodo size={20} />, 'tasks-couple': <ListTodo size={20} />, dates: <Heart size={20} />, fantasy: <Sparkles size={20} />, 'fantasy/fantasier': <Sparkles size={20} />, 'fantasy/sex': <Heart size={20} />, 'bucketlist-couple': <Backpack size={20} />, checkin: <HeartHandshake size={20} />, manifestation: <BrainCircuit size={20} />, career: <Briefcase size={20} />, profile: <Settings size={20} />, settings: <Settings size={20} />, kommunikation: <Sparkles size={20} />, 'kommunikation/kompliment': <HeartHandshake size={20} />, 'kommunikation/spoergsmaal': <BrainCircuit size={20} />, 'kommunikation/random': <Sparkles size={20} />, spil: <ListTodo size={20} />, 'spil/sellerk': <Sparkles size={20} />,'settings/game-themes': <Palette size={20} />
 };
 
 export default function Sidebar() {
