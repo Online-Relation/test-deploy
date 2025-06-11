@@ -1019,3 +1019,103 @@ fantasies tabellen er udvidet med følgende nye kolonner:
 created_date (date) — dato for oprettelse af fantasi
 
 
+Opdatering 2025-06-11
+Nye funktioner og rettelser
+FantasyBoard forbedringer:
+
+Implementeret dato for oprettelse (created_date) og planlagt dato (planned_date) på fantasier.
+
+Udvidet database og frontend til at håndtere og vise disse datoer.
+
+Rettet fejl ved drag & drop, så statusopdatering sker korrekt på desktop og mobil.
+
+Tilføjet mobil dropdown til statusændring af fantasier.
+
+Optimeret modal med RichTextEditor i stedet for textarea til beskrivelse.
+
+Løst issue med ekstra billeder: Galleri vises korrekt i modal og antal billeder vises som badge på kort.
+
+Implementeret luk-kryds i modal og forbedret scroll i modal.
+
+Sexlife-registrering:
+
+Implementeret funktion til at registrere sexlivsdage med tilknyttede tags.
+
+Tilføjet beregning af gennemsnitligt antal dage med sex pr. uge over de seneste 4 uger.
+
+Rettet fejl i gennemsnitsberegning, så unikke dage tælles korrekt per uge.
+
+Opdateret frontend på sex-side til at vise gennemsnitlig sex-dage pr. uge.
+
+Komplimenter:
+
+Genskabt funktionalitet til at hente dagens kompliment fra databasen.
+
+Tilføjet lokal lagring for at sikre, at dagens kompliment ikke skifter i løbet af dagen.
+
+Visualiserer registreringer af komplimenter pr. måned i et søjlediagram.
+
+Generelle forbedringer og fejlrettelser:
+
+Fuld integration af Supabase-klient i alle relevante filer for at undgå Cannot find name 'supabase'-fejl.
+
+Sikret korrekt opdatering og vedligeholdelse af ekstra billeder i fantasier.
+
+Optimeret håndtering af tilstand i modaler med klar separation mellem visning og redigering.
+
+Fjernet hydration mismatch fejl ved at undgå dynamiske værdier i server-side rendering.
+
+Databaseopdateringer
+Tilføjet kolonner i fantasies tabellen:
+
+created_date (DATE)
+
+planned_date (DATE)
+
+Tilføjet kolonne i compliments tabellen:
+
+created_at (TIMESTAMP WITH TIME ZONE, default now())
+
+Tilføjet nye records i sexlife_logs tabellen til registrering af sex-dage med dato og tags.
+
+🛠 Opdatering 11. juni 2025
+✅ Opgaveside til par
+Ny side: /tasks-couple
+
+Funktioner:
+
+Tilføj opgave med titel, beskrivelse, deadline og ansvarlig (dropdown: Mads eller Stine)
+
+Visning af aktive og fuldførte opgaver i kort
+
+Markér som fuldført → tildeler XP til den ansvarlige (via xp_settings)
+
+Mulighed for at redigere og slette opgaver
+
+Formular vises nederst og fylder mindre (max-w-md)
+
+Database:
+
+Ny tabel tasks_couple
+
+XP hentes ud fra complete_task entry i xp_settings
+
+Fil: /app/tasks-couple/page.tsx
+
+⚙️ Sidebar opdateret
+Nyt menupunkt: “Opgaver” (tasks-couple) med ListTodo ikon
+
+“Sex” under parforhold har nu ikon (Heart)
+
+accessHierarchy og iconMap opdateret tilsvarende
+
+🔐 Adgangsside opdateret
+/settings/access viser nu hele det opdaterede menuhierarki:
+
+Inkluderer alle punkter fra sidebar, inkl. tasks-couple, fantasy/sex, bucketlist-couple
+
+Alle funktioner til valg, visning og opdatering af adgang er bevaret
+
+Dropdown med brugere og checkboxes per menu entry
+
+Opdatering sker via upsert til access_control

@@ -1,22 +1,29 @@
-// Sørg for at installere dependencies:
-// npm install recharts
-// npm install --save-dev @types/recharts
-
-// /app/kompliment/page.tsx
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ResponsiveContainer,
+} from 'recharts';
 
-interface Compliment { id: string; text: string; }
+interface Compliment {
+  id: string;
+  text: string;
+}
 
 export default function KomplimentPage() {
   const [compliments, setCompliments] = useState<Compliment[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
   const [savingToday, setSavingToday] = useState<boolean>(false);
-  const [chartData, setChartData] = useState<{ month: string; count: number }[]>([]);
+  const [chartData, setChartData] = useState<{ month: string; count: number }[]>(
+    []
+  );
 
   // Helper to get YYYY-MM-DD
   const formatDate = (d: Date) => d.toISOString().split('T')[0];
@@ -28,6 +35,7 @@ export default function KomplimentPage() {
     const storedIdx = Number(localStorage.getItem('complimentIndex'));
 
     if (storedDate === today && !isNaN(storedIdx)) {
+      console.log('Using stored compliment index:', storedIdx);
       setCurrentIndex(storedIdx);
       return;
     }
@@ -38,6 +46,7 @@ export default function KomplimentPage() {
       available = list.map((_, i) => i);
     }
     const choice = available[Math.floor(Math.random() * available.length)];
+    console.log('Choosing new compliment index:', choice);
     localStorage.setItem('usedCompliments', JSON.stringify([...used, choice]));
     localStorage.setItem('complimentDate', today);
     localStorage.setItem('complimentIndex', String(choice));
@@ -50,8 +59,12 @@ export default function KomplimentPage() {
       .from('compliments')
       .select('id, text')
       .then(({ data, error }) => {
-        if (error) console.error(error);
-        else if (data) pickDaily(data);
+        if (error) {
+          console.error(error);
+        } else if (data) {
+          setCompliments(data);
+          pickDaily(data);
+        }
       });
   }, []);
 
@@ -59,11 +72,20 @@ export default function KomplimentPage() {
   async function handleGiveToday() {
     if (currentIndex === null) return;
     setSavingToday(true);
-    const comps = await supabase.from('compliments').select('id').then(r => r.data || []);
-    const compId = comps[currentIndex]?.id;
-    if (!compId) return setSavingToday(false);
+
+    const compId = compliments[currentIndex]?.id;
+    if (!compId) {
+      setSavingToday(false);
+      return;
+    }
     const today = formatDate(new Date());
-    await supabase.from('compliment_logs').insert({ compliment_id: compId, given_date: today });
+    const { error } = await supabase.from('compliment_logs').insert({
+      compliment_id: compId,
+      given_date: today,
+    });
+    if (error) {
+      console.error('Fejl ved registrering af kompliment:', error);
+    }
     setSavingToday(false);
     loadChartData();
   }
@@ -77,7 +99,10 @@ export default function KomplimentPage() {
       .select('given_date')
       .gte('given_date', start)
       .lte('given_date', end);
-    if (error || !data) return console.error(error);
+    if (error || !data) {
+      console.error(error);
+      return;
+    }
 
     // Count per month
     const counts: Record<string, number> = {};
@@ -85,19 +110,26 @@ export default function KomplimentPage() {
       const month = given_date.slice(5, 7); // 'MM'
       counts[month] = (counts[month] || 0) + 1;
     });
-    const months = Array.from({ length: 12 - new Date().getMonth() }, (_, i) => {
-      const m = new Date().getMonth() + 1 + i;
-      return m < 10 ? `0${m}` : `${m}`;
-    });
+    const months = Array.from(
+      { length: 12 - new Date().getMonth() },
+      (_, i) => {
+        const m = new Date().getMonth() + 1 + i;
+        return m < 10 ? `0${m}` : `${m}`;
+      }
+    );
     const chart = months.map(m => ({ month: m, count: counts[m] || 0 }));
     setChartData(chart);
   }
 
-  useEffect(() => { loadChartData(); }, []);
+  // Load chart data when component mounts
+  useEffect(() => {
+    loadChartData();
+  }, []);
 
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold">Kompliment-registrering</h1>
+
       <button
         onClick={handleGiveToday}
         disabled={savingToday}
@@ -105,6 +137,12 @@ export default function KomplimentPage() {
       >
         {savingToday ? 'Gemmer…' : 'Registrer dagens kompliment'}
       </button>
+
+      {currentIndex !== null && compliments[currentIndex] && (
+        <div className="mt-4 p-4 bg-indigo-100 rounded text-indigo-900 italic text-lg">
+          "{compliments[currentIndex].text}"
+        </div>
+      )}
 
       <section className="mt-8">
         <h2 className="text-xl font-semibold mb-4">Registreringer resten af året</h2>
@@ -114,7 +152,7 @@ export default function KomplimentPage() {
             <XAxis dataKey="month" />
             <YAxis />
             <Tooltip />
-            <Bar dataKey="count" />
+            <Bar dataKey="count" fill="#6366f1" />
           </BarChart>
         </ResponsiveContainer>
       </section>

@@ -1,14 +1,12 @@
-// /app/fantasy/sex/page.tsx
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { getISOWeek, differenceInCalendarWeeks, subWeeks } from 'date-fns';
 
 interface Tag { id: string; name: string; }
 
-// Genbrug farveklasser fra kategorisiden
 const colorClasses = [
   'bg-purple-100 text-purple-800',
   'bg-blue-100 text-blue-800',
@@ -25,8 +23,8 @@ export default function SexPage() {
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState<boolean>(false);
   const [message, setMessage] = useState<string>('');
+  const [averageSexDaysPerWeek, setAverageSexDaysPerWeek] = useState<number | null>(null);
 
-  // Hent tags
   useEffect(() => {
     async function loadTags() {
       const { data, error } = await supabase.from('tags').select('id, name');
@@ -36,7 +34,6 @@ export default function SexPage() {
     loadTags();
   }, []);
 
-  // Toggle tag-selection
   const toggleTag = (tagId: string) => {
     setSelectedTags(prev => {
       const next = new Set(prev);
@@ -45,11 +42,9 @@ export default function SexPage() {
     });
   };
 
-  // Gem log + tags
   const handleRegister = async () => {
     setSaving(true);
     setMessage('');
-    // Opret sexlife_log
     const { data: logData, error: logErr } = await supabase
       .from('sexlife_logs')
       .insert([{ log_date: date, had_sex: true }])
@@ -64,7 +59,6 @@ export default function SexPage() {
     }
 
     const logId = logData.id;
-    // Tilknyt tags hvis valgt
     if (selectedTags.size) {
       const inserts = Array.from(selectedTags).map(tagId => ({ log_id: logId, tag_id: tagId }));
       const { error: tagErr } = await supabase.from('sexlife_log_tags').insert(inserts);
@@ -73,15 +67,56 @@ export default function SexPage() {
 
     setMessage('Registrering gemt!');
     setSaving(false);
-    // Redirect til dashboard
     router.push('/');
   };
+
+  async function calculateAverageSexDaysPerWeek() {
+    const today = new Date();
+    const fourWeeksAgo = subWeeks(today, 4);
+    const fourWeeksAgoStr = fourWeeksAgo.toISOString().split('T')[0];
+
+    const { data, error } = await supabase
+      .from('sexlife_logs')
+      .select('log_date')
+      .gte('log_date', fourWeeksAgoStr)
+      .eq('had_sex', true);
+
+    if (error || !data) {
+      console.error('Error fetching sexlife_logs:', error);
+      setAverageSexDaysPerWeek(null);
+      return;
+    }
+
+    const uniqueDates = Array.from(new Set(data.map((entry: any) => entry.log_date)));
+
+    const weeksMap: Record<number, Set<string>> = {};
+
+    uniqueDates.forEach((dateStr) => {
+      const date = new Date(dateStr);
+      const isoWeek = getISOWeek(date);
+      if (!weeksMap[isoWeek]) {
+        weeksMap[isoWeek] = new Set();
+      }
+      weeksMap[isoWeek].add(dateStr);
+    });
+
+    const numberOfWeeks = differenceInCalendarWeeks(today, fourWeeksAgo) + 1;
+
+    const totalSexDays = Object.values(weeksMap).reduce((acc, daysSet) => acc + daysSet.size, 0);
+
+    const average = totalSexDays / numberOfWeeks;
+
+    setAverageSexDaysPerWeek(average);
+  }
+
+  useEffect(() => {
+    calculateAverageSexDaysPerWeek();
+  }, []);
 
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold">Sex-registrering</h1>
 
-      {/* Dato */}
       <div className="mt-4">
         <label className="block">
           <span className="text-sm font-medium">Dato</span>
@@ -95,7 +130,6 @@ export default function SexPage() {
         </label>
       </div>
 
-      {/* Tags som chips med random farver */}
       <div className="mt-6">
         <h2 className="font-semibold mb-2">Vælg tags</h2>
         <div className="flex flex-wrap gap-2">
@@ -122,7 +156,6 @@ export default function SexPage() {
         </div>
       </div>
 
-      {/* Gem-knap */}
       <div className="mt-6">
         <button
           onClick={handleRegister}
@@ -132,6 +165,12 @@ export default function SexPage() {
           {saving ? 'Gemmer…' : 'Registrer'}
         </button>
         {message && <p className="mt-2 text-sm text-green-600">{message}</p>}
+
+        {averageSexDaysPerWeek !== null && (
+          <p className="mt-4 text-lg font-semibold">
+            Gennemsnitligt antal dage med sex pr. uge (sidste 4 uger): {averageSexDaysPerWeek.toFixed(2)}
+          </p>
+        )}
       </div>
     </div>
   );

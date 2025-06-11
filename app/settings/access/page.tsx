@@ -10,36 +10,43 @@ interface AccessEntry {
   children: { key: string; label: string }[];
 }
 
-// Opdateret hierarki: Parforhold som hovedpunkt med Fantasier, Date Ideas og Bucketlist som undermenuer
 const accessHierarchy: AccessEntry[] = [
   { key: 'dashboard', label: 'Dashboard', children: [] },
   { key: 'todo', label: 'To-Do List', children: [] },
+  { key: 'tasks-couple', label: 'Opgaver', children: [] },
   {
-    key: 'fantasy',
-    label: 'Parforhold',
-    children: [
+    key: 'fantasy', label: 'Parforhold', children: [
       { key: 'fantasy/fantasier', label: 'Fantasier' },
       { key: 'dates', label: 'Date Ideas' },
-      { key: 'bucketlist', label: 'Bucketlist' },
+      { key: 'fantasy/sex', label: 'Sex' },
     ],
   },
+  { key: 'bucketlist-couple', label: 'Bucketlist', children: [] },
   {
-    key: 'checkin',
-    label: 'Check-in',
-    children: [
+    key: 'checkin', label: 'Check-in', children: [
       { key: 'checkin/oversigt', label: 'Oversigt' },
       { key: 'checkin/mine-behov', label: 'Mine behov' },
       { key: 'checkin/historik', label: 'Historik' },
       { key: 'checkin/evaluering', label: 'Evaluering' },
     ],
   },
+  {
+    key: 'spil', label: 'Spil', children: [
+      { key: 'spil/sellerk', label: 'S eller K' },
+    ],
+  },
+  {
+    key: 'kommunikation', label: 'Kommunikation', children: [
+      { key: 'kommunikation/kompliment', label: 'Kompliment' },
+      { key: 'kommunikation/spoergsmaal', label: 'Spørgsmål' },
+      { key: 'kommunikation/random', label: 'Random' },
+    ],
+  },
   { key: 'manifestation', label: 'Manifestation', children: [] },
   { key: 'career', label: 'Karriere', children: [] },
   { key: 'profile', label: 'Profil', children: [] },
   {
-    key: 'settings',
-    label: 'Indstillinger',
-    children: [
+    key: 'settings', label: 'Indstillinger', children: [
       { key: 'settings/points', label: 'Points' },
       { key: 'settings/rewards', label: 'Rewards' },
       { key: 'settings/categories', label: 'Categories' },

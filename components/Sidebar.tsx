@@ -35,12 +35,12 @@ interface AccessEntry {
 const accessHierarchy: AccessEntry[] = [
   { key: 'dashboard', label: 'Dashboard', href: '/', children: [] },
   { key: 'todo', label: 'To-Do List', href: '/todo', children: [] },
+  { key: 'tasks-couple', label: 'Opgaver', href: '/tasks-couple', children: [] },
   {
     key: 'fantasy', label: 'Parforhold', href: '/fantasy', children: [
       { key: 'fantasy/fantasier', label: 'Fantasier', href: '/fantasy', children: [] },
       { key: 'dates', label: 'Date Ideas', href: '/dates', children: [] },
       { key: 'fantasy/sex', label: 'Sex', href: '/fantasy/sex', children: [] },
-
     ],
   },
   { key: 'bucketlist-couple', label: 'Bucketlist', href: '/bucketlist-couple', children: [] },
@@ -78,7 +78,7 @@ const accessHierarchy: AccessEntry[] = [
 ];
 
 const iconMap: Record<string, ReactNode> = {
-  dashboard: <LayoutDashboard size={20} />, todo: <ListTodo size={20} />, dates: <Heart size={20} />, fantasy: <Sparkles size={20} />, 'fantasy/fantasier': <Sparkles size={20} />, 'bucketlist-couple': <Backpack size={20} />, checkin: <HeartHandshake size={20} />, manifestation: <BrainCircuit size={20} />, career: <Briefcase size={20} />, profile: <Settings size={20} />, settings: <Settings size={20} />, kommunikation: <Sparkles size={20} />, 'kommunikation/kompliment': <HeartHandshake size={20} />, 'kommunikation/spoergsmaal': <BrainCircuit size={20} />, 'kommunikation/random': <Sparkles size={20} />, spil: <ListTodo size={20} />, 'spil/sellerk': <Sparkles size={20} />
+  dashboard: <LayoutDashboard size={20} />, todo: <ListTodo size={20} />, 'tasks-couple': <ListTodo size={20} />, dates: <Heart size={20} />, fantasy: <Sparkles size={20} />, 'fantasy/fantasier': <Sparkles size={20} />, 'fantasy/sex': <Heart size={20} />, 'bucketlist-couple': <Backpack size={20} />, checkin: <HeartHandshake size={20} />, manifestation: <BrainCircuit size={20} />, career: <Briefcase size={20} />, profile: <Settings size={20} />, settings: <Settings size={20} />, kommunikation: <Sparkles size={20} />, 'kommunikation/kompliment': <HeartHandshake size={20} />, 'kommunikation/spoergsmaal': <BrainCircuit size={20} />, 'kommunikation/random': <Sparkles size={20} />, spil: <ListTodo size={20} />, 'spil/sellerk': <Sparkles size={20} />
 };
 
 export default function Sidebar() {
