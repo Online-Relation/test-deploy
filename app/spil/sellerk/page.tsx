@@ -67,6 +67,7 @@ export default function SellerkGamePage() {
     mads: { id: "mads", name: "Mads", avatar: null },
     stine: { id: "stine", name: "Stine", avatar: null },
   });
+  const [userIdMap, setUserIdMap] = useState<Record<"mads" | "stine", string>>({ mads: "", stine: "" });
   const [xpMap, setXpMap] = useState<Record<string, number>>({});
   const [stats, setStats] = useState<Record<"mads" | "stine", Stats>>({
     mads: { success: 0, skipped: 0 },
@@ -81,7 +82,7 @@ export default function SellerkGamePage() {
     const fetchData = async () => {
       const [{ data: qData }, { data: profileData }, { data: xpData }, { data: themeData }] = await Promise.all([
         supabase.from("truth_dare_cards").select("id, text, type, difficulty, category, created_at"),
-        supabase.from("profiles").select("role, display_name, avatar_url").in("role", ["mads", "stine"]),
+        supabase.from("profiles").select("id, role, display_name, avatar_url").in("role", ["mads", "stine"]),
         supabase.from("xp_settings").select("role, action, effort, xp").in("action", ["complete_truth_dare", "reject_truth_dare"]),
         supabase.from("game_themes").select("name, background_class, card_class, button_class"),
       ]);
@@ -90,15 +91,18 @@ export default function SellerkGamePage() {
 
       if (profileData) {
         const newPlayers = { ...players };
+        const newUserIdMap: Record<"mads" | "stine", string> = { mads: "", stine: "" };
         profileData.forEach((p) => {
           const role = p.role as "mads" | "stine";
           newPlayers[role] = {
-            id: role,
+            id: p.id,
             name: p.display_name,
             avatar: p.avatar_url,
           };
+          newUserIdMap[role] = p.id;
         });
         setPlayers(newPlayers);
+        setUserIdMap(newUserIdMap);
       }
 
       if (xpData) {
@@ -135,19 +139,32 @@ export default function SellerkGamePage() {
     setIsWildcard((usedIds.length + 1) % 20 === 0);
   }, [usedIds]);
 
-  const drawCard = (type: "truth" | "dare") => {
-    const available = questions.filter(
-      (q) => q.type === type && !usedIds.includes(q.id)
-    );
-    if (available.length === 0) return;
-    const random = available[Math.floor(Math.random() * available.length)];
-    setUsedIds((prev) => [...prev, random.id]);
-    setCurrentCard(random);
+  const drawCard = async (type: "truth" | "dare") => {
+    const userId = userIdMap[turn];
+    if (!userId) return;
+
+    const { data: allCards } = await supabase.from("truth_dare_cards").select("*").eq("type", type);
+    if (!allCards) return;
+
+    const { data: log } = await supabase.from("truth_dare_log").select("card_id").eq("user_id", userId);
+    const usedCardIds = new Set(log?.map((entry) => entry.card_id));
+    const availableCards = allCards.filter((card) => !usedCardIds.has(card.id));
+
+    if (availableCards.length === 0) {
+      setCurrentCard({ id: "none", text: "Ingen kort tilbage i bunken.", type });
+      setShowTypeChoice(false);
+      return;
+    }
+
+    const selected = availableCards[Math.floor(Math.random() * availableCards.length)];
+
+    setCurrentCard(selected);
+    setUsedIds((prev) => [...prev, selected.id]);
     setShowTypeChoice(false);
   };
 
   const logXP = async (action: string) => {
-    if (!user || !currentCard) return;
+    if (!user || !currentCard || currentCard.id === "none") return;
 
     const effortKey = currentCard.difficulty ?? "none";
     const xpKey = `${turn}_${action}_${effortKey}`;
@@ -158,6 +175,12 @@ export default function SellerkGamePage() {
       role: turn,
       change: xp,
       description: `Sandhed eller konsekvens (${action === "reject_truth_dare" ? "fravalgt" : currentCard.type})`,
+    });
+
+    const targetUserId = userIdMap[turn];
+    await supabase.from("truth_dare_log").insert({
+      user_id: targetUserId,
+      card_id: currentCard.id,
     });
 
     setStats((prev) => {
@@ -179,9 +202,11 @@ export default function SellerkGamePage() {
 
   const themeStyle = themeStyles[theme] || themeStyles.default;
 
-  return (
-    <div className={`flex flex-col items-center justify-center min-h-screen gap-6 p-4 border rounded-xl max-w-xl mx-auto ${themeStyle.background}`}>
-      <div className="flex flex-wrap gap-2 mb-2">
+ return (
+    <div className={`flex flex-col items-center justify-center min-h-screen gap-6 pt-6 px-4 pb-12 max-w-xl mx-auto border rounded-xl ${themeStyle.background}`}>
+      <h1 className="text-xl font-bold mb-4 text-center">Sandhed eller Konsekvens</h1>
+
+      <div className="flex flex-wrap gap-2 mb-4 justify-center">
         {["default", ...availableThemes].map((key) => (
           <button
             key={key}
@@ -195,9 +220,7 @@ export default function SellerkGamePage() {
         ))}
       </div>
 
-      <h1 className="text-2xl font-bold">Sandhed eller Konsekvens</h1>
-
-      <div className="text-sm text-muted-foreground">Runde {usedIds.length + 1}</div>
+      <div className="text-sm text-muted-foreground mb-2">Runde {usedIds.length + 1}</div>
 
       {isWildcard && showTypeChoice && (
         <div className="text-center text-pink-600 font-semibold text-lg">
