@@ -1,61 +1,56 @@
-// src/context/XpContext.tsx
-'use client';
+// context/XpContext.tsx
+import { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
-import { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
-import { useUserContext } from './UserContext';
+interface XpSetting {
+  id: number;
+  role: string;
+  action: string;
+  effort: string | null;
+  xp: number;
+}
 
 interface XpContextType {
   xp: number;
-  addXp: (amount: number) => void;
-  removeXp: (amount: number) => void;
   fetchXp: () => void;
+  xpSettings: XpSetting[];
 }
 
 const XpContext = createContext<XpContextType>({
   xp: 0,
-  addXp: () => {},
-  removeXp: () => {},
   fetchXp: () => {},
+  xpSettings: [],
 });
 
-export const useXp = () => useContext(XpContext);
-
 export const XpProvider = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useUserContext();
   const [xp, setXp] = useState(0);
+  const [xpSettings, setXpSettings] = useState<XpSetting[]>([]);
 
   const fetchXp = async () => {
-    if (!user?.id) return;
-    const { data, error } = await supabase
-      .from('xp_log')
-      .select('change')
-      .eq('user_id', user.id);
+    const { data: xpLog } = await supabase
+      .from("xp_log")
+      .select("change")
+      .order("created_at", { ascending: true });
 
-    if (error) {
-      console.error('Fejl ved hentning af XP-log:', error.message);
-      return;
-    }
-
-    const total = data?.reduce((sum, entry) => sum + entry.change, 0) || 0;
+    const total = xpLog?.reduce((acc, curr) => acc + (curr.change || 0), 0) || 0;
     setXp(total);
   };
 
-  const addXp = (amount: number) => {
-    setXp((prev) => prev + amount);
-  };
-
-  const removeXp = (amount: number) => {
-    setXp((prev) => Math.max(prev - amount, 0));
+  const fetchXpSettings = async () => {
+    const { data } = await supabase.from("xp_settings").select("*");
+    if (data) setXpSettings(data);
   };
 
   useEffect(() => {
     fetchXp();
-  }, [user?.id]);
+    fetchXpSettings();
+  }, []);
 
   return (
-    <XpContext.Provider value={{ xp, addXp, removeXp, fetchXp }}>
+    <XpContext.Provider value={{ xp, fetchXp, xpSettings }}>
       {children}
     </XpContext.Provider>
   );
 };
+
+export const useXp = () => useContext(XpContext);

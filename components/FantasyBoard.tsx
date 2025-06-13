@@ -2,8 +2,8 @@
 
 import { useCategory } from '@/context/CategoryContext';
 import { useXp } from '@/context/XpContext';
-import { supabase } from '@/lib/supabaseClient';  // <== Her er importen til supabase
-
+import { supabase } from '@/lib/supabaseClient';
+import { rectIntersection } from '@dnd-kit/core';
 import {
   useFantasyBoardLogic,
   Fantasy,
@@ -11,11 +11,17 @@ import {
   XpMap,
   CategoryEntry,
 } from '@/hooks/useFantasyBoardLogic';
+
 import {
   DndContext,
   closestCenter,
   useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  PointerSensor,
 } from '@dnd-kit/core';
+
 import { Tag, Zap, Star, AlertCircle, Award, ImageIcon } from 'lucide-react';
 import Modal from '@/components/ui/modal';
 import { TagBadge } from '@/components/ui/TagBadge';
@@ -33,7 +39,6 @@ type AllowedColors = typeof colorClasses[number] | 'gray';
 export default function FantasyBoard() {
   const { fantasyCategories: rawCategories } = useCategory();
   const { addXp } = useXp();
-
   const [selectedFantasy, setSelectedFantasy] = useState<Fantasy | null>(null);
   const [editingFantasy, setEditingFantasy] = useState<Fantasy | null>(null);
 
@@ -65,6 +70,8 @@ export default function FantasyBoard() {
     await handleDragEnd(event);
   };
 
+  const sensors = useSensors(useSensor(PointerSensor));
+
   function DraggableCard({
     fantasy,
     onView,
@@ -89,11 +96,7 @@ export default function FantasyBoard() {
     };
 
     const effortColor: AllowedColors =
-      fantasy.effort === 'Low'
-        ? 'green'
-        : fantasy.effort === 'Medium'
-        ? 'yellow'
-        : 'red';
+      fantasy.effort === 'Low' ? 'green' : fantasy.effort === 'Medium' ? 'yellow' : 'red';
 
     const idx =
       fantasy.category && Array.isArray(fantasyCategories)
@@ -168,7 +171,6 @@ export default function FantasyBoard() {
 
         <div className="p-5 space-y-1">
           <h3 className="font-semibold text-lg text-foreground">{fantasy.title}</h3>
-
           {fantasy.created_date && (
             <div className="text-xs text-muted-foreground">
               Tilføjet: {fantasy.created_date}
@@ -215,10 +217,7 @@ export default function FantasyBoard() {
               />
             )}
             {fantasy.user_id && profileMap[fantasy.user_id] && (
-              <TagBadge
-                label={profileMap[fantasy.user_id]}
-                color="gray"
-              />
+              <TagBadge label={profileMap[fantasy.user_id]} color="gray" />
             )}
           </div>
 
@@ -259,29 +258,46 @@ export default function FantasyBoard() {
         ))}
       </div>
 
-      <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {fantasyStatuses.map(({ key }) => (
-            <div key={key}>
-              <h2 className="text-xl font-semibold mb-4 text-foreground">
-                {fantasyStatuses.find((s) => s.key === key)?.label || key}
-              </h2>
-              {filteredFantasies
-                .filter((f) => f.status === key)
-                .map((fantasy) => (
-                  <DraggableCard
-                    key={fantasy.id}
-                    fantasy={fantasy}
-                    onView={() => setSelectedFantasy(fantasy)}
-                    profileMap={profileMap}
-                    xpMapStine={xpMapStine}
-                    fantasyCategories={fantasyCategories}
-                  />
-                ))}
-            </div>
-          ))}
-        </div>
-      </DndContext>
+  <DndContext
+  sensors={sensors}
+  collisionDetection={rectIntersection}
+  onDragEnd={onDragEnd}
+>
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    {fantasyStatuses.map(({ key }) => {
+  const { setNodeRef } = useDroppable({ id: key });
+
+  return (
+    <div
+      key={key}
+      id={key}
+      ref={setNodeRef}
+      data-testid={`dropzone-${key}`}
+      className="min-h-[300px] bg-muted/10 rounded-xl p-4 transition-all border-2 border-dashed border-transparent hover:border-primary"
+    >
+      <h2 className="text-xl font-semibold mb-4 text-foreground">
+        {fantasyStatuses.find((s) => s.key === key)?.label || key}
+      </h2>
+      {filteredFantasies
+        .filter((f) => f.status === key)
+        .map((fantasy) => (
+          <DraggableCard
+            key={fantasy.id}
+            fantasy={fantasy}
+            onView={() => setSelectedFantasy(fantasy)}
+            profileMap={profileMap}
+            xpMapStine={xpMapStine}
+            fantasyCategories={fantasyCategories}
+          />
+        ))}
+    </div>
+  );
+})}
+
+  </div>
+</DndContext>
+
+
 
       {selectedFantasy && (
         <Modal
@@ -323,7 +339,7 @@ export default function FantasyBoard() {
                 effort: updated.effort,
                 image_url: updated.image_url,
                 extra_images: updated.extra_images,
-                status: updated.status, // Opdater status her
+                status: updated.status,
               })
               .eq('id', updated.id);
 

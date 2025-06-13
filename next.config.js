@@ -1,4 +1,3 @@
-// next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
@@ -8,9 +7,8 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
-    domains: ['lhjunwhgvduwcaqrzojh.supabase.co'],
-},
+    domains: ['lhjunwhgvduwcaqrzoh.supabase.co'],
+  },
 }
-
 
 module.exports = nextConfig;

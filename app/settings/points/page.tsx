@@ -64,6 +64,9 @@ export default function PointsPage() {
       s.action === 'complete_truth_dare' ||
       s.action === 'reject_truth_dare'
     );
+    const quizSettings = roleSettings.filter((s) =>
+      s.action === 'quiz_correct' || s.action === 'quiz_wrong'
+    );
 
     return (
       <div className="mb-10">
@@ -175,7 +178,7 @@ export default function PointsPage() {
         {gameSettings.length > 0 && (
           <>
             <h3 className="font-semibold mb-2">Spil – Sandhed eller Konsekvens</h3>
-            <table className="w-full border text-sm">
+            <table className="w-full border text-sm mb-6">
               <thead className="bg-gray-100">
                 <tr>
                   <th className="border px-4 py-2 text-left">Handling</th>
@@ -185,6 +188,40 @@ export default function PointsPage() {
               </thead>
               <tbody>
                 {gameSettings.map((setting) => (
+                  <tr key={setting.id}>
+                    <td className="border px-4 py-2">{setting.action}</td>
+                    <td className="border px-4 py-2">{setting.effort || '-'}</td>
+                    <td className="border px-4 py-2">
+                      <input
+                        type="number"
+                        value={setting.xp}
+                        onChange={(e) =>
+                          updateXP(setting.id, parseInt(e.target.value))
+                        }
+                        className="w-20 border px-2 py-1 text-right"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {/* Spil – Parquizzen */}
+        {quizSettings.length > 0 && (
+          <>
+            <h3 className="font-semibold mb-2">Spil – Parquizzen</h3>
+            <table className="w-full border text-sm">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="border px-4 py-2 text-left">Handling</th>
+                  <th className="border px-4 py-2 text-left">Effort</th>
+                  <th className="border px-4 py-2 text-left">XP</th>
+                </tr>
+              </thead>
+              <tbody>
+                {quizSettings.map((setting) => (
                   <tr key={setting.id}>
                     <td className="border px-4 py-2">{setting.action}</td>
                     <td className="border px-4 py-2">{setting.effort || '-'}</td>

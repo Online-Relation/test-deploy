@@ -13,6 +13,7 @@ interface UserProfile {
   display_name: string | null;
   avatar_url: string | null;
   access: AccessMap;
+  partner_id: string | null;
 }
 
 interface UserContextValue {
@@ -47,7 +48,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       // 2) Hent profil‐data
       const profileResult = await supabase
         .from('profiles')
-        .select('id, display_name, avatar_url, role')
+        .select('id, display_name, avatar_url, role, partner_id')
         .eq('id', authUser.id)
         .single();
 
@@ -80,14 +81,16 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       // 5) Sæt user‐state, konverter undefined → null
-      setUser({
-        id: authUser.id,
-        email: authUser.email ?? null,
-        role: profileData.role ?? null,
-        display_name: profileData.display_name ?? null,
-        avatar_url: profileData.avatar_url ?? null,
-        access: accessMap,
-      });
+     setUser({
+  id: authUser.id,
+  email: authUser.email ?? null,
+  role: profileData.role ?? null,
+  display_name: profileData.display_name ?? null,
+  avatar_url: profileData.avatar_url ?? null,
+  access: accessMap,
+  partner_id: profileData.partner_id ?? null, // 👈 tilføjet denne linje
+})
+
 
       setLoading(false);
     };

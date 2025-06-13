@@ -1188,3 +1188,127 @@ glow: gule farver
 sol: lysegul/solskin
 
 romantik: lyserød/romantisk
+
+✅ 2025-06-12 – Drag & Drop fejl og opdateringer
+Det er lavet i dag:
+
+Vi har gennemgået og genindsat hele koden til /app/components/FantasyBoard.tsx uden at fjerne funktioner.
+
+Vi har tilføjet sensors med PointerSensor, rectIntersection som collisionDetection, samt DragOverlay og activeFantasyId for at understøtte korrekt drag state.
+
+handleDragEnd og handleDragStart er blevet korrekt koblet til.
+
+XP-logik og status-opdatering ved drag mellem kolonner virker som forventet.
+
+Vi har tilføjet visuel feedback når man trækker kort.
+
+Men:
+
+Drag & drop fungerer stadig ikke – kort hopper tilbage til deres oprindelige kolonne, og handleDragEnd kaldes korrekt, men ændringer slår ikke igennem visuelt.
+
+Vi mistænker, at useFantasyBoardLogic ikke opdaterer fantasies hurtigt nok eller korrekt efter statusændring.
+
+Plan fremad:
+
+Tjek om fetchFantasies() bliver kaldt rigtigt efter update.
+
+Undersøg om setFantasies kaldes, og om state opdateres synligt.
+
+Overvej at anvende sortable fra @dnd-kit/sortable hvis nuværende løsning bliver for ustabil.
+
+## ✅ Opdatering: Profilside (2025-06-13) ##
+Vi har udvidet og redesignet /app/profile/page.tsx med fokus på visuel lækkerhed, personlighed og gamification.
+
+🎯 Funktioner
+Faner (Tabs): Tøjstørrelser, Ønskeliste og Kærlighed
+
+Avatar-upload til Supabase Storage
+
+Tøjstørrelser: Formular til bh, trusser, jeans osv.
+
+Ønskeliste: Dynamisk liste der gemmes i wishes-tabellen
+
+Kærlighedsfanen indeholder:
+
+5 kærlighedssprog (dropdowns)
+
+Dopamin-triggers (drag & drop, chips, gemmes i profiles.dopamine_triggers som JSON)
+
+Overraskelser (tekstfelt gemt i profiles.surprise_ideas)
+
+🧱 Databaseændringer
+Tabel: profiles
+
+Tilføjede kolonner:
+love_language_1 text,
+love_language_2 text,
+love_language_3 text,
+love_language_4 text,
+love_language_5 text,
+dopamine_triggers text,
+surprise_ideas text
+
+📦 Supabase Features Bruges
+from('profiles').update(...)
+
+Storage: upload af avatar
+
+wishes-insert og delete
+
+JSON-stringifikation og parsing af dopamin-liste
+
+## Opdatering 13/6 - 2025 ##
+✅ Parquizzen integreret som spilfunktion
+
+Ny side: /spil/quizzen
+
+Spørgsmål hentes dynamisk fra Supabase-tabel couple_quiz_questions (kun aktive)
+
+To svar-knapper: "Gættede rigtigt" og "Gættede forkert"
+
+Når en knap trykkes:
+
+XP logges til xp_log baseret på action quiz_correct eller quiz_wrong og brugerens rolle
+
+Næste spørgsmål vises automatisk
+
+✅ XP-systemet udvidet med quiz-points
+
+Ny kategori i /settings/points:
+
+Handlingstyper: quiz_correct, quiz_wrong
+
+Kan justeres individuelt for mads og stine
+
+XP tildeles ved hjælp af eksisterende XpContext og xp_settings
+
+✅ Fejlrettelser og forbedringer
+
+Tilføjet manglende kolonner action og user_id til xp_log
+
+Fejl 400 ved POST til xp_log løst
+
+Fjernet global padding-konflikter
+
+XP-opdatering fejlede pga. manglende action-kolonne i schema — nu rettet
+
+Spil: Parquizzen
+
+Implementeret XP-feedback med animation:
+
+🎉 Konfettiregn ved korrekt svar
+
+💥 Rød eksplosion + shake-effekt ved forkert svar
+
+Tilføjet hop-animation på point-beskeder via framer-motion
+
+Tilføjet visning af:
+
+Antal spørgsmål tilbage til den aktive svarer
+
+Bar-graf med rigtige og forkerte svar for både Mads og Stine
+
+Statistik vises altid for begge par – uanset hvem der har tur
+
+Responsivt layout til mobil og desktop (flex og auto-wrap)
+

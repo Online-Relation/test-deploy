@@ -152,61 +152,89 @@ export function useFantasyBoardLogic(): UseFantasyBoardResult {
     fetchAll();
   }, [role]);
 
-  const handleCreateNewFantasy = async () => {
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+const handleCreateNewFantasy = async () => {
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
 
-    if (sessionError || !session) {
-      console.error('Session-fejl:', sessionError?.message);
-      return;
-    }
+  if (sessionError || !session) {
+    console.error('Session-fejl:', sessionError?.message);
+    return;
+  }
 
-    const user_id = session.user.id;
+  const user_id = session.user.id;
 
-    if (!newFantasyData.title) {
-      console.warn('Titel er påkrævet.');
-      return;
-    }
+  if (!newFantasyData.title) {
+    console.warn('Titel er påkrævet.');
+    return;
+  }
 
-    const now = new Date().toISOString().split('T')[0];
+  const now = new Date().toISOString().split('T')[0];
 
-    const { error } = await supabase.from('fantasies').insert({
-      title: newFantasyData.title,
-      description: newFantasyData.description,
-      category: newFantasyData.category,
-      effort: newFantasyData.effort,
-      image_url: newFantasyData.image_url || null,
-      extra_images: newFantasyData.extra_images || [],
-      status: 'idea',
+  const { error, data } = await supabase.from('fantasies').insert({
+    title: newFantasyData.title,
+    description: newFantasyData.description,
+    category: newFantasyData.category,
+    effort: newFantasyData.effort,
+    image_url: newFantasyData.image_url || null,
+    extra_images: newFantasyData.extra_images || [],
+    status: 'idea',
+    user_id,
+    created_date: now,
+    planned_date: null,
+  });
+
+  if (error) {
+    console.error('Fejl ved oprettelse:', error.message);
+    return;
+  }
+
+  // ✅ DEBUG-LOGS FOR XP
+  const effLower = newFantasyData.effort?.toLowerCase();
+  const xpKey = `add_fantasy_${effLower}`;
+  const xpToGive = xpMapCurrent[xpKey];
+
+  console.log('Effort valgt:', effLower);
+  console.log('xpMapCurrent:', xpMapCurrent);
+  console.log('Udregnet key:', xpKey);
+  console.log('XP der bruges:', xpToGive);
+
+  if (effLower && xpToGive) {
+    const { error: xpError } = await supabase.from('xp_log').insert({
       user_id,
-      created_date: now,
-      planned_date: null,
+      change: xpToGive,
+      description: `add_fantasy – ${newFantasyData.title}`,
+      role,
     });
 
-    if (error) {
-      console.error('Fejl ved oprettelse:', error.message);
-      return;
+    if (xpError) {
+      console.error('Fejl ved XP-log:', xpError.message);
     }
+  }
 
-    setShowAddModal(false);
-    setNewFantasyData({
-      title: '',
-      description: '',
-      category: '',
-      effort: '',
-      image_url: '',
-      extra_images: [],
-      status: 'idea',
-      user_id: user?.id || '',
-      hasExtras: false,
-    });
+  setShowAddModal(false);
+  setNewFantasyData({
+    title: '',
+    description: '',
+    category: '',
+    effort: '',
+    image_url: '',
+    extra_images: [],
+    status: 'idea',
+    user_id: user?.id || '',
+    hasExtras: false,
+  });
 
-    await fetchFantasies();
-  };
+  await fetchFantasies();
+};
+
+
 
  const handleDragEnd = async (event: any) => {
+    console.log('🟡 DRAG EVENT', event);
+  console.log('🔵 active.id', event.active?.id);
+  console.log('🟢 over.id', event.over?.id);
   const { active, over } = event;
   console.log('Drag ended:', { activeId: active.id, overId: over?.id });
 
