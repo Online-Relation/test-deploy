@@ -50,6 +50,9 @@ const accessHierarchy: AccessEntry[] = [
     href: '/fantasy',
     children: [
       { key: 'fantasy/fantasier', label: 'Fantasier', href: '/fantasy', children: [] },
+      { key: 'parquiz', label: 'Parquiz', href: '/quiz/parquiz', children: [] },
+      { key: 'anbefalinger', label: 'Anbefalinger', href: '/fantasy/anbefalinger', children: [] },
+      
       { key: 'dates', label: 'Date Ideas', href: '/dates', children: [] },
     ],
   },
@@ -81,7 +84,7 @@ const accessHierarchy: AccessEntry[] = [
     children: [
       { key: 'spil/sellerk', label: 'S eller K', href: '/spil/sellerk', children: [] },
       { key: 'spil/memorygaver', label: 'Memory', href: '/spil/memorygaver', children: [] },
-      { key: 'spil/quiz', label: 'Quiz', href: '/spil/quiz', children: [] },
+      { key: 'spil/quiz', label: 'Quiz', href: '/spil/quizzen', children: [] },
     ],
   },
   {
@@ -114,6 +117,8 @@ const accessHierarchy: AccessEntry[] = [
       { key: 'settings/categories', label: 'Categories', href: '/settings/categories', children: [] },
       { key: 'settings/game-themes', label: 'Temaer', href: '/settings/game-themes', children: [] },
       { key: 'settings/access', label: 'Profiladgange', href: '/settings/access', children: [] },
+      { key: 'settings/quiz-admin', label: 'Quiz admin', href: '/settings/quiz-admin', children: [] },
+
     ],
   },
 ];

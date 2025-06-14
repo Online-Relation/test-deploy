@@ -13,47 +13,81 @@ interface AccessEntry {
 const accessHierarchy: AccessEntry[] = [
   { key: 'dashboard', label: 'Dashboard', children: [] },
   { key: 'todo', label: 'To-Do List', children: [] },
+  {
+    key: 'online-relation',
+    label: 'Online Relation',
+    children: [{ key: 'online-relation/tasks', label: 'Opgaver' }],
+  },
   { key: 'tasks-couple', label: 'Opgaver', children: [] },
   {
-    key: 'fantasy', label: 'Parforhold', children: [
+    key: 'fantasy',
+    label: 'Parforhold',
+    children: [
       { key: 'fantasy/fantasier', label: 'Fantasier' },
       { key: 'dates', label: 'Date Ideas' },
-      { key: 'fantasy/sex', label: 'Sex' },
+      { key: 'parquiz', label: 'Parquiz', },
+      { key: 'fantasy/anbefalinger', label: 'Anbefalinger' },
     ],
   },
-  { key: 'bucketlist-couple', label: 'Bucketlist', children: [] },
   {
-    key: 'checkin', label: 'Check-in', children: [
+    key: 'indtjekning',
+    label: 'Indtjekning',
+    children: [
+      { key: 'indtjekning/sex', label: 'Sex' },
+      { key: 'indtjekning/kompliment', label: 'Kompliment' },
+    ],
+  },
+  {
+    key: 'checkin',
+    label: 'Check-in',
+    children: [
       { key: 'checkin/oversigt', label: 'Oversigt' },
       { key: 'checkin/mine-behov', label: 'Mine behov' },
       { key: 'checkin/historik', label: 'Historik' },
       { key: 'checkin/evaluering', label: 'Evaluering' },
     ],
   },
+  { key: 'bucketlist-couple', label: 'Bucketlist', children: [] },
   {
-    key: 'spil', label: 'Spil', children: [
+    key: 'spil',
+    label: 'Spil',
+    children: [
       { key: 'spil/sellerk', label: 'S eller K' },
+      { key: 'spil/memorygaver', label: 'Memory' },
+      { key: 'spil/quiz', label: 'Quiz' },
     ],
   },
   {
-    key: 'kommunikation', label: 'Kommunikation', children: [
-      { key: 'kommunikation/kompliment', label: 'Kompliment' },
+    key: 'kommunikation',
+    label: 'Kommunikation',
+    children: [
       { key: 'kommunikation/spoergsmaal', label: 'Spørgsmål' },
       { key: 'kommunikation/random', label: 'Random' },
     ],
   },
-  { key: 'manifestation', label: 'Manifestation', children: [] },
-  { key: 'career', label: 'Karriere', children: [] },
+  {
+    key: 'personlighed',
+    label: 'Personlighed',
+    children: [
+      { key: 'manifestation', label: 'Manifestation' },
+      { key: 'career', label: 'Karriere' },
+      { key: 'tanker', label: 'Tanker' },
+    ],
+  },
   { key: 'profile', label: 'Profil', children: [] },
   {
-    key: 'settings', label: 'Indstillinger', children: [
+    key: 'settings',
+    label: 'Indstillinger',
+    children: [
       { key: 'settings/points', label: 'Points' },
       { key: 'settings/rewards', label: 'Rewards' },
       { key: 'settings/categories', label: 'Categories' },
+      { key: 'settings/game-themes', label: 'Temaer' },
       { key: 'settings/access', label: 'Profiladgange' },
     ],
   },
-];
+]
+
 
 type UserProfile = {
   id: string;
