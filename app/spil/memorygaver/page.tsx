@@ -1,11 +1,13 @@
-// /app/spil/memorygaver/page.tsx
 "use client"
 
-import { useEffect, useState } from "react"
-import { supabase } from "@/lib/supabaseClient"
+import { useEffect, useState, useRef } from "react"
+import { supabase, SUPABASE_PUBLIC_URL } from "@/lib/supabaseClient"
 import { useUserContext } from "@/context/UserContext"
-import Image from "next/image"
 import { v4 as uuidv4 } from "uuid"
+import Modal from "@/components/ui/ImageModal"
+import confetti from "canvas-confetti"
+import ThemeSelector from "@/components/memory/ThemeSelector"
+
 
 export default function MemoryGaverPage() {
   const { user: profile } = useUserContext()
@@ -13,21 +15,40 @@ export default function MemoryGaverPage() {
   const [note, setNote] = useState("")
   const [cards, setCards] = useState<any[]>([])
   const [uploading, setUploading] = useState(false)
+  const [userNames, setUserNames] = useState<Record<string, string>>({})
+  const [selectedCard, setSelectedCard] = useState<any | null>(null)
+  const [revealingId, setRevealingId] = useState<string | null>(null)
+  const confettiRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
-    fetchCards()
+    if (profile) {
+      fetchCards()
+      fetchUsers()
+    }
   }, [profile])
 
   async function fetchCards() {
-    if (!profile) return
-
     const { data, error } = await supabase
       .from("memory_cards")
       .select("*")
-      .or(`user_id.eq.${profile.id},recipient_id.eq.${profile.id}`)
       .order("created_at", { ascending: false })
 
     if (!error) setCards(data)
+  }
+
+  async function fetchUsers() {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, display_name")
+
+    if (!error && data) {
+      const nameMap: Record<string, string> = {}
+      data.forEach((u) => {
+        nameMap[u.id] = u.display_name
+      })
+      setUserNames(nameMap)
+    }
   }
 
   async function handleUpload() {
@@ -35,7 +56,7 @@ export default function MemoryGaverPage() {
     setUploading(true)
 
     const filename = `${uuidv4()}.jpg`
-    const { data: storageData, error: storageError } = await supabase.storage
+    const { error: storageError } = await supabase.storage
       .from("memory-cards")
       .upload(filename, imageFile)
 
@@ -45,13 +66,14 @@ export default function MemoryGaverPage() {
       return
     }
 
-    const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/memory-cards/${filename}`
+    const imageUrl = `${SUPABASE_PUBLIC_URL}/storage/v1/object/public/memory-cards/${filename}`
 
     const { error: insertError } = await supabase.from("memory_cards").insert({
       user_id: profile.id,
-      recipient_id: profile.partner_id, // kræver partner_id i profiles!
+      recipient_id: profile.partner_id,
       image_url: imageUrl,
       note,
+      revealed: false,
     })
 
     if (insertError) {
@@ -64,67 +86,166 @@ export default function MemoryGaverPage() {
     fetchCards()
   }
 
+  async function revealCard(cardId: string) {
+    setRevealingId(cardId)
+
+    // 🎊 Trigger confetti
+    confetti({
+      particleCount: 80,
+      spread: 90,
+      origin: { y: 0.6 },
+    })
+
+    setTimeout(async () => {
+      const { error } = await supabase
+        .from("memory_cards")
+        .update({ revealed: true })
+        .eq("id", cardId)
+
+      if (error) {
+        console.error("Reveal error", error.message)
+      } else {
+        fetchCards()
+      }
+
+      setRevealingId(null)
+    }, 600)
+  }
+
+  async function deleteCard(cardId: string, imagePath: string) {
+    const { error: deleteError } = await supabase
+      .from("memory_cards")
+      .delete()
+      .eq("id", cardId)
+
+    if (deleteError) {
+      console.error("Delete error", deleteError.message)
+    }
+
+    const filename = imagePath.split("/").pop() || ""
+    await supabase.storage
+      .from("memory-cards")
+      .remove([filename])
+
+    fetchCards()
+  }
+
+  if (!profile) return <div>Indlæser...</div>
+
   return (
-    <div className="max-w-xl mx-auto p-4">
+    <div className="max-w-xl mx-auto p-4 relative" ref={confettiRef}>
+         <ThemeSelector />
       <h1 className="text-xl font-bold mb-4">Memorygaver i dag</h1>
 
       <div className="bg-white rounded-xl shadow p-4 space-y-3">
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-        />
-        <textarea
-          className="w-full border rounded p-2"
-          rows={3}
-          placeholder="Skriv en lille note..."
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-        />
-        <button
-          onClick={handleUpload}
-          className="btn btn-primary w-full"
-          disabled={uploading}
-        >
-          {uploading ? "Uploader..." : "Upload billede"}
-        </button>
-      </div>
+  <input
+    ref={fileInputRef}
+    type="file"
+    accept="image/*"
+    onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+    className="hidden"
+  />
+  <button
+    onClick={() => fileInputRef.current?.click()}
+    className="btn btn-secondary w-full"
+  >
+    Vælg billede
+  </button>
+  {imageFile && (
+  <p className="text-sm text-muted-foreground text-center mt-1">
+    Valgt fil: <span className="font-medium">{imageFile.name}</span>
+  </p>
+)}
+
+
+  <textarea
+    className="w-full border rounded p-2"
+    rows={3}
+    placeholder="Skriv en lille note..."
+    value={note}
+    onChange={(e) => setNote(e.target.value)}
+  />
+  <button
+    onClick={handleUpload}
+    className="btn btn-primary w-full"
+    disabled={uploading || !imageFile}
+  >
+    {uploading ? "Uploader..." : "Upload billede"}
+  </button>
+</div>
+
 
       <div className="grid grid-cols-2 gap-4 mt-6">
         {cards.map((card) => {
-            if (!profile) return <div>Indlæser...</div>
-
           const isMine = card.user_id === profile.id
-          const showImage = isMine || card.revealed
+          const showImage = card.revealed
+          const uploaderName = userNames[card.user_id] || "Ukendt"
+          const isRevealing = revealingId === card.id
 
           return (
             <div
               key={card.id}
-              className="relative aspect-square border rounded overflow-hidden shadow"
+              className={`relative aspect-square border rounded overflow-hidden shadow group bg-gray-100 cursor-pointer transition-all duration-500 ${
+                isRevealing ? "animate-pingOnce" : ""
+              }`}
+              onClick={() => showImage && setSelectedCard(card)}
             >
-              {showImage ? (
-                <Image
-  src={card.image_url}
-  alt="Memory"
-  fill
-  sizes="100vw"
-  className="object-cover"
-/>
+              <img
+                src={card.image_url}
+                alt="Memory"
+                className={`w-full h-full object-cover transition-all duration-500 ease-in-out
+  ${showImage || isRevealing
+    ? "blur-0 grayscale-0"
+    : "blur-md grayscale"}
+`}
 
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500 text-xl blur-md">
-                  ?
-                </div>
+              />
+
+              <div className="absolute top-1 left-1 bg-white/80 text-xs px-2 py-1 rounded z-10">
+                {uploaderName}
+              </div>
+
+              {isMine && !card.revealed && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    revealCard(card.id)
+                  }}
+                  className="absolute bottom-2 left-2 text-xs bg-blue-600 text-white rounded px-2 py-1 z-10"
+                >
+                  🔓 Afslør
+                </button>
               )}
-              {showImage && (
-                <div className="absolute bottom-0 bg-white/80 text-sm p-2 w-full">
-                  {card.note}
-                </div>
+
+              {isMine && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    deleteCard(card.id, card.image_url)
+                  }}
+                  className="absolute bottom-2 right-2 text-xs bg-red-600 text-white rounded px-2 py-1 z-10"
+                >
+                  🗑 Slet
+                </button>
+              )}
+
+              {/* ✨ Magisk glød */}
+              {isRevealing && (
+                <div className="absolute inset-0 rounded ring-4 ring-pink-400 animate-pulse z-10 pointer-events-none"></div>
               )}
             </div>
           )
         })}
       </div>
+
+      {selectedCard && (
+        <Modal
+          title={userNames[selectedCard.user_id] || "Memory"}
+          onClose={() => setSelectedCard(null)}
+          imageUrl={selectedCard.image_url}
+          note={selectedCard.note}
+        />
+      )}
     </div>
   )
 }

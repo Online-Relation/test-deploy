@@ -9,11 +9,10 @@ import { useXp } from '@/context/XpContext';
 import { useHasMounted } from '@/hooks/useHasMounted';
 import { useUserContext } from '@/context/UserContext';
 import { supabase } from '@/lib/supabaseClient';
-import { Palette } from 'lucide-react';
+import { Palette, Globe, UserCircle, Heart } from 'lucide-react';
 import {
   LayoutDashboard,
   ListTodo,
-  Heart,
   Sparkles,
   Backpack,
   HeartHandshake,
@@ -36,17 +35,39 @@ interface AccessEntry {
 const accessHierarchy: AccessEntry[] = [
   { key: 'dashboard', label: 'Dashboard', href: '/', children: [] },
   { key: 'todo', label: 'To-Do List', href: '/todo', children: [] },
+  {
+    key: 'online-relation',
+    label: 'Online Relation',
+    href: '/online-relation',
+    children: [
+      { key: 'online-relation/tasks', label: 'Opgaver', href: '/online-relation/tasks', children: [] },
+    ],
+  },
   { key: 'tasks-couple', label: 'Opgaver', href: '/tasks-couple', children: [] },
   {
-    key: 'fantasy', label: 'Parforhold', href: '/fantasy', children: [
+    key: 'fantasy',
+    label: 'Parforhold',
+    href: '/fantasy',
+    children: [
       { key: 'fantasy/fantasier', label: 'Fantasier', href: '/fantasy', children: [] },
       { key: 'dates', label: 'Date Ideas', href: '/dates', children: [] },
-      { key: 'fantasy/sex', label: 'Sex', href: '/fantasy/sex', children: [] },
+    ],
+  },
+  {
+    key: 'indtjekning',
+    label: 'Indtjekning',
+    href: '/indtjekning',
+    children: [
+      { key: 'indtjekning/sex', label: 'Sex', href: '/indtjekning/sex', children: [] },
+      { key: 'indtjekning/kompliment', label: 'Kompliment', href: '/indtjekning/kompliment', children: [] },
     ],
   },
   { key: 'bucketlist-couple', label: 'Bucketlist', href: '/bucketlist-couple', children: [] },
   {
-    key: 'checkin', label: 'Check-in', href: '/checkin', children: [
+    key: 'checkin',
+    label: 'Check-in',
+    href: '/checkin',
+    children: [
       { key: 'checkin/oversigt', label: 'Oversigt', href: '/checkin/oversigt', children: [] },
       { key: 'checkin/mine-behov', label: 'Mine behov', href: '/checkin/mine-behov', children: [] },
       { key: 'checkin/historik', label: 'Historik', href: '/checkin/historik', children: [] },
@@ -54,22 +75,40 @@ const accessHierarchy: AccessEntry[] = [
     ],
   },
   {
-    key: 'spil', label: 'Spil', href: '/spil/sellerk', children: [
+    key: 'spil',
+    label: 'Spil',
+    href: '/spil/sellerk',
+    children: [
       { key: 'spil/sellerk', label: 'S eller K', href: '/spil/sellerk', children: [] },
+      { key: 'spil/memorygaver', label: 'Memory', href: '/spil/memorygaver', children: [] },
+      { key: 'spil/quiz', label: 'Quiz', href: '/spil/quiz', children: [] },
     ],
   },
   {
-    key: 'kommunikation', label: 'Kommunikation', href: '/kommunikation/kompliment', children: [
-      { key: 'kommunikation/kompliment', label: 'Kompliment', href: '/kommunikation/kompliment', children: [] },
+    key: 'kommunikation',
+    label: 'Kommunikation',
+    href: '/kommunikation/kompliment',
+    children: [
       { key: 'kommunikation/spoergsmaal', label: 'Spørgsmål', href: '/kommunikation/spoergsmaal', children: [] },
       { key: 'kommunikation/random', label: 'Random', href: '/kommunikation/random', children: [] },
     ],
   },
-  { key: 'manifestation', label: 'Manifestation', href: '/manifestation', children: [] },
-  { key: 'career', label: 'Karriere', href: '/career', children: [] },
+  {
+    key: 'personlighed',
+    label: 'Personlighed',
+    href: '/personlighed',
+    children: [
+      { key: 'manifestation', label: 'Manifestation', href: '/manifestation', children: [] },
+      { key: 'career', label: 'Karriere', href: '/career', children: [] },
+      { key: 'tanker', label: 'Tanker', href: '/tanker', children: [] },
+    ],
+  },
   { key: 'profile', label: 'Profil', href: '/profile', children: [] },
   {
-    key: 'settings', label: 'Indstillinger', href: '/settings', children: [
+    key: 'settings',
+    label: 'Indstillinger',
+    href: '/settings',
+    children: [
       { key: 'settings/points', label: 'Points', href: '/settings/points', children: [] },
       { key: 'settings/rewards', label: 'Rewards', href: '/settings/rewards', children: [] },
       { key: 'settings/categories', label: 'Categories', href: '/settings/categories', children: [] },
@@ -80,7 +119,22 @@ const accessHierarchy: AccessEntry[] = [
 ];
 
 const iconMap: Record<string, ReactNode> = {
-  dashboard: <LayoutDashboard size={20} />, todo: <ListTodo size={20} />, 'tasks-couple': <ListTodo size={20} />, dates: <Heart size={20} />, fantasy: <Sparkles size={20} />, 'fantasy/fantasier': <Sparkles size={20} />, 'fantasy/sex': <Heart size={20} />, 'bucketlist-couple': <Backpack size={20} />, checkin: <HeartHandshake size={20} />, manifestation: <BrainCircuit size={20} />, career: <Briefcase size={20} />, profile: <Settings size={20} />, settings: <Settings size={20} />, kommunikation: <Sparkles size={20} />, 'kommunikation/kompliment': <HeartHandshake size={20} />, 'kommunikation/spoergsmaal': <BrainCircuit size={20} />, 'kommunikation/random': <Sparkles size={20} />, spil: <ListTodo size={20} />, 'spil/sellerk': <Sparkles size={20} />,'settings/game-themes': <Palette size={20} />
+  dashboard: <LayoutDashboard size={20} />, 
+  todo: <ListTodo size={20} />, 
+  'online-relation': <Globe size={20} />, 
+  'tasks-couple': <ListTodo size={20} />, 
+  fantasy: <Sparkles size={20} />,  
+  'bucketlist-couple': <Backpack size={20} />, 
+  checkin: <HeartHandshake size={20} />, 
+  manifestation: <BrainCircuit size={20} />, 
+  career: <Briefcase size={20} />, 
+  tanker: <UserCircle size={20} />,
+  indtjekning: <Heart size={20} />,
+  personlighed: <UserCircle size={20} />,
+  profile: <Settings size={20} />, 
+  settings: <Settings size={20} />, 
+  kommunikation: <Sparkles size={20} />, 
+  spil: <ListTodo size={20} />, 
 };
 
 export default function Sidebar() {
@@ -97,6 +151,9 @@ export default function Sidebar() {
   const [spilOpen, setSpilOpen] = useState(false);
   const [kommunikationOpen, setKommunikationOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const [onlineRelationOpen, setOnlineRelationOpen] = useState(false);
+  const [personlighedOpen, setPersonlighedOpen] = useState(false);
+  const [indtjekningOpen, setIndtjekningOpen] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -108,13 +165,17 @@ export default function Sidebar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [mobileOpen]);
 
-  useEffect(() => {
-    setFantasyOpen(pathname.startsWith('/fantasy'));
-    setCheckinOpen(pathname.startsWith('/checkin'));
-    setSettingsOpen(pathname.startsWith('/settings'));
-    setSpilOpen(pathname.startsWith('/spil'));
-    setKommunikationOpen(pathname.startsWith('/kommunikation'));
-  }, [pathname]);
+useEffect(() => {
+  setFantasyOpen(pathname.startsWith('/fantasy'));
+  setCheckinOpen(pathname.startsWith('/checkin'));
+  setSettingsOpen(pathname.startsWith('/settings'));
+  setSpilOpen(pathname.startsWith('/spil'));
+  setKommunikationOpen(pathname.startsWith('/kommunikation'));
+  setOnlineRelationOpen(pathname.startsWith('/online-relation'));
+  setIndtjekningOpen(pathname.startsWith('/indtjekning'));
+}, [pathname]);
+
+
 
   if (!hasMounted || loading || !user) return null;
 
@@ -126,23 +187,29 @@ export default function Sidebar() {
     if (!hasAccessTo(entry.key)) return null;
     const anyChild = entry.children.some(c => hasAccessTo(c.key));
     const isOpen = entry.key === 'fantasy' ? fantasyOpen
-      : entry.key === 'checkin' ? checkinOpen
-      : entry.key === 'settings' ? settingsOpen
-      : entry.key === 'spil' ? spilOpen
-      : entry.key === 'kommunikation' ? kommunikationOpen
-      : false;
+  : entry.key === 'checkin' ? checkinOpen
+  : entry.key === 'settings' ? settingsOpen
+  : entry.key === 'spil' ? spilOpen
+  : entry.key === 'kommunikation' ? kommunikationOpen
+  : entry.key === 'online-relation' ? onlineRelationOpen
+  : entry.key === 'indtjekning' ? indtjekningOpen
+  : false;
+
 
     if (entry.children.length) {
       return (
         <div key={entry.key}>
           <button
             onClick={() => {
-              if (entry.key === 'fantasy') setFantasyOpen(o => !o);
-              else if (entry.key === 'checkin') setCheckinOpen(o => !o);
-              else if (entry.key === 'settings') setSettingsOpen(o => !o);
-              else if (entry.key === 'spil') setSpilOpen(o => !o);
-              else if (entry.key === 'kommunikation') setKommunikationOpen(o => !o);
-            }}
+  if (entry.key === 'fantasy') setFantasyOpen(o => !o);
+  else if (entry.key === 'checkin') setCheckinOpen(o => !o);
+  else if (entry.key === 'settings') setSettingsOpen(o => !o);
+  else if (entry.key === 'spil') setSpilOpen(o => !o);
+  else if (entry.key === 'kommunikation') setKommunikationOpen(o => !o);
+  else if (entry.key === 'online-relation') setOnlineRelationOpen(o => !o);
+  else if (entry.key === 'indtjekning') setIndtjekningOpen(o => !o);
+}}
+
             className={`w-full flex items-center justify-between px-4 py-2 rounded hover:bg-gray-800 transition ${pathname.startsWith(entry.href) ? 'bg-gray-700 font-semibold' : ''}`}
           >
             <span className="flex items-center gap-2">
