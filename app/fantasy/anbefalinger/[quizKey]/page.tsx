@@ -46,6 +46,7 @@ export default function QuizResultPage() {
   const [answers, setAnswers] = useState<Answer[]>([])
   const [profiles, setProfiles] = useState<Record<string, Profile>>({})
   const [view, setView] = useState<'results' | 'visual' | 'recommendations'>('results')
+  const [recommendations, setRecommendations] = useState<string[] | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -100,6 +101,32 @@ export default function QuizResultPage() {
   }
 
   const grouped = groupByAgreement()
+
+  useEffect(() => {
+    const totalQuestions =
+      grouped.green.length + grouped.yellow.length + grouped.red.length
+
+    if (totalQuestions === 0 || recommendations !== null) return
+
+    const fetchRecommendations = async () => {
+      try {
+        const res = await fetch('/api/recommendations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ groupedQuestions: grouped, quizKey }),
+        })
+
+        const text = await res.text()
+        const resData = JSON.parse(text)
+        setRecommendations(resData.recommendations || [])
+      } catch (error) {
+        console.error('Fejl ved hentning af anbefalinger:', error)
+        setRecommendations([])
+      }
+    }
+
+    fetchRecommendations()
+  }, [grouped, recommendations, quizKey])
 
   const chartData = {
     labels: ['Enige', 'Små forskelle', 'Store forskelle'],
@@ -225,10 +252,24 @@ export default function QuizResultPage() {
       )}
 
       {view === 'recommendations' && (
-        <div className="text-sm text-muted-foreground italic mt-4">
-          📚 Anbefalinger baseret på jeres svar (kommer snart)
+        <div className="space-y-4 text-sm bg-muted/50 p-4 rounded-xl shadow-inner">
+          <h2 className="text-xl font-semibold text-center">📚 Anbefalinger til jer</h2>
+          {recommendations === null ? (
+            <p className="italic text-muted-foreground text-center">Analyserer jeres svar...</p>
+          ) : recommendations.length === 0 ? (
+            <p className="italic text-muted-foreground text-center">Ingen anbefalinger fundet.</p>
+          ) : (
+            <ul className="space-y-4">
+              {recommendations.map((r, i) => (
+                <li key={i} className="bg-white rounded-lg p-4 shadow border-l-4 border-blue-300">
+                  <div className="text-base leading-snug">{r}</div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </div>
   )
 }
+

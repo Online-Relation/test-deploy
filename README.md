@@ -1312,3 +1312,50 @@ Statistik vises altid for begge par – uanset hvem der har tur
 
 Responsivt layout til mobil og desktop (flex og auto-wrap)
 
+## ✅ Dags dato: 2025-06-14 — Opdatering af funktioner, database og struktur ##
+
+🔧 Nye funktioner
+Funktion	Beskrivelse
+Anbefalingssider pr. quiz	Dynamisk side under /fantasy/anbefalinger/[quizKey] som viser resultater, grafer og anbefalinger.
+ChatGPT-integration	Genererer anbefalinger baseret på jeres svar og baggrundsbeskrivelse.
+Visualisering med Chart.js	Doughnut + Bar charts med svarfordeling og enighedsniveau.
+Caching af anbefalinger	Anbefalinger gemmes i quiz_meta og genbruges ved reload.
+Redigerbar baggrundstekst	Ny side under /settings/couple-background med textarea til personlig historik, som tages med i ChatGPT-prompt.
+UI-forbedringer	Blødere visning, brug af Card, farvekoder, profilbilleder og tabs til visningstyper.
+
+🗃️ Nye tabeller og kolonner i Supabase
+Tabelnavn	Kolonner	Beskrivelse
+quiz_meta	quiz_key, intro, published, background, recommendations	Indeholder quiz-info, baggrundstekst og genererede anbefalinger.
+couple_background (tidligere foreslået separat, nu samlet i quiz_meta)	Se ovenfor	Gemmer parrets historie som én tekst.
+quiz_questions	id, question, type, order, quiz_key	Spørgsmål pr. quiz. Bruges til vurdering af enighed.
+quiz_responses	question_id, answer, user_id, quiz_key	Brugersvar som matcher op mod spørgsmål.
+profiles (eksisterende)	id, display_name, avatar_url	Bruges til visning og statistik.
+(ændring)	access_control	Ingen ændringer, men system udvidet med adgang til anbefalingssiden.
+
+🗂️ Nye og opdaterede filer
+Fil / Mappe	Beskrivelse
+/app/fantasy/anbefalinger/[quizKey]/page.tsx	Hovedsiden for visning af quizresultater, grafer og anbefalinger.
+/app/api/recommendations/route.ts	Serverless route med POST-request til OpenAI, genererer anbefalinger baseret på svar og baggrund.
+/app/settings/couple-background/page.tsx	Ny settings-side til at skrive/redigere baggrundshistorie for parret.
+/lib/openaiClient.ts	Wrapper med hardcoded API-nøgle (provisorisk, bør flyttes til .env.local).
+/components/ui/textarea.tsx	Simpel Tailwind-baseret Textarea-komponent.
+/components/ui/card.tsx	Bruges til at indkapsle visning af spørgsmål og anbefalinger.
+/components/ui/button.tsx	Brugt til tab-visning og navigation.
+/fantasy/anbefalinger/page.tsx	Oversigtsside med links til de forskellige quiz-anbefalinger.
+
+🤖 Prompt og anbefalinger
+Systemet genererer anbefalinger ud fra:
+
+Enighedsniveau i svar (grøn, gul, rød)
+
+Spørgsmålenes ordlyd
+
+Baggrundshistorie skrevet i quiz_meta.background
+
+Brugeren kan tilføje "må ikke nævnes"-ord (som f.eks. "utroskab") i baggrunden
+
+Anbefalinger cache’s første gang og vises hurtigt næste gang
+
+📈 Næste step
+Mål	Status
+Tildeling af XP ved gennemførsel af quiz	❌ Ikke implementeret endnu

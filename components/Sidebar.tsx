@@ -118,6 +118,9 @@ const accessHierarchy: AccessEntry[] = [
       { key: 'settings/game-themes', label: 'Temaer', href: '/settings/game-themes', children: [] },
       { key: 'settings/access', label: 'Profiladgange', href: '/settings/access', children: [] },
       { key: 'settings/quiz-admin', label: 'Quiz admin', href: '/settings/quiz-admin', children: [] },
+      { key: 'settings/couple-background', label: 'Baggrund', href: '/settings/couple-background', children: [] },
+
+      
 
     ],
   },

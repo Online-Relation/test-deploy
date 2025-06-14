@@ -10,3 +10,4 @@ export const SUPABASE_PUBLIC_URL = supabaseUrl;
 
 
 
+
