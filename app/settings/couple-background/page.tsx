@@ -5,34 +5,38 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { useUserContext } from '@/context/UserContext'
 
 export default function BackgroundPage() {
-  const { user } = useUserContext()
   const [text, setText] = useState('')
+  const [lastSaved, setLastSaved] = useState('')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     const fetchBackground = async () => {
-      if (!user) return
       const { data } = await supabase
         .from('couple_background')
-        .select('text')
-        .eq('user_id', user.id)
+        .select('background')
         .single()
-      if (data) setText(data.text)
+      if (data) {
+        setText(data.background)
+        setLastSaved(data.background)
+      }
     }
     fetchBackground()
-  }, [user])
+  }, [])
 
   const saveBackground = async () => {
-    if (!user) return
     setLoading(true)
-    await supabase
+    const { error } = await supabase
       .from('couple_background')
-      .upsert({ user_id: user.id, text })
+      .upsert({ background: text })
     setLoading(false)
-    alert('Historie gemt ✅')
+    if (!error) {
+      setLastSaved(text)
+      alert('Historie gemt ✅')
+    } else {
+      alert('Noget gik galt ❌')
+    }
   }
 
   return (
@@ -49,6 +53,15 @@ export default function BackgroundPage() {
       <Button onClick={saveBackground} disabled={loading}>
         Gem
       </Button>
+
+      {lastSaved && (
+        <div className="mt-8 border-t pt-6">
+          <h2 className="font-semibold text-muted-foreground text-sm mb-2">Sidst gemt tekst:</h2>
+          <div className="bg-muted p-4 rounded text-sm whitespace-pre-wrap border">
+            {lastSaved}
+          </div>
+        </div>
+      )}
 
       <div className="text-sm text-muted-foreground space-y-4 mt-8">
         <p className="font-semibold">🔍 Inspiration til hvad du kan skrive:</p>

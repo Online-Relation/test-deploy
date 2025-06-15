@@ -1356,6 +1356,32 @@ Brugeren kan tilføje "må ikke nævnes"-ord (som f.eks. "utroskab") i baggrunde
 
 Anbefalinger cache’s første gang og vises hurtigt næste gang
 
-📈 Næste step
-Mål	Status
-Tildeling af XP ved gennemførsel af quiz	❌ Ikke implementeret endnu
+/**
+ * README OPDATERING - Widget System (15. juni 2025)
+ *
+ * ✅ Funktion:
+ * Vi har bygget et fleksibelt widget-system til dashboardet. Hver bruger kan have egne widgets,
+ * vælge rækkefølge, bredde (layout) og højde – alt styret via Supabase-tabellen `dashboard_widgets`.
+ *
+ * ✅ Database-struktur (`dashboard_widgets`):
+ * - `user_id` (UUID)
+ * - `widget_key` (text)
+ * - `enabled` (boolean)
+ * - `layout` ('small' | 'medium' | 'large')
+ * - `height` ('auto' | 'medium' | 'large')
+ * - `order` (int)
+ *
+ * ✅ Frontend struktur:
+ * - /app/dashboard/page.tsx henter widgets for den aktive bruger og sorterer dem efter `order`
+ * - Kun `supportedWidgets` vises (validering mod eksisterende komponenter)
+ * - Hver widget-render placeres med Tailwind-klasse baseret på `layout` og `height`
+ * - Alle visuelle wrappers (border, shadow) sker i denne fil – ikke i den enkelte komponent
+ *
+ * ✅ Opdateringssider:
+ * - /settings/widgets: Vælg hvilke widgets der er synlige for hver bruger
+ * - /settings/widgets/layout: Vælg rækkefølge, bredde og højde pr. bruger pr. widget
+ *
+ * 🔒 Bemærk:
+ * - Widget-komponenter må ikke selv have `Card`, `shadow`, `border`, `bg-white` – det gives herfra
+ * - Manglende komponenter vises som "Ukendt widget" eller skjules via `supportedWidgets`
+ */

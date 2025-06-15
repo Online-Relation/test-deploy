@@ -1,3 +1,4 @@
+// /app/indtjekning/kompliment/page.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -17,25 +18,30 @@ interface Compliment {
   text: string;
 }
 
+interface ComplimentLog {
+  id: string;
+  compliment_id: string;
+  given_date: string;
+  compliment_text?: string;
+}
+
 export default function KomplimentPage() {
   const [compliments, setCompliments] = useState<Compliment[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
   const [savingToday, setSavingToday] = useState<boolean>(false);
-  const [chartData, setChartData] = useState<{ month: string; count: number }[]>(
-    []
-  );
+  const [chartData, setChartData] = useState<{ date: string; count: number }[]>([]);
+  const [givenDate, setGivenDate] = useState<string>('');
+  const [recentLogs, setRecentLogs] = useState<ComplimentLog[]>([]);
+  const [alreadyRegistered, setAlreadyRegistered] = useState<boolean>(false);
 
-  // Helper to get YYYY-MM-DD
   const formatDate = (d: Date) => d.toISOString().split('T')[0];
 
-  // Pick today's compliment index (hidden)
   function pickDaily(list: Compliment[]) {
     const today = formatDate(new Date());
     const storedDate = localStorage.getItem('complimentDate');
     const storedIdx = Number(localStorage.getItem('complimentIndex'));
 
     if (storedDate === today && !isNaN(storedIdx)) {
-      console.log('Using stored compliment index:', storedIdx);
       setCurrentIndex(storedIdx);
       return;
     }
@@ -46,111 +52,172 @@ export default function KomplimentPage() {
       available = list.map((_, i) => i);
     }
     const choice = available[Math.floor(Math.random() * available.length)];
-    console.log('Choosing new compliment index:', choice);
     localStorage.setItem('usedCompliments', JSON.stringify([...used, choice]));
     localStorage.setItem('complimentDate', today);
     localStorage.setItem('complimentIndex', String(choice));
     setCurrentIndex(choice);
   }
 
-  // Load compliments and set today's index
   useEffect(() => {
     supabase
       .from('compliments')
       .select('id, text')
       .then(({ data, error }) => {
-        if (error) {
-          console.error(error);
-        } else if (data) {
+        if (!error && data) {
           setCompliments(data);
           pickDaily(data);
         }
       });
   }, []);
 
-  // Register today's compliment
+  useEffect(() => {
+    const checkAlreadyRegistered = async () => {
+      const today = formatDate(new Date());
+      if (currentIndex === null) return;
+      const compId = compliments[currentIndex]?.id;
+      if (!compId) return;
+
+      const { data } = await supabase
+        .from('compliment_logs')
+        .select('id')
+        .eq('compliment_id', compId)
+        .eq('given_date', today)
+        .maybeSingle();
+
+      setAlreadyRegistered(!!data);
+    };
+
+    checkAlreadyRegistered();
+  }, [currentIndex, compliments]);
+
   async function handleGiveToday() {
     if (currentIndex === null) return;
     setSavingToday(true);
 
     const compId = compliments[currentIndex]?.id;
-    if (!compId) {
+    if (!compId || !givenDate) {
       setSavingToday(false);
       return;
     }
-    const today = formatDate(new Date());
+
     const { error } = await supabase.from('compliment_logs').insert({
       compliment_id: compId,
-      given_date: today,
+      given_date: givenDate,
     });
-    if (error) {
-      console.error('Fejl ved registrering af kompliment:', error);
+
+    if (!error) {
+      loadChartData();
+      loadRecentLogs();
+      setAlreadyRegistered(true);
     }
     setSavingToday(false);
-    loadChartData();
   }
 
-  // Load chart data for remaining year
   async function loadChartData() {
-    const start = formatDate(new Date());
-    const end = `${new Date().getFullYear()}-12-31`;
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - 13); // 14 dage inkl. i dag
+    const startDate = formatDate(start);
+    const endDate = formatDate(end);
+
     const { data, error } = await supabase
       .from('compliment_logs')
       .select('given_date')
-      .gte('given_date', start)
-      .lte('given_date', end);
-    if (error || !data) {
-      console.error(error);
-      return;
-    }
+      .gte('given_date', startDate)
+      .lte('given_date', endDate);
 
-    // Count per month
+    if (error || !data) return;
+
     const counts: Record<string, number> = {};
     data.forEach(({ given_date }) => {
-      const month = given_date.slice(5, 7); // 'MM'
-      counts[month] = (counts[month] || 0) + 1;
+      counts[given_date] = (counts[given_date] || 0) + 1;
     });
-    const months = Array.from(
-      { length: 12 - new Date().getMonth() },
-      (_, i) => {
-        const m = new Date().getMonth() + 1 + i;
-        return m < 10 ? `0${m}` : `${m}`;
-      }
-    );
-    const chart = months.map(m => ({ month: m, count: counts[m] || 0 }));
-    setChartData(chart);
+
+    const days = Array.from({ length: 14 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      const key = formatDate(d);
+      return { date: key, count: counts[key] || 0 };
+    });
+
+    setChartData(days);
   }
 
-  // Load chart data when component mounts
+  async function loadRecentLogs() {
+    const { data } = await supabase
+      .from('compliment_logs')
+      .select('id, compliment_id, given_date')
+      .order('given_date', { ascending: false })
+      .limit(7);
+
+    if (data) {
+      const enriched = data.map(log => {
+        const found = compliments.find(c => c.id === log.compliment_id);
+        return { ...log, compliment_text: found?.text || '' };
+      });
+      setRecentLogs(enriched);
+    }
+  }
+
   useEffect(() => {
     loadChartData();
+    loadRecentLogs();
   }, []);
 
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold">Kompliment-registrering</h1>
 
-      <button
-        onClick={handleGiveToday}
-        disabled={savingToday}
-        className="mt-4 px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-700 text-white"
-      >
-        {savingToday ? 'Gemmer…' : 'Registrer dagens kompliment'}
-      </button>
+      <section className="mt-6">
+        <h2 className="text-lg font-semibold mb-2">Dagens kompliment</h2>
+        {currentIndex !== null && compliments[currentIndex] && (
+          <div className="p-4 bg-indigo-100 rounded text-indigo-900 italic text-lg mb-2">
+            "{compliments[currentIndex].text}"
+          </div>
+        )}
 
-      {currentIndex !== null && compliments[currentIndex] && (
-        <div className="mt-4 p-4 bg-indigo-100 rounded text-indigo-900 italic text-lg">
-          "{compliments[currentIndex].text}"
+        {alreadyRegistered ? (
+          <p className="text-green-700 text-sm">✅ Dagens kompliment er allerede registreret.</p>
+        ) : (
+          <div className="flex flex-col sm:flex-row items-start gap-4 mt-2">
+            <input
+              type="date"
+              value={givenDate}
+              onChange={e => setGivenDate(e.target.value)}
+              className="border rounded px-3 py-2"
+            />
+            <button
+              onClick={handleGiveToday}
+              disabled={savingToday}
+              className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              {savingToday ? 'Gemmer…' : 'Registrer kompliment'}
+            </button>
+          </div>
+        )}
+      </section>
+
+      {recentLogs.length > 0 && (
+        <div className="mt-6">
+          <h2 className="text-lg font-semibold mb-2">Seneste komplimenter</h2>
+          <ul className="space-y-2">
+            {recentLogs.map(log => (
+              <li key={log.id} className="border p-3 rounded">
+                <p className="text-sm text-gray-700 italic">"{log.compliment_text}"</p>
+                <p className="text-xs text-gray-500">Dato: {log.given_date}</p>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
       <section className="mt-8">
-        <h2 className="text-xl font-semibold mb-4">Registreringer resten af året</h2>
+        <h2 className="text-xl font-semibold mb-4">Aktivitet de sidste 14 dage</h2>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="month" />
-            <YAxis />
+            <XAxis dataKey="date" />
+            <YAxis allowDecimals={false} domain={[0, 1]} />
             <Tooltip />
             <Bar dataKey="count" fill="#6366f1" />
           </BarChart>

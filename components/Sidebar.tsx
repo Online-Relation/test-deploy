@@ -33,7 +33,7 @@ interface AccessEntry {
 }
 
 const accessHierarchy: AccessEntry[] = [
-  { key: 'dashboard', label: 'Dashboard', href: '/', children: [] },
+  { key: 'dashboard', label: 'Dashboard', href: '/dashboard', children: [] },
   { key: 'todo', label: 'To-Do List', href: '/todo', children: [] },
   {
     key: 'online-relation',
@@ -112,6 +112,8 @@ const accessHierarchy: AccessEntry[] = [
     label: 'Indstillinger',
     href: '/settings',
     children: [
+      { key: 'settings/widgets/layout', label: 'Layout', href: '/settings/widgets/layout', children: [] },
+      { key: 'settings/widgets', label: 'Widgets', href: '/settings/widgets', children: [] },
       { key: 'settings/points', label: 'Points', href: '/settings/points', children: [] },
       { key: 'settings/rewards', label: 'Rewards', href: '/settings/rewards', children: [] },
       { key: 'settings/categories', label: 'Categories', href: '/settings/categories', children: [] },
@@ -189,7 +191,11 @@ useEffect(() => {
 
   const isAdmin = user?.email === 'mads@onlinerelation.dk';
   const userAccess: Record<string, boolean> = user?.access || {};
-  const hasAccessTo = (key: string) => isAdmin || !!userAccess[key];
+ const hasAccessTo = (key: string) => {
+  if (key === 'dashboard') return true; // alle har adgang til Dashboard
+  return isAdmin || !!userAccess[key];
+};
+
 
   const navContent = accessHierarchy.map(entry => {
     if (!hasAccessTo(entry.key)) return null;

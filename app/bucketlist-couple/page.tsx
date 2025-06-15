@@ -21,12 +21,14 @@ function BucketGrid() {
   } = useBucket();
 
   const [open, setOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const [activeBucketId, setActiveBucketId] = useState<string | null>(null);
   const [newBucketTitle, setNewBucketTitle] = useState('');
   const [newBucketDesc, setNewBucketDesc] = useState('');
   const [newBucketCat, setNewBucketCat] = useState('');
   const [newBucketDeadline, setNewBucketDeadline] = useState('');
   const [newImageFile, setNewImageFile] = useState<File | null>(null);
+  const [imageUrl, setImageUrl] = useState('');
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [users, setUsers] = useState<{ id: string; display_name: string; avatar_url?: string }[]>([]);
 
@@ -51,70 +53,31 @@ function BucketGrid() {
   const handleAddBucket = async () => {
     if (!newBucketTitle.trim()) return;
 
-    let imageUrl = '';
-    if (newImageFile) {
-      const fileExt = newImageFile.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const { data, error } = await supabase.storage
-        .from('bucketlist-couple')
-        .upload(`bucket-images/${fileName}`, newImageFile, { upsert: true });
-
-      if (!error) {
-        const { data: publicUrlData } = supabase.storage
-          .from('bucketlist-couple')
-          .getPublicUrl(`bucket-images/${fileName}`);
-        imageUrl = publicUrlData?.publicUrl || '';
-      }
-    }
-
-await addBucket(
-  newBucketTitle.trim(),
-  newBucketDesc.trim(),
-  newBucketCat,
-  newBucketDeadline || undefined,
-  newImageFile || undefined
-);
-
-
+    await addBucket(
+      newBucketTitle.trim(),
+      newBucketDesc.trim(),
+      newBucketCat,
+      newBucketDeadline || undefined,
+      newImageFile || undefined
+    );
 
     setNewBucketTitle('');
     setNewBucketDesc('');
     setNewBucketDeadline('');
     setNewImageFile(null);
+    setImageUrl('');
     setOpen(false);
   };
 
   const handleUpdateBucket = async () => {
-    let imageUrl = '';
-    if (newImageFile) {
-      const fileExt = newImageFile.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const { data, error } = await supabase.storage
-        .from('bucketlist-couple')
-        .upload(`bucket-images/${fileName}`, newImageFile, { upsert: true });
-
-      if (!error) {
-        const { data: publicUrlData } = supabase.storage
-          .from('bucketlist-couple')
-          .getPublicUrl(`bucket-images/${fileName}`);
-        imageUrl = publicUrlData?.publicUrl || '';
-
-        await supabase
-          .from('bucketlist_couple')
-          .update({ image_url: imageUrl })
-          .eq('id', activeBucketId);
-      }
-    }
-
- await updateBucket(
-  activeBucketId!,
-  newBucketTitle.trim(),
-  newBucketDesc.trim(),
-  newBucketCat,
-  newBucketDeadline || undefined,
-  newImageFile || undefined
-);
-
+    await updateBucket(
+      activeBucketId!,
+      newBucketTitle.trim(),
+      newBucketDesc.trim(),
+      newBucketCat,
+      newBucketDeadline || undefined,
+      newImageFile || undefined
+    );
 
     setOpen(false);
   };
@@ -135,6 +98,8 @@ await addBucket(
               setNewBucketDesc(bucket.description);
               setNewBucketCat(bucket.category);
               setNewBucketDeadline(bucket.deadline || '');
+              setImageUrl(bucket.image_url || '');
+              setEditMode(false);
               setOpen(true);
             }}
           />
@@ -147,6 +112,8 @@ await addBucket(
             setNewBucketCat(categories[0]?.id || '');
             setNewBucketDeadline('');
             setNewImageFile(null);
+            setImageUrl('');
+            setEditMode(true);
             setOpen(true);
           }}
           className="flex items-center justify-center border-2 border-dashed rounded-xl p-6 cursor-pointer hover:border-gray-400 transition"
@@ -157,52 +124,67 @@ await addBucket(
 
       <Dialog open={open} onClose={() => setOpen(false)} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
         <Dialog.Panel className="bg-white rounded-lg p-6 w-full max-w-lg mx-auto space-y-6">
-          <h2 className="text-xl font-bold">{activeBucketId ? 'Redigér mål' : 'Opret nyt mål'}</h2>
-          <div className="grid grid-cols-1 gap-4">
-            <input
-              type="text"
-              className="w-full border rounded px-3 py-2"
-              placeholder="Titel"
-              value={newBucketTitle}
-              onChange={e => setNewBucketTitle(e.target.value)}
-            />
-            <input
-              type="date"
-              className="w-full border rounded px-3 py-2"
-              value={newBucketDeadline}
-              onChange={e => setNewBucketDeadline(e.target.value)}
-            />
-            <select
-              className="w-full border rounded px-3 py-2"
-              value={newBucketCat}
-              onChange={e => setNewBucketCat(e.target.value)}
-            >
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
-            <textarea
-              className="w-full border rounded px-3 py-2 h-24"
-              placeholder="Beskrivelse"
-              value={newBucketDesc}
-              onChange={e => setNewBucketDesc(e.target.value)}
-            />
-            <input
-              type="file"
-              accept="image/*"
-              onChange={e => setNewImageFile(e.target.files?.[0] || null)}
-              className="w-full border rounded px-3 py-2"
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={activeBucketId ? handleUpdateBucket : handleAddBucket}
-                className="btn btn-primary"
-              >
-                Gem
-              </button>
-              <button onClick={() => setOpen(false)} className="btn btn-outline">Luk</button>
-            </div>
-          </div>
+          {editMode ? (
+            <>
+              <h2 className="text-xl font-bold">{activeBucketId ? 'Redigér mål' : 'Opret nyt mål'}</h2>
+              <div className="grid grid-cols-1 gap-4">
+                <input
+                  type="text"
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Titel"
+                  value={newBucketTitle}
+                  onChange={e => setNewBucketTitle(e.target.value)}
+                />
+                <input
+                  type="date"
+                  className="w-full border rounded px-3 py-2"
+                  value={newBucketDeadline}
+                  onChange={e => setNewBucketDeadline(e.target.value)}
+                />
+                <select
+                  className="w-full border rounded px-3 py-2"
+                  value={newBucketCat}
+                  onChange={e => setNewBucketCat(e.target.value)}
+                >
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+                <textarea
+                  className="w-full border rounded px-3 py-2 h-24"
+                  placeholder="Beskrivelse"
+                  value={newBucketDesc}
+                  onChange={e => setNewBucketDesc(e.target.value)}
+                />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={e => setNewImageFile(e.target.files?.[0] || null)}
+                  className="w-full border rounded px-3 py-2"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={activeBucketId ? handleUpdateBucket : handleAddBucket}
+                    className="btn btn-primary"
+                  >
+                    Gem
+                  </button>
+                  <button onClick={() => setOpen(false)} className="btn btn-outline">Luk</button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-xl font-bold">{newBucketTitle}</h2>
+              {imageUrl && <img src={imageUrl} alt="Bucket" className="w-full rounded-lg" />}
+              <p className="text-muted-foreground whitespace-pre-wrap">{newBucketDesc}</p>
+              <p className="text-sm text-muted-foreground">Kategori: {categories.find(c => c.id === newBucketCat)?.name || 'Ukendt'}</p>
+              <p className="text-sm text-muted-foreground">Deadline: {newBucketDeadline || 'Ingen'}</p>
+              <div className="flex justify-end">
+                <button onClick={() => setEditMode(true)} className="btn btn-outline">Rediger</button>
+              </div>
+            </>
+          )}
         </Dialog.Panel>
       </Dialog>
     </div>

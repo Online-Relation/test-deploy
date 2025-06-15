@@ -1,96 +1,79 @@
+// /app/dashboard/page.tsx
 'use client';
 
-import { Bar } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-} from 'chart.js';
 import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { useUserContext } from '@/context/UserContext';
+import WidgetRenderer from '@/components/widgets/WidgetRenderer';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+interface Widget {
+  widget_key: string;
+  layout: 'small' | 'medium' | 'large';
+  height: 'auto' | 'medium' | 'large';
+  order: number;
+}
 
 export default function DashboardPage() {
-  const [fantasyStats, setFantasyStats] = useState({ idea: 0, planned: 0, fulfilled: 0 });
-  const [dateStats, setDateStats] = useState({ new: 0, next: 0, memory: 0 });
+  const { user } = useUserContext();
+  const [widgets, setWidgets] = useState<Widget[]>([]);
+
+  const supportedWidgets = [
+    'xp_meter',
+    'reward_progress',
+    'task_summary',
+    'kompliment_reminder',
+  ];
 
   useEffect(() => {
-    // Fantasier
-    const storedFantasies = localStorage.getItem('fantasies');
-    if (storedFantasies) {
-      try {
-        const parsed = JSON.parse(storedFantasies);
-        const counts = { idea: 0, planned: 0, fulfilled: 0 };
-        parsed.forEach((f: any) => {
-          if (counts.hasOwnProperty(f.status)) {
-            counts[f.status as keyof typeof counts]++;
-          }
-        });
-        setFantasyStats(counts);
-      } catch (err) {
-        console.error('Fejl ved hentning af fantasier:', err);
-      }
+    const fetchWidgets = async () => {
+      if (!user) return;
+      const { data, error } = await supabase
+        .from('dashboard_widgets')
+        .select('widget_key, layout, height, order')
+        .eq('user_id', user.id)
+        .eq('enabled', true);
+
+      if (error) console.error('Fejl ved hentning af widgets:', error);
+      else setWidgets(data?.filter(w => supportedWidgets.includes(w.widget_key)) || []);
+    };
+
+    fetchWidgets();
+  }, [user]);
+
+const layoutClass = (layout: string) => {
+  switch (layout) {
+    case 'small':
+      return 'col-span-12 sm:col-span-6 lg:col-span-4';
+    case 'medium':
+      return 'col-span-12 sm:col-span-8';
+    case 'large':
+      return 'col-span-12';
+    default:
+      return 'col-span-12';
+  }
+};
+
+
+  const heightClass = (height: string) => {
+    switch (height) {
+      case 'medium': return 'min-h-[250px]';
+      case 'large': return 'min-h-[400px]';
+      default: return 'h-auto';
     }
-
-    // Date Ideas
-    const storedDates = localStorage.getItem('dateIdeas');
-    if (storedDates) {
-      try {
-        const parsed = JSON.parse(storedDates);
-        const counts = { new: 0, next: 0, memory: 0 };
-        parsed.forEach((d: any) => {
-          if (counts.hasOwnProperty(d.status)) {
-            counts[d.status as keyof typeof counts]++;
-          }
-        });
-        setDateStats(counts);
-      } catch (err) {
-        console.error('Fejl ved hentning af date ideas:', err);
-      }
-    }
-  }, []);
-
-  const data = {
-    labels: ['Fantasier', 'Planlagt', 'Opfyldt', 'New Ideas', 'Next', 'Memories'],
-    datasets: [
-      {
-        label: 'Antal Kort',
-        data: [
-          fantasyStats.idea,
-          fantasyStats.planned,
-          fantasyStats.fulfilled,
-          dateStats.new,
-          dateStats.next,
-          dateStats.memory
-        ],
-        backgroundColor: [
-          '#ec4899', // pink
-          '#fbbf24', // gul
-          '#10b981', // grøn
-          '#3b82f6', // blå
-          '#6366f1', // indigo
-          '#8b5cf6'  // lilla
-        ],
-      },
-    ],
-  };
-
-  const options = {
-    responsive: true,
-    plugins: {
-      legend: { position: 'top' as const },
-      title: { display: true, text: 'Overblik over kort og status' },
-    },
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">📊 Dashboard</h1>
-      <Bar data={data} options={options} />
+    <div className="w-full sm:max-w-6xl sm:mx-auto px-2 sm:px-4 py-6 grid grid-cols-12 gap-4 sm:gap-6">
+      {widgets
+        .sort((a, b) => a.order - b.order)
+        .map(widget => (
+          <div
+            key={widget.widget_key}
+            className={`${layoutClass(widget.layout)} ${heightClass(widget.height)} w-full`}
+          >
+           <WidgetRenderer widget={widget} />
+          </div>
+        ))}
     </div>
   );
 }

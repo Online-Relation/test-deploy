@@ -137,37 +137,40 @@ export default function AccessPage() {
     setAccessList((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const saveAccess = async () => {
-    if (!selectedUser) return;
-    try {
-      // Gem hovedpunkter
-      for (const entry of accessHierarchy) {
-        const { error } = await supabase
-          .from('access_control')
-          .upsert({
-            user_id: selectedUser,
-            menu_key: entry.key,
-            allowed: !!accessList[entry.key],
-          });
-        if (error) throw error;
-        // Gem underpunkter
-        for (const child of entry.children) {
-          const { error: childError } = await supabase
-            .from('access_control')
-            .upsert({
-              user_id: selectedUser,
-              menu_key: child.key,
-              allowed: !!accessList[child.key],
-            });
-          if (childError) throw childError;
-        }
+const saveAccess = async () => {
+  if (!selectedUser) return;
+  try {
+    const updates = [];
+
+    for (const entry of accessHierarchy) {
+      updates.push({
+        user_id: selectedUser,
+        menu_key: entry.key,
+        allowed: !!accessList[entry.key],
+      });
+
+      for (const child of entry.children) {
+        updates.push({
+          user_id: selectedUser,
+          menu_key: child.key,
+          allowed: !!accessList[child.key],
+        });
       }
-      alert('Adgange opdateret ✅');
-    } catch (error) {
-      console.error('Fejl ved opdatering af adgangsindstillinger:', error);
-      alert('Der skete en fejl under gem af adgangsindstillinger.');
     }
-  };
+
+    const { error } = await supabase
+      .from('access_control')
+      .upsert(updates, { onConflict: 'user_id, menu_key' });
+
+
+    if (error) throw error;
+
+    alert('Adgange opdateret ✅');
+  } catch (error) {
+    console.error('Fejl ved opdatering af adgangsindstillinger:', error);
+    alert('Der skete en fejl under gem af adgangsindstillinger.');
+  }
+};
 
   return (
     <div className="max-w-xl mx-auto p-6 space-y-6">
