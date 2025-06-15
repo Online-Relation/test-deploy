@@ -1,3 +1,4 @@
+// /app/spil/memorygaver/page.tsx
 "use client"
 
 import { useEffect, useState, useRef } from "react"
@@ -8,7 +9,6 @@ import Modal from "@/components/ui/ImageModal"
 import confetti from "canvas-confetti"
 import ThemeSelector from "@/components/memory/ThemeSelector"
 
-
 export default function MemoryGaverPage() {
   const { user: profile } = useUserContext()
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -18,6 +18,7 @@ export default function MemoryGaverPage() {
   const [userNames, setUserNames] = useState<Record<string, string>>({})
   const [selectedCard, setSelectedCard] = useState<any | null>(null)
   const [revealingId, setRevealingId] = useState<string | null>(null)
+  const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const confettiRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -76,9 +77,27 @@ export default function MemoryGaverPage() {
       revealed: false,
     })
 
-    if (insertError) {
-      console.error("Insert error", insertError)
+    if (!insertError) {
+      await Promise.all([
+        supabase.from("xp_log").insert({
+          user_id: profile.id,
+          role: profile.role,
+          action: "memory_upload",
+          xp: 5,
+        }),
+        supabase.from("xp_log").insert({
+          user_id: profile.partner_id,
+          role: profile.role === "mads" ? "stine" : "mads",
+          action: "memory_upload",
+          xp: 5,
+        })
+      ])
+
+      setSuccessMsg("🎉 +5 XP til dig")
+      setTimeout(() => setSuccessMsg(null), 3000)
     }
+
+    if (insertError) console.error("Insert error", insertError)
 
     setImageFile(null)
     setNote("")
@@ -89,7 +108,6 @@ export default function MemoryGaverPage() {
   async function revealCard(cardId: string) {
     setRevealingId(cardId)
 
-    // 🎊 Trigger confetti
     confetti({
       particleCount: 80,
       spread: 90,
@@ -102,31 +120,15 @@ export default function MemoryGaverPage() {
         .update({ revealed: true })
         .eq("id", cardId)
 
-      if (error) {
-        console.error("Reveal error", error.message)
-      } else {
-        fetchCards()
-      }
-
+      if (!error) fetchCards()
       setRevealingId(null)
     }, 600)
   }
 
   async function deleteCard(cardId: string, imagePath: string) {
-    const { error: deleteError } = await supabase
-      .from("memory_cards")
-      .delete()
-      .eq("id", cardId)
-
-    if (deleteError) {
-      console.error("Delete error", deleteError.message)
-    }
-
+    await supabase.from("memory_cards").delete().eq("id", cardId)
     const filename = imagePath.split("/").pop() || ""
-    await supabase.storage
-      .from("memory-cards")
-      .remove([filename])
-
+    await supabase.storage.from("memory-cards").remove([filename])
     fetchCards()
   }
 
@@ -134,46 +136,49 @@ export default function MemoryGaverPage() {
 
   return (
     <div className="max-w-xl mx-auto p-4 relative" ref={confettiRef}>
-         <ThemeSelector />
+      <ThemeSelector />
       <h1 className="text-xl font-bold mb-4">Memorygaver i dag</h1>
 
+      {successMsg && (
+        <div className="mb-4 text-center text-green-700 font-semibold bg-green-100 p-2 rounded">
+          {successMsg}
+        </div>
+      )}
+
       <div className="bg-white rounded-xl shadow p-4 space-y-3">
-  <input
-    ref={fileInputRef}
-    type="file"
-    accept="image/*"
-    onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-    className="hidden"
-  />
-  <button
-    onClick={() => fileInputRef.current?.click()}
-    className="btn btn-secondary w-full"
-  >
-    Vælg billede
-  </button>
-  {imageFile && (
-  <p className="text-sm text-muted-foreground text-center mt-1">
-    Valgt fil: <span className="font-medium">{imageFile.name}</span>
-  </p>
-)}
-
-
-  <textarea
-    className="w-full border rounded p-2"
-    rows={3}
-    placeholder="Skriv en lille note..."
-    value={note}
-    onChange={(e) => setNote(e.target.value)}
-  />
-  <button
-    onClick={handleUpload}
-    className="btn btn-primary w-full"
-    disabled={uploading || !imageFile}
-  >
-    {uploading ? "Uploader..." : "Upload billede"}
-  </button>
-</div>
-
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+          className="hidden"
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="btn btn-secondary w-full"
+        >
+          Vælg billede
+        </button>
+        {imageFile && (
+          <p className="text-sm text-muted-foreground text-center mt-1">
+            Valgt fil: <span className="font-medium">{imageFile.name}</span>
+          </p>
+        )}
+        <textarea
+          className="w-full border rounded p-2"
+          rows={3}
+          placeholder="Skriv en lille note..."
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+        <button
+          onClick={handleUpload}
+          className="btn btn-primary w-full"
+          disabled={uploading || !imageFile}
+        >
+          {uploading ? "Uploader..." : "Upload billede"}
+        </button>
+      </div>
 
       <div className="grid grid-cols-2 gap-4 mt-6">
         {cards.map((card) => {
@@ -193,12 +198,9 @@ export default function MemoryGaverPage() {
               <img
                 src={card.image_url}
                 alt="Memory"
-                className={`w-full h-full object-cover transition-all duration-500 ease-in-out
-  ${showImage || isRevealing
-    ? "blur-0 grayscale-0"
-    : "blur-md grayscale"}
-`}
-
+                className={`w-full h-full object-cover transition-all duration-500 ease-in-out ${
+                  showImage || isRevealing ? "blur-0 grayscale-0" : "blur-md grayscale"
+                }`}
               />
 
               <div className="absolute top-1 left-1 bg-white/80 text-xs px-2 py-1 rounded z-10">
@@ -229,7 +231,6 @@ export default function MemoryGaverPage() {
                 </button>
               )}
 
-              {/* ✨ Magisk glød */}
               {isRevealing && (
                 <div className="absolute inset-0 rounded ring-4 ring-pink-400 animate-pulse z-10 pointer-events-none"></div>
               )}

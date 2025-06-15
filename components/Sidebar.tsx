@@ -9,7 +9,6 @@ import { useXp } from '@/context/XpContext';
 import { useHasMounted } from '@/hooks/useHasMounted';
 import { useUserContext } from '@/context/UserContext';
 import { supabase } from '@/lib/supabaseClient';
-import { Palette, Globe, UserCircle, Heart } from 'lucide-react';
 import {
   LayoutDashboard,
   ListTodo,
@@ -23,6 +22,9 @@ import {
   Menu,
   X,
   BrainCircuit,
+  Globe,
+  UserCircle,
+  Heart,
 } from 'lucide-react';
 
 interface AccessEntry {
@@ -52,7 +54,6 @@ const accessHierarchy: AccessEntry[] = [
       { key: 'fantasy/fantasier', label: 'Fantasier', href: '/fantasy', children: [] },
       { key: 'parquiz', label: 'Parquiz', href: '/quiz/parquiz', children: [] },
       { key: 'anbefalinger', label: 'Anbefalinger', href: '/fantasy/anbefalinger', children: [] },
-      
       { key: 'dates', label: 'Date Ideas', href: '/dates', children: [] },
     ],
   },
@@ -101,9 +102,9 @@ const accessHierarchy: AccessEntry[] = [
     label: 'Personlighed',
     href: '/personlighed',
     children: [
-      { key: 'manifestation', label: 'Manifestation', href: '/manifestation', children: [] },
-      { key: 'career', label: 'Karriere', href: '/career', children: [] },
-      { key: 'tanker', label: 'Tanker', href: '/tanker', children: [] },
+      { key: 'personlighed/manifestation', label: 'Manifestation', href: '/personlighed/manifestation', children: [] },
+      { key: 'personlighed/career', label: 'Karriere', href: '/personlighed/career', children: [] },
+      { key: 'personlighed/tanker', label: 'Tanker', href: '/personlighed/tanker', children: [] },
     ],
   },
   { key: 'profile', label: 'Profil', href: '/profile', children: [] },
@@ -121,30 +122,27 @@ const accessHierarchy: AccessEntry[] = [
       { key: 'settings/access', label: 'Profiladgange', href: '/settings/access', children: [] },
       { key: 'settings/quiz-admin', label: 'Quiz admin', href: '/settings/quiz-admin', children: [] },
       { key: 'settings/couple-background', label: 'Baggrund', href: '/settings/couple-background', children: [] },
-
-      
-
     ],
   },
 ];
 
 const iconMap: Record<string, ReactNode> = {
-  dashboard: <LayoutDashboard size={20} />, 
-  todo: <ListTodo size={20} />, 
-  'online-relation': <Globe size={20} />, 
-  'tasks-couple': <ListTodo size={20} />, 
-  fantasy: <Sparkles size={20} />,  
-  'bucketlist-couple': <Backpack size={20} />, 
-  checkin: <HeartHandshake size={20} />, 
-  manifestation: <BrainCircuit size={20} />, 
-  career: <Briefcase size={20} />, 
+  dashboard: <LayoutDashboard size={20} />,
+  todo: <ListTodo size={20} />,
+  'online-relation': <Globe size={20} />,
+  'tasks-couple': <ListTodo size={20} />,
+  fantasy: <Sparkles size={20} />,
+  'bucketlist-couple': <Backpack size={20} />,
+  checkin: <HeartHandshake size={20} />,
+  manifestation: <BrainCircuit size={20} />,
+  career: <Briefcase size={20} />,
   tanker: <UserCircle size={20} />,
   indtjekning: <Heart size={20} />,
   personlighed: <UserCircle size={20} />,
-  profile: <Settings size={20} />, 
-  settings: <Settings size={20} />, 
-  kommunikation: <Sparkles size={20} />, 
-  spil: <ListTodo size={20} />, 
+  profile: <Settings size={20} />,
+  settings: <Settings size={20} />,
+  kommunikation: <Sparkles size={20} />,
+  spil: <ListTodo size={20} />,
 };
 
 export default function Sidebar() {
@@ -155,12 +153,13 @@ export default function Sidebar() {
   const { xp } = useXp();
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
   const [fantasyOpen, setFantasyOpen] = useState(false);
   const [checkinOpen, setCheckinOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [spilOpen, setSpilOpen] = useState(false);
   const [kommunikationOpen, setKommunikationOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
   const [onlineRelationOpen, setOnlineRelationOpen] = useState(false);
   const [personlighedOpen, setPersonlighedOpen] = useState(false);
   const [indtjekningOpen, setIndtjekningOpen] = useState(false);
@@ -183,86 +182,105 @@ useEffect(() => {
   setKommunikationOpen(pathname.startsWith('/kommunikation'));
   setOnlineRelationOpen(pathname.startsWith('/online-relation'));
   setIndtjekningOpen(pathname.startsWith('/indtjekning'));
+  setPersonlighedOpen(pathname.startsWith('/personlighed'));
 }, [pathname]);
-
 
 
   if (!hasMounted || loading || !user) return null;
 
   const isAdmin = user?.email === 'mads@onlinerelation.dk';
   const userAccess: Record<string, boolean> = user?.access || {};
- const hasAccessTo = (key: string) => {
-  if (key === 'dashboard') return true; // alle har adgang til Dashboard
-  return isAdmin || !!userAccess[key];
-};
+  console.log("🔍 user.access:", user?.access);
 
+  const hasAccessTo = (key: string) => {
+    if (key === 'dashboard') return true;
+    return isAdmin || !!userAccess[key];
+  };
 
-  const navContent = accessHierarchy.map(entry => {
-    if (!hasAccessTo(entry.key)) return null;
-    const anyChild = entry.children.some(c => hasAccessTo(c.key));
-    const isOpen = entry.key === 'fantasy' ? fantasyOpen
+  const dashboardLink = (
+    <Link
+      key="dashboard"
+      href="/dashboard"
+      onClick={() => setMobileOpen(false)}
+      className={`flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition ${pathname === '/dashboard' ? 'bg-gray-700 font-semibold' : ''}`}
+    >
+      {iconMap['dashboard']}
+      Dashboard
+    </Link>
+  );
+
+  const navContent = [
+    dashboardLink,
+    ...accessHierarchy
+      .filter(entry => entry.key !== 'dashboard')
+      .map(entry => {
+        if (!hasAccessTo(entry.key)) return null;
+        const anyChild = entry.children.some(c => hasAccessTo(c.key));
+        const isOpen = entry.key === 'fantasy' ? fantasyOpen
   : entry.key === 'checkin' ? checkinOpen
   : entry.key === 'settings' ? settingsOpen
   : entry.key === 'spil' ? spilOpen
   : entry.key === 'kommunikation' ? kommunikationOpen
   : entry.key === 'online-relation' ? onlineRelationOpen
   : entry.key === 'indtjekning' ? indtjekningOpen
+  : entry.key === 'personlighed' ? personlighedOpen
   : false;
 
+        if (entry.children.length) {
+          return (
+            <div key={entry.key}>
+              <button
+                onClick={() => {
+                  if (entry.key === 'fantasy') setFantasyOpen(o => !o);
+                  else if (entry.key === 'checkin') setCheckinOpen(o => !o);
+                  else if (entry.key === 'settings') setSettingsOpen(o => !o);
+                  else if (entry.key === 'spil') setSpilOpen(o => !o);
+                  else if (entry.key === 'kommunikation') setKommunikationOpen(o => !o);
+                  else if (entry.key === 'online-relation') setOnlineRelationOpen(o => !o);
+                  else if (entry.key === 'indtjekning') setIndtjekningOpen(o => !o);
+                  else if (entry.key === 'personlighed') setPersonlighedOpen(o => !o);
 
-    if (entry.children.length) {
-      return (
-        <div key={entry.key}>
-          <button
-            onClick={() => {
-  if (entry.key === 'fantasy') setFantasyOpen(o => !o);
-  else if (entry.key === 'checkin') setCheckinOpen(o => !o);
-  else if (entry.key === 'settings') setSettingsOpen(o => !o);
-  else if (entry.key === 'spil') setSpilOpen(o => !o);
-  else if (entry.key === 'kommunikation') setKommunikationOpen(o => !o);
-  else if (entry.key === 'online-relation') setOnlineRelationOpen(o => !o);
-  else if (entry.key === 'indtjekning') setIndtjekningOpen(o => !o);
-}}
-
-            className={`w-full flex items-center justify-between px-4 py-2 rounded hover:bg-gray-800 transition ${pathname.startsWith(entry.href) ? 'bg-gray-700 font-semibold' : ''}`}
-          >
-            <span className="flex items-center gap-2">
-              {iconMap[entry.key]}
-              {entry.label}
-            </span>
-            {isOpen ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
-          </button>
-          {isOpen && anyChild && (
-            <div className="ml-6 mt-1 space-y-1">
-              {entry.children.map(child => hasAccessTo(child.key) && (
-                <Link
-                  key={child.key}
-                  href={child.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-2 px-3 py-1 rounded hover:bg-gray-800 transition ${pathname === child.href ? 'bg-gray-700 font-semibold' : ''}`}
-                >
-                  {iconMap[child.key]}
-                  {child.label}
-                </Link>
-              ))}
+                }}
+                className={`w-full flex items-center justify-between px-4 py-2 rounded hover:bg-gray-800 transition ${pathname.startsWith(entry.href) ? 'bg-gray-700 font-semibold' : ''}`}
+              >
+                <span className="flex items-center gap-2">
+                  {iconMap[entry.key]}
+                  {entry.label}
+                </span>
+                {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+              {isOpen && anyChild && (
+                <div className="ml-6 mt-1 space-y-1">
+                  {entry.children.map(child => hasAccessTo(child.key) && (
+                    <Link
+                      key={child.key}
+                      href={child.href}
+                      onClick={() => setMobileOpen(false)}
+                      className={`flex items-center gap-2 px-3 py-1 rounded hover:bg-gray-800 transition ${pathname === child.href ? 'bg-gray-700 font-semibold' : ''}`}
+                    >
+                      {iconMap[child.key]}
+                      {child.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      );
-    }
+          );
+        }
 
-    return (
-      <Link
-        key={entry.key}
-        href={entry.href}
-        onClick={() => setMobileOpen(false)}
-        className={`flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition ${pathname === entry.href ? 'bg-gray-700 font-semibold' : ''}`}
-      >
-        {iconMap[entry.key]}
-        {entry.label}
-      </Link>
-    );
-  });
+        return (
+          <Link
+            key={entry.key}
+            href={entry.href}
+            onClick={() => setMobileOpen(false)}
+            className={`flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition ${pathname === entry.href ? 'bg-gray-700 font-semibold' : ''}`}
+          >
+            {iconMap[entry.key]}
+            {entry.label}
+          </Link>
+        );
+      }),
+  ];
 
   const profileLink = (
     <Link href="/profile" className="flex flex-col items-center gap-2 cursor-pointer mt-6">
@@ -298,21 +316,34 @@ useEffect(() => {
         <button onClick={() => setMobileOpen(prev => !prev)}>
           {mobileOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
-        <span className="text-lg font-bold">✨ Mit Dashboard</span>
+        <Link href="/dashboard" className="text-lg font-bold hover:underline">
+          ✨ Mit Dashboard
+        </Link>
       </div>
+
       {mobileOpen && (
-        <div
-          ref={menuRef}
-          className="md:hidden fixed inset-0 bg-gray-900 text-white overflow-y-auto p-4 space-y-2 z-40"
-        >
-          {navContent}
-          {bottomSection}
-        </div>
-      )}
+  <div
+    ref={menuRef}
+    className="md:hidden fixed inset-0 bg-gray-900 text-white overflow-y-auto p-4 space-y-2 z-40"
+  >
+    <Link
+      href="/dashboard"
+      onClick={() => setMobileOpen(false)}
+      className={`flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition ${pathname === '/dashboard' ? 'bg-gray-700 font-semibold' : ''}`}
+    >
+      {iconMap['dashboard']}
+      Dashboard
+    </Link>
+    {navContent}
+    {bottomSection}
+  </div>
+)}
+
+
       <div className="hidden md:flex h-screen w-64 bg-gray-900 text-white flex-col justify-between pt-6">
         <div>
           <div className="p-6 text-xl font-bold">
-            <Link href="/" className="hover:underline">✨ Mit Dashboard</Link>
+            <Link href="/dashboard" className="hover:underline">✨ Mit Dashboard</Link>
           </div>
           <nav className="flex flex-col space-y-1 px-4 mt-4">{navContent}</nav>
         </div>

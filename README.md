@@ -1385,3 +1385,59 @@ Anbefalinger cache’s første gang og vises hurtigt næste gang
  * - Widget-komponenter må ikke selv have `Card`, `shadow`, `border`, `bg-white` – det gives herfra
  * - Manglende komponenter vises som "Ukendt widget" eller skjules via `supportedWidgets`
  */
+
+ ## Seneste opdatering: 2025-06-15 ##
+
+### Overblik
+Denne README dokumenterer de nyeste ændringer og funktioner implementeret i dashboard-projektet.
+
+---
+
+### 🔧 Funktionelle ændringer
+
+#### Widgets og layout
+- Alle widgets understøtter nu både højde (`height`) og bredde (`layout`), som styres via Supabase-tabellen `dashboard_widgets`.
+- Implementeret tre nye komponenter:
+  - `/components/widgets/XpMeter.tsx`
+  - `/components/widgets/TaskSummary.tsx`
+  - `/components/widgets/RewardProgress.tsx`
+- Alle widgets respekterer nu både højde og bredde ift. visning.
+- `WidgetRenderer` opdateret til at sende `height` korrekt videre til komponenterne.
+
+#### Widget administration
+- Ny side: `/settings/widgets/layout` giver mulighed for at administrere layout, rækkefølge og højde pr. widget pr. bruger.
+- Eksisterende side `/settings/widgets` opdateret til at automatisk oprette alle widgets ved manglende entries i `dashboard_widgets`.
+
+#### Mobilvenligt layout
+- Widget-kort vises nu i `col-span-12` på mobil for at udnytte hele bredden.
+
+---
+
+### 🧭 Navigation & Sidebar
+- Sidebar opdateret:
+  - Alle adgangskontroller er fastholdt.
+  - Dashboard-link vises nu altid.
+  - Dropdowns virker igen, inkl. `personlighed`, som tidligere manglede toggling.
+  - `onClick`-handlers opdateret til også at inkludere `personlighed`.
+- Mobilnavigation fungerer nu korrekt – inkl. dropdowns og link til “✨ Mit Dashboard”.
+
+---
+
+### Supabase
+**Opdateringer til tabeller:**
+- `dashboard_widgets`: tilføjet og anvendt felter `layout`, `height`, `order`, `enabled`.
+
+---
+
+### Design & UI
+- Widgets vokser nu responsivt med større `height` og `layout`.
+- UI forbedret til både desktop og mobil.
+
+---
+
+### Næste skridt
+- Test af point og tilskrivelse på forside widget
+
+---
+
+
