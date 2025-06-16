@@ -1,74 +1,119 @@
-// /app/api/recommendations/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import openai from '@/lib/openaiClient'
-import { supabase } from '@/lib/supabaseClient'
+import { NextResponse } from "next/server";
+import { supabase } from "@/lib/supabaseClient";
+import openai from "@/lib/openaiClient";
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
+  let testMode = false;
+  let quizKey = "parquiz";
+  let groupedQuestions = null;
+
   try {
-    const { groupedQuestions, quizKey } = await req.json()
-    if (!quizKey || !groupedQuestions) {
-      return NextResponse.json({ error: 'Missing input' }, { status: 400 })
+    const body = await req.json();
+    console.log("📩 REQUEST BODY:", JSON.stringify(body, null, 2)); // <-- her logger vi request body
+    testMode = body?.testMode || false;
+    quizKey = body?.quizKey || "parquiz";
+    groupedQuestions = body?.groupedQuestions || null;
+  } catch {
+    // ingen body sendt
+  }
+
+  if (testMode) return NextResponse.json({ ok: true });
+
+  try {
+    // 1. Hent aktiverede kilder
+    const { data: sources, error: sourceError } = await supabase
+      .from("recommendation_sources")
+      .select("*")
+      .eq("enabled", true);
+
+    if (sourceError || !sources) throw new Error("Failed to load sources");
+
+    // 2. Hent baggrund fra quiz_meta
+    const { data: backgroundMeta } = await supabase
+      .from("quiz_meta")
+      .select("background")
+      .eq("quiz_key", quizKey)
+      .maybeSingle();
+
+    const background = backgroundMeta?.background || "Ingen baggrundsbeskrivelse fundet.";
+
+    // 3. Hent data fra hver tabel
+    const rowCounts: Record<string, number> = {};
+    const tableData: string[] = [];
+
+    for (const source of sources) {
+      const { table_name, description } = source;
+      const { data, error } = await supabase.from(table_name).select("*");
+
+      if (!error && data) {
+        rowCounts[table_name] = data.length;
+        tableData.push(
+          `### Tabel: ${table_name}\n${description || "Ingen beskrivelse."}\nAntal rækker: ${data.length}\nData:\n${JSON.stringify(data, null, 2)}`
+        );
+      } else {
+        console.error(`❌ Fejl i tabel ${table_name}:`, error?.message);
+      }
     }
 
-    // Tjek om anbefalinger allerede findes
-    const { data: existing } = await supabase
-      .from('quiz_results')
-      .select('recommendations')
-      .eq('quiz_key', quizKey)
-      .limit(1)
-      .single()
+    const totalRows = Object.values(rowCounts).reduce((sum, n) => sum + n, 0);
+    const usedTables = Object.keys(rowCounts);
 
-    if (existing && existing.recommendations && existing.recommendations.length > 0) {
-  return NextResponse.json({ recommendations: existing.recommendations })
-}
+    if (tableData.length === 0) {
+      throw new Error("Ingen datakilder kunne hentes – alle fejlede.");
+    }
 
+    // 4. Byg prompt
+    const groupedSection = groupedQuestions
+      ? `🟩 Enige:\n${groupedQuestions.green.map((q: any) => q.question).join("\n")}\n\n🟨 Små forskelle:\n${groupedQuestions.yellow.map((q: any) => q.question).join("\n")}\n\n🟥 Store forskelle:\n${groupedQuestions.red.map((q: any) => q.question).join("\n")}`
+      : "";
 
-    // Hent baggrundstekst fra couple_background
-    const { data: backgroundRow } = await supabase
-      .from('couple_background')
-      .select('content')
-      .limit(1)
-      .single()
+    const fullPrompt = `
+Du er parterapeut og skal give en personlig anbefaling til et par baseret på deres data.
 
-    const background = backgroundRow?.content || ''
-
-    const summary = [
-      groupedQuestions.red.length > 0 ? `Store forskelle:\n${groupedQuestions.red.map((q: any) => `- ${q.question}`).join('\n')}` : '',
-      groupedQuestions.yellow.length > 0 ? `Små forskelle:\n${groupedQuestions.yellow.map((q: any) => `- ${q.question}`).join('\n')}` : '',
-      groupedQuestions.green.length > 0 ? `Enige:\n${groupedQuestions.green.map((q: any) => `- ${q.question}`).join('\n')}` : ''
-    ].filter(Boolean).join('\n\n')
-
-    const prompt = `
-Baggrund:
+🧠 Baggrund:
 ${background}
 
-Quiz-opsummering:
-${summary}
+${groupedSection ? `📋 Deres besvarelser fordeler sig sådan:\n${groupedSection}\n` : ''}
 
-Lav 5-8 konkrete, empatiske anbefalinger til parret. Fokusér på samtale, respekt og udvikling. Brug en varm tone.
-`
+📊 Data:
+${tableData.join("\n\n")}
 
-    const chat = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-    })
+Giv nu en personlig, ærlig og omsorgsfuld anbefaling. Brug dataene aktivt i analysen.
+    `.trim();
 
-    const reply = chat.choices[0]?.message.content || ''
-    const recommendations = reply
-      .split(/\n[-•]\s?|\n\d+\.\s?/)
-      .map((s) => s.trim())
-      .filter(Boolean)
+    // 5. Kald OpenAI
+    let recommendation = "Ingen anbefaling genereret.";
+    try {
+      const openaiRes = await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [{ role: "user", content: fullPrompt }],
+        temperature: 0.7,
+      });
 
-    // Gem anbefalingerne i Supabase
-    await supabase.from('quiz_results').insert({
-      quiz_key: quizKey,
-      recommendations,
-    })
+      recommendation = openaiRes.choices[0]?.message?.content || recommendation;
+    } catch (err: any) {
+      console.error("❌ OpenAI fejl:", err?.message || err);
+      throw new Error("OpenAI API fejlede – tjek din nøgle eller prompt.");
+    }
 
-    return NextResponse.json({ recommendations })
-  } catch (err) {
-    console.error('Fejl i /api/recommendations:', err)
-    return NextResponse.json({ recommendations: [] }, { status: 500 })
+    // 6. Gem resultat
+    const { error: insertError } = await supabase.from("overall_meta").insert({
+      recommendation,
+      generated_at: new Date().toISOString(),
+      table_count: usedTables.length,
+      row_count: totalRows,
+    });
+
+    if (insertError) throw new Error("Fejl ved indsættelse i Supabase: " + insertError.message);
+
+    return NextResponse.json({
+      recommendation,
+      used_tables: usedTables,
+      row_counts: rowCounts,
+      total_rows: totalRows,
+    });
+  } catch (err: any) {
+    console.error("❌ RECOMMENDATIONS API ERROR:", JSON.stringify(err, null, 2));
+    return NextResponse.json({ error: "Serverfejl i anbefaling" }, { status: 500 });
   }
 }

@@ -1,3 +1,5 @@
+// /app/components/result-component.tsx
+
 'use client'
 
 import { useParams } from 'next/navigation'
@@ -39,8 +41,8 @@ interface Profile {
 }
 
 export default function QuizResultPage() {
-const { quizKey: rawKey } = useParams()
-const quizKey = decodeURIComponent(rawKey as string)
+  const { quizKey: rawKey } = useParams()
+  const quizKey = decodeURIComponent(rawKey as string)
 
   const { user } = useUserContext()
   const [questions, setQuestions] = useState<Question[]>([])
@@ -48,62 +50,54 @@ const quizKey = decodeURIComponent(rawKey as string)
   const [profiles, setProfiles] = useState<Record<string, Profile>>({})
   const [view, setView] = useState<'results' | 'visual' | 'recommendations'>('results')
   const [recommendations, setRecommendations] = useState<string[] | null>(null)
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false)
+  const [recommendationError, setRecommendationError] = useState<string | null>(null)
 
-useEffect(() => {
-  const fetchData = async () => {
-    if (!quizKey || !user) return
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!quizKey || !user) return
 
-    console.log("🔍 quizKey:", quizKey)
+      const { data: qData, error: questionError } = await supabase
+        .from('quiz_questions')
+        .select('id, question, type, order')
+        .eq('quiz_key', quizKey)
+        .order('order', { ascending: true })
 
-    const { data: qData, error: questionError } = await supabase
-      .from('quiz_questions')
-      .select('id, question, type, order')
-      .eq('quiz_key', quizKey)
-      .order('order', { ascending: true })
+      if (questionError) {
+        console.error("❌ Fejl ved spørgsmål:", questionError.message)
+      }
 
-    if (questionError) {
-      console.error("❌ Fejl ved spørgsmål:", questionError.message)
-    } else {
-      console.log("✅ Spørgsmål:", qData)
+      const { data: aData, error: answerError } = await supabase
+        .from('quiz_responses')
+        .select('question_id, answer, user_id')
+        .eq('quiz_key', quizKey)
+
+      if (answerError) {
+        console.error("❌ Fejl ved svar:", answerError.message)
+      }
+
+      const userIds = [...new Set(aData?.map(a => a.user_id) || [])]
+
+      const { data: pData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url')
+        .in('id', userIds)
+
+      if (profileError) {
+        console.error("❌ Fejl ved profiler:", profileError.message)
+      }
+
+      if (qData) setQuestions(qData)
+      if (aData) setAnswers(aData)
+      if (pData) {
+        const map: Record<string, Profile> = {}
+        pData.forEach(p => (map[p.id] = p))
+        setProfiles(map)
+      }
     }
 
-    const { data: aData, error: answerError } = await supabase
-      .from('quiz_responses')
-      .select('question_id, answer, user_id')
-      .eq('quiz_key', quizKey)
-
-    if (answerError) {
-      console.error("❌ Fejl ved svar:", answerError.message)
-    } else {
-      console.log("✅ Svar:", aData)
-    }
-
-    const userIds = [...new Set(aData?.map(a => a.user_id) || [])]
-    console.log("👥 Brugere der har svaret:", userIds)
-
-    const { data: pData, error: profileError } = await supabase
-      .from('profiles')
-      .select('id, display_name, avatar_url')
-      .in('id', userIds)
-
-    if (profileError) {
-      console.error("❌ Fejl ved profiler:", profileError.message)
-    } else {
-      console.log("✅ Profiler:", pData)
-    }
-
-    if (qData) setQuestions(qData)
-    if (aData) setAnswers(aData)
-    if (pData) {
-      const map: Record<string, Profile> = {}
-      pData.forEach(p => map[p.id] = p)
-      setProfiles(map)
-    }
-  }
-
-  fetchData()
-}, [quizKey, user])
-
+    fetchData()
+  }, [quizKey, user])
 
   const groupByAgreement = () => {
     const grouped = {
@@ -133,6 +127,8 @@ useEffect(() => {
     if (totalQuestions === 0 || recommendations !== null) return
 
     const fetchRecommendations = async () => {
+      setLoadingRecommendations(true)
+      setRecommendationError(null)
       try {
         const res = await fetch('/api/recommendations', {
           method: 'POST',
@@ -140,17 +136,26 @@ useEffect(() => {
           body: JSON.stringify({ groupedQuestions: grouped, quizKey }),
         })
 
-        const text = await res.text()
-        const resData = JSON.parse(text)
-        setRecommendations(resData.recommendations || [])
-      } catch (error) {
-        console.error('Fejl ved hentning af anbefalinger:', error)
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`)
+
+        const resData = await res.json()
+
+        if (!resData.recommendation || resData.recommendation.length === 0) {
+          setRecommendations([])
+          setRecommendationError('Ingen anbefalinger fundet.')
+        } else {
+          setRecommendations([resData.recommendation])
+        }
+      } catch (error: any) {
+        setRecommendationError(error.message || 'Ukendt fejl ved hentning af anbefalinger')
         setRecommendations([])
+      } finally {
+        setLoadingRecommendations(false)
       }
     }
 
     fetchRecommendations()
-  }, [grouped, recommendations, quizKey])
+  }, [grouped, quizKey, recommendations])
 
   const chartData = {
     labels: ['Enige', 'Små forskelle', 'Store forskelle'],
@@ -210,61 +215,60 @@ useEffect(() => {
         <Button onClick={() => setView('recommendations')} variant={view === 'recommendations' ? 'secondary' : 'ghost'}>Anbefalinger</Button>
       </div>
 
-    {view === 'results' && (
-  <>
-    <p className="text-sm text-muted-foreground">
-      Herunder kan I se, hvor jeres svar er ens eller forskellige – med profil og tydelig farvekode.
-    </p>
+      {view === 'results' && (
+        <>
+          <p className="text-sm text-muted-foreground">
+            Herunder kan I se, hvor jeres svar er ens eller forskellige – med profil og tydelig farvekode.
+          </p>
 
-    {(['green', 'yellow', 'red'] as const).map(level => (
-      <div key={level} className="space-y-2">
-        <h2 className="text-lg font-semibold mt-6">
-          {level === 'green' && '✅ Enige'}
-          {level === 'yellow' && '🟡 Små forskelle'}
-          {level === 'red' && '🔴 Store forskelle'}
-        </h2>
+          {(['green', 'yellow', 'red'] as const).map(level => (
+            <div key={level} className="space-y-2">
+              <h2 className="text-lg font-semibold mt-6">
+                {level === 'green' && '✅ Enige'}
+                {level === 'yellow' && '🟡 Små forskelle'}
+                {level === 'red' && '🔴 Store forskelle'}
+              </h2>
 
-        {grouped[level].map((q) => {
-          const related = answers.filter(a => a.question_id === q.id)
-          return (
-            <Card key={q.id} className="p-4 space-y-2">
-             {/* <p className="text-sm font-medium mb-2">{q.question}</p> */}
+              {grouped[level].map((q) => {
+                const related = answers.filter(a => a.question_id === q.id)
+                return (
+                  <Card key={q.id} className="p-4 space-y-2">
+                    {/* <p className="text-sm font-medium mb-2">{q.question}</p> */}
 
-              <div className="grid grid-cols-2 gap-4">
-                {related.map((a) => (
-                  <div key={a.user_id} className="flex items-center gap-2">
-                    {profiles[a.user_id]?.avatar_url ? (
-                      <img
-                        src={profiles[a.user_id].avatar_url ?? ''}
-                        alt="avatar"
-                        className="w-6 h-6 rounded-full"
-                      />
-                    ) : (
-                      <div className="w-6 h-6 rounded-full bg-gray-300" />
-                    )}
-                    <div className="text-sm">
-                      <div className="font-medium">{profiles[a.user_id]?.display_name || 'Ukendt'}</div>
-                      <div>{a.answer}</div>
+                    <div className="grid grid-cols-2 gap-4">
+                      {related.map((a) => (
+                        <div key={a.user_id} className="flex items-center gap-2">
+                          {profiles[a.user_id]?.avatar_url ? (
+                            <img
+                              src={profiles[a.user_id].avatar_url ?? ''}
+                              alt="avatar"
+                              className="w-6 h-6 rounded-full"
+                            />
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-gray-300" />
+                          )}
+                          <div className="text-sm">
+                            <div className="font-medium">{profiles[a.user_id]?.display_name || 'Ukendt'}</div>
+                            <div>{a.answer}</div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )
-        })}
+                  </Card>
+                )
+              })}
 
-        {grouped[level].length === 0 && (
-          <p className="text-sm italic text-muted-foreground">Ingen</p>
-        )}
-      </div>
-    ))}
+              {grouped[level].length === 0 && (
+                <p className="text-sm italic text-muted-foreground">Ingen</p>
+              )}
+            </div>
+          ))}
 
-    <div className="mt-6 text-sm text-muted-foreground italic">
-      Brug visningen som udgangspunkt for en god snak – især om forskellene.
-    </div>
-  </>
-)}
-
+          <div className="mt-6 text-sm text-muted-foreground italic">
+            Brug visningen som udgangspunkt for en god snak – især om forskellene.
+          </div>
+        </>
+      )}
 
       {view === 'visual' && (
         <div className="space-y-6">
@@ -282,18 +286,28 @@ useEffect(() => {
       {view === 'recommendations' && (
         <div className="space-y-4 text-sm bg-muted/50 p-4 rounded-xl shadow-inner">
           <h2 className="text-xl font-semibold text-center">📚 Anbefalinger til jer</h2>
-          {recommendations === null ? (
+          {loadingRecommendations && (
             <p className="italic text-muted-foreground text-center">Analyserer jeres svar...</p>
-          ) : recommendations.length === 0 ? (
-            <p className="italic text-muted-foreground text-center">Ingen anbefalinger fundet.</p>
-          ) : (
-            <ul className="space-y-4">
-              {recommendations.map((r, i) => (
-                <li key={i} className="bg-white rounded-lg p-4 shadow border-l-4 border-blue-300">
-                  <div className="text-base leading-snug">{r}</div>
-                </li>
-              ))}
-            </ul>
+          )}
+          {recommendationError && (
+            <p className="text-red-600 text-center">{recommendationError}</p>
+          )}
+          {!loadingRecommendations && !recommendationError && (
+            <>
+              {recommendations === null ? (
+                <p className="italic text-muted-foreground text-center">Analyserer jeres svar...</p>
+              ) : recommendations.length === 0 ? (
+                <p className="italic text-muted-foreground text-center">Ingen anbefalinger fundet.</p>
+              ) : (
+                <ul className="space-y-4">
+                  {recommendations.map((r, i) => (
+                    <li key={i} className="bg-white rounded-lg p-4 shadow border-l-4 border-blue-300">
+                      <div className="text-base leading-snug">{r}</div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </div>
       )}

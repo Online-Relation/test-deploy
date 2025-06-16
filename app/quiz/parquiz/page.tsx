@@ -16,6 +16,7 @@ type QuizState = {
   session_id?: string
   xp?: number
   completedAt?: string
+  datapoints?: number
 }
 
 export default function ParquizOverview() {
@@ -30,15 +31,8 @@ export default function ParquizOverview() {
       const [{ data: metaRes }, { data: questionRes }, { data: responseRes }, { data: profile }] = await Promise.all([
         supabase.from('quiz_meta').select('quiz_key, effort').eq('published', true),
         supabase.from('quiz_questions').select('quiz_key'),
-        supabase
-          .from('quiz_responses')
-          .select('quiz_key, status, session_id, created_at')
-          .eq('user_id', user.id),
-        supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle(),
+        supabase.from('quiz_responses').select('quiz_key, status, session_id, created_at').eq('user_id', user.id),
+        supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
       ])
 
       if (!profile) return
@@ -61,10 +55,13 @@ export default function ParquizOverview() {
         if (!grouped[r.quiz_key]) {
           grouped[r.quiz_key] = { submitted: 0, in_progress: 0 }
         }
+
         if (r.status === 'submitted') {
           grouped[r.quiz_key].submitted++
           grouped[r.quiz_key].created_at = r.created_at
+          grouped[r.quiz_key].session_id = r.session_id
         }
+
         if (r.status === 'in_progress') {
           grouped[r.quiz_key].in_progress++
           grouped[r.quiz_key].session_id = r.session_id
@@ -83,7 +80,9 @@ export default function ParquizOverview() {
             answered: total,
             total,
             completedAt: info.created_at,
-            xp
+            xp,
+            datapoints: info.submitted,
+            session_id: info.session_id ?? undefined
           }
         } else if (info.in_progress > 0) {
           return {
@@ -133,7 +132,7 @@ export default function ParquizOverview() {
               </div>
               <div>
                 {status === 'submitted' && (
-                  <Link href={`/quiz/resultater/${key}`}>
+                  <Link href={`/quiz/resultater/${key}?session=${session_id}`}>
                     <Button variant="secondary">Se resultat</Button>
                   </Link>
                 )}
@@ -156,25 +155,24 @@ export default function ParquizOverview() {
       {completedQuizzes.length > 0 && (
         <div className="pt-10 space-y-4">
           <h2 className="text-lg font-semibold">✅ Gennemført quiz</h2>
-          {completedQuizzes.map(({ key, completedAt }) => (
-           <Card key={key} className="p-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <div className="capitalize font-medium">{key}</div>
-                <div className="text-sm text-muted-foreground">
-                  Gennemført: {new Date(completedAt || '').toLocaleDateString('da-DK', {
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric',
-                  })}
+          {completedQuizzes.map(({ key, completedAt, session_id }) => (
+            <Card key={key} className="p-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <div className="capitalize font-medium">{key}</div>
+                  <div className="text-sm text-muted-foreground">
+                    Gennemført: {new Date(completedAt || '').toLocaleDateString('da-DK', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </div>
                 </div>
+                <Link href={`/quiz/resultater/${key}?session=${session_id}`}>
+                  <Button variant="secondary">Se resultat</Button>
+                </Link>
               </div>
-              <Link href={`/quiz/resultater/${key}`}>
-                <Button variant="secondary">Se resultat</Button>
-              </Link>
-            </div>
-          </Card>
-
+            </Card>
           ))}
         </div>
       )}

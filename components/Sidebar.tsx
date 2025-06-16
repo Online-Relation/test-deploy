@@ -319,15 +319,19 @@ useEffect(() => {
         </Link>
       </div>
 
-    {mobileOpen && (
+   {mobileOpen && (
   <div
     ref={menuRef}
     className="md:hidden fixed inset-0 bg-gray-900 text-white overflow-y-auto p-4 space-y-2 z-40"
   >
-    {navContent}
+    <>
+      {dashboardLink}
+      {navContent}
+    </>
     {bottomSection}
   </div>
 )}
+
 
 
 

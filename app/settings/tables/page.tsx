@@ -1,5 +1,3 @@
-// /app/settings/tables/page.tsx
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -14,7 +12,7 @@ import GptStatus from "@/components/GptStatus";
 type Source = {
   table_name: string;
   enabled: boolean;
-  description: string;
+  description: string | null;
 };
 
 export default function TableSettingsPage() {
@@ -23,46 +21,48 @@ export default function TableSettingsPage() {
   const [savingIndex, setSavingIndex] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [rowCounts, setRowCounts] = useState<Record<string, number>>({});
+  const [newSource, setNewSource] = useState<Source>({
+    table_name: "",
+    enabled: true,
+    description: "",
+  });
+  const [confirmations, setConfirmations] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    const fetchSources = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("recommendation_sources")
-        .select("*")
-        .order("table_name");
-
-      if (error) {
-        console.error("❌ Fejl ved hentning:", error.message);
-        setErrorMsg("Kunne ikke hente tabeller.");
-      } else {
-        setSources(data);
-        fetchCounts(data); // ← henter antal datapunkter
-      }
-
-      setLoading(false);
-    };
-
-    const fetchCounts = async (sourceList: Source[]) => {
-      const counts: Record<string, number> = {};
-
-      for (const source of sourceList) {
-        const { count, error } = await supabase
-          .from(source.table_name)
-          .select("*", { count: "exact", head: true });
-
-        if (!error && typeof count === "number") {
-          counts[source.table_name] = count;
-        } else {
-          counts[source.table_name] = 0;
-        }
-      }
-
-      setRowCounts(counts);
-    };
-
     fetchSources();
   }, []);
+
+  const fetchSources = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("recommendation_sources")
+      .select("*")
+      .order("table_name");
+
+    if (error) {
+      console.error("❌ Fejl ved hentning:", error.message);
+      setErrorMsg("Kunne ikke hente tabeller.");
+    } else {
+      setSources(data);
+      fetchCounts(data);
+    }
+
+    setLoading(false);
+  };
+
+  const fetchCounts = async (sourceList: Source[]) => {
+    const counts: Record<string, number> = {};
+
+    for (const source of sourceList) {
+      const { count, error } = await supabase
+        .from(source.table_name)
+        .select("*", { count: "exact", head: true });
+
+      counts[source.table_name] = !error && typeof count === "number" ? count : 0;
+    }
+
+    setRowCounts(counts);
+  };
 
   const handleToggle = (index: number) => {
     const updated = [...sources];
@@ -78,8 +78,7 @@ export default function TableSettingsPage() {
 
   const handleSave = async (source: Source, index: number) => {
     if (!source.table_name) {
-      console.error("❌ Mangler table_name", source);
-      setErrorMsg("Mangler table_name – kan ikke gemme.");
+      setErrorMsg("Mangler table_name");
       return;
     }
 
@@ -90,19 +89,49 @@ export default function TableSettingsPage() {
       {
         table_name: source.table_name,
         enabled: source.enabled,
-        description: source.description,
+        description: source.description ?? "",
       },
       { onConflict: "table_name" }
     );
 
     if (error) {
-      console.error("❌ Fejl ved gemning:", error);
-      setErrorMsg("Fejl ved gemning af " + source.table_name);
+      console.error("Fejl:", error);
+      setErrorMsg("Fejl ved gemning.");
     } else {
-      setErrorMsg(null);
+      setConfirmations((prev) => ({
+        ...prev,
+        [source.table_name]: true,
+      }));
+
+      setTimeout(() => {
+        setConfirmations((prev) => ({
+          ...prev,
+          [source.table_name]: false,
+        }));
+      }, 2000);
     }
 
     setSavingIndex(null);
+  };
+
+  const handleAddSource = async () => {
+    if (!newSource.table_name) {
+      setErrorMsg("Tabellens navn er påkrævet.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("recommendation_sources")
+      .insert(newSource);
+
+    if (error) {
+      console.error("❌ Fejl ved oprettelse:", error.message);
+      setErrorMsg("Kunne ikke tilføje tabellen.");
+    } else {
+      setErrorMsg(null);
+      setNewSource({ table_name: "", enabled: true, description: "" });
+      await fetchSources();
+    }
   };
 
   return (
@@ -135,10 +164,14 @@ export default function TableSettingsPage() {
             <div>
               <Label>Beskrivelse til GPT</Label>
               <Textarea
-                value={source.description || ""}
+                value={sources[index]?.description ?? ""}
                 onChange={(e) => handleDescriptionChange(index, e.target.value)}
                 placeholder="Forklar hvad GPT skal analysere i denne tabel"
               />
+
+              {confirmations[source.table_name] && (
+                <p className="text-xs text-green-600 mt-1">✅ Opdateret</p>
+              )}
 
               {rowCounts[source.table_name] !== undefined && (
                 <p className="text-xs text-muted-foreground mt-2">
@@ -158,6 +191,52 @@ export default function TableSettingsPage() {
           </Card>
         ))
       )}
+
+      <Card className="p-4 space-y-4">
+        <h2 className="text-lg font-semibold">Tilføj ny tabel</h2>
+        <div>
+          <Label>Tabellens navn</Label>
+          <Input
+            placeholder="f.eks. sexlife_logs"
+            value={newSource.table_name}
+            onChange={(e) =>
+              setNewSource((prev) => ({ ...prev, table_name: e.target.value }))
+            }
+          />
+        </div>
+
+        <div>
+          <Label>Beskrivelse</Label>
+          <Textarea
+            placeholder="Forklar hvad GPT skal analysere"
+            value={newSource.description ?? ""}
+            onChange={(e) =>
+              setNewSource((prev) => ({
+                ...prev,
+                description: e.target.value,
+              }))
+            }
+          />
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Input
+            type="checkbox"
+            checked={newSource.enabled}
+            onChange={(e) =>
+              setNewSource((prev) => ({
+                ...prev,
+                enabled: e.target.checked,
+              }))
+            }
+          />
+          <span>Aktiv</span>
+        </div>
+
+        <div className="text-right">
+          <Button onClick={handleAddSource}>Tilføj tabel</Button>
+        </div>
+      </Card>
 
       <GptStatus />
     </div>

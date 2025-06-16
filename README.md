@@ -1676,3 +1676,39 @@ Visuelle grafer og anbefalinger er aktive
 
 Data loades dynamisk for hver quizKey
 
+## Opdatering 2025-06-16 ##
+
+Hvad vi har arbejdet på
+Implementering og fejlsøgning af quiz-resultatvisning i frontend (/app/components/result-component.tsx), der viser spørgsmål, svar, brugernes profiler, og en kategorisering af svarenes grad af enighed (grøn, gul, rød).
+
+Tilføjet visualisering af svarfordeling via Chart.js (Doughnut og Bar diagrammer).
+
+Implementeret et API-kald til /api/recommendations for at hente personlig anbefaling fra OpenAI baseret på quiz-svar og supplerende data.
+
+Optimeret håndtering af API-respons i frontend med loading state og fejlhåndtering.
+
+Opdateret backend-endpoint /api/recommendations/route.ts med dynamisk håndtering af quizKey og grupperede spørgsmål som del af prompt til OpenAI.
+
+Bedre fejl- og statuslogning i både frontend og backend for at kunne debugge problemer med anbefalings-API’et.
+
+Forbedret stabilitet i fetch-requests og tilpasning af svarformat mellem frontend og backend.
+
+Nuværende problematikker
+Backend-API /api/recommendations returnerer stadig 500 fejl ved kald, hvilket betyder at anbefalingerne ikke bliver genereret korrekt.
+
+Frontend modtager tomme eller fejlbehæftede anbefalingsresultater og viser derfor fejl eller tomme anbefalinger.
+
+Der arbejdes på at sikre at data til OpenAI-prompten er korrekte og fyldestgørende for at få relevante anbefalinger.
+
+Vi har fjernet flere fejl ved at tilføje mere robust fejlhåndtering og kontrol af input/output i API-kald.
+
+Det er essentielt at verificere, at OpenAI API-nøglen er korrekt og at Supabase-tabeller og data indeholder valid information.
+
+Næste skridt
+Debugge og løse backend 500-fejlen i /api/recommendations/route.ts.
+
+Teste at OpenAI prompt konstrueres korrekt med alle nødvendige data.
+
+Sikre at frontend korrekt håndterer og viser anbefalinger, herunder håndtering af tilfælde hvor ingen anbefalinger returneres.
+
+Fortsætte med at forbedre UX omkring visning af anbefalinger, loading, og fejl.

@@ -1,4 +1,5 @@
 // /app/fantasy/anbefalinger/generel/page.tsx
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -15,23 +16,31 @@ type Recommendation = {
 export default function GenerelAnbefalingPage() {
   const [latest, setLatest] = useState<Recommendation | null>(null);
   const [previous, setPrevious] = useState<Recommendation | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchRecommendations = async () => {
+    const { data } = await supabase
+      .from("overall_meta")
+      .select("recommendation, generated_at, table_count, row_count")
+      .order("generated_at", { ascending: false })
+      .limit(2);
+
+    if (data) {
+      setLatest(data[0] ?? null);
+      setPrevious(data[1] ?? null);
+    }
+  };
 
   useEffect(() => {
-    const fetchRecommendations = async () => {
-      const { data } = await supabase
-        .from("overall_meta")
-        .select("recommendation, generated_at, table_count, row_count")
-        .order("generated_at", { ascending: false })
-        .limit(2);
-
-      if (data) {
-        setLatest(data[0] ?? null);
-        setPrevious(data[1] ?? null);
-      }
-    };
-
     fetchRecommendations();
   }, []);
+
+  const handleGenerate = async () => {
+    setLoading(true);
+    await fetch("/api/overall-recommendation", { method: "POST" });
+    await fetchRecommendations();
+    setLoading(false);
+  };
 
   const renderDataComparison = () => {
     if (!latest || latest.table_count == null || latest.row_count == null) return null;
@@ -67,9 +76,18 @@ export default function GenerelAnbefalingPage() {
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
       <h1 className="text-2xl font-bold">🧠 Overordnet anbefaling</h1>
 
+      <div className="flex justify-end">
+        <button
+          onClick={handleGenerate}
+          disabled={loading}
+          className="px-4 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
+        >
+          {loading ? "Genererer..." : "Generér ny anbefaling"}
+        </button>
+      </div>
+
       {renderDataComparison()}
 
-      {/* 🔸 Anbefalingstekst */}
       {latest && (
         <Card className="p-4 space-y-3">
           <p className="text-xs text-muted-foreground">
