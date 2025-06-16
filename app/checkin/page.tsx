@@ -9,6 +9,8 @@ import { useHasMounted } from '@/hooks/useHasMounted';
 import { useUserContext } from '@/context/UserContext';
 import { supabase } from '@/lib/supabaseClient';
 
+import { navItems as importedNavItems } from '@/lib/navItems';
+
 import {
   Settings,
   ChevronDown,

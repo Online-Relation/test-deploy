@@ -39,7 +39,9 @@ interface Profile {
 }
 
 export default function QuizResultPage() {
-  const { quizKey } = useParams()
+const { quizKey: rawKey } = useParams()
+const quizKey = decodeURIComponent(rawKey as string)
+
   const { user } = useUserContext()
   const [questions, setQuestions] = useState<Question[]>([])
   const [answers, setAnswers] = useState<Answer[]>([])
@@ -47,38 +49,61 @@ export default function QuizResultPage() {
   const [view, setView] = useState<'results' | 'visual' | 'recommendations'>('results')
   const [recommendations, setRecommendations] = useState<string[] | null>(null)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!quizKey || !user) return
+useEffect(() => {
+  const fetchData = async () => {
+    if (!quizKey || !user) return
 
-      const { data: qData } = await supabase
-        .from('quiz_questions')
-        .select('id, question, type, order')
-        .eq('quiz_key', quizKey)
-        .order('order', { ascending: true })
+    console.log("🔍 quizKey:", quizKey)
 
-      const { data: aData } = await supabase
-        .from('quiz_responses')
-        .select('question_id, answer, user_id')
-        .eq('quiz_key', quizKey)
+    const { data: qData, error: questionError } = await supabase
+      .from('quiz_questions')
+      .select('id, question, type, order')
+      .eq('quiz_key', quizKey)
+      .order('order', { ascending: true })
 
-      const userIds = [...new Set(aData?.map(a => a.user_id) || [])]
-      const { data: pData } = await supabase
-        .from('profiles')
-        .select('id, display_name, avatar_url')
-        .in('id', userIds)
-
-      if (qData) setQuestions(qData)
-      if (aData) setAnswers(aData)
-      if (pData) {
-        const map: Record<string, Profile> = {}
-        pData.forEach(p => map[p.id] = p)
-        setProfiles(map)
-      }
+    if (questionError) {
+      console.error("❌ Fejl ved spørgsmål:", questionError.message)
+    } else {
+      console.log("✅ Spørgsmål:", qData)
     }
 
-    fetchData()
-  }, [quizKey, user])
+    const { data: aData, error: answerError } = await supabase
+      .from('quiz_responses')
+      .select('question_id, answer, user_id')
+      .eq('quiz_key', quizKey)
+
+    if (answerError) {
+      console.error("❌ Fejl ved svar:", answerError.message)
+    } else {
+      console.log("✅ Svar:", aData)
+    }
+
+    const userIds = [...new Set(aData?.map(a => a.user_id) || [])]
+    console.log("👥 Brugere der har svaret:", userIds)
+
+    const { data: pData, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url')
+      .in('id', userIds)
+
+    if (profileError) {
+      console.error("❌ Fejl ved profiler:", profileError.message)
+    } else {
+      console.log("✅ Profiler:", pData)
+    }
+
+    if (qData) setQuestions(qData)
+    if (aData) setAnswers(aData)
+    if (pData) {
+      const map: Record<string, Profile> = {}
+      pData.forEach(p => map[p.id] = p)
+      setProfiles(map)
+    }
+  }
+
+  fetchData()
+}, [quizKey, user])
+
 
   const groupByAgreement = () => {
     const grouped = {
@@ -185,7 +210,61 @@ export default function QuizResultPage() {
         <Button onClick={() => setView('recommendations')} variant={view === 'recommendations' ? 'secondary' : 'ghost'}>Anbefalinger</Button>
       </div>
 
-      {view === 'results' && <div>[Resultatvisning her]</div>}
+    {view === 'results' && (
+  <>
+    <p className="text-sm text-muted-foreground">
+      Herunder kan I se, hvor jeres svar er ens eller forskellige – med profil og tydelig farvekode.
+    </p>
+
+    {(['green', 'yellow', 'red'] as const).map(level => (
+      <div key={level} className="space-y-2">
+        <h2 className="text-lg font-semibold mt-6">
+          {level === 'green' && '✅ Enige'}
+          {level === 'yellow' && '🟡 Små forskelle'}
+          {level === 'red' && '🔴 Store forskelle'}
+        </h2>
+
+        {grouped[level].map((q) => {
+          const related = answers.filter(a => a.question_id === q.id)
+          return (
+            <Card key={q.id} className="p-4 space-y-2">
+             {/* <p className="text-sm font-medium mb-2">{q.question}</p> */}
+
+              <div className="grid grid-cols-2 gap-4">
+                {related.map((a) => (
+                  <div key={a.user_id} className="flex items-center gap-2">
+                    {profiles[a.user_id]?.avatar_url ? (
+                      <img
+                        src={profiles[a.user_id].avatar_url ?? ''}
+                        alt="avatar"
+                        className="w-6 h-6 rounded-full"
+                      />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-gray-300" />
+                    )}
+                    <div className="text-sm">
+                      <div className="font-medium">{profiles[a.user_id]?.display_name || 'Ukendt'}</div>
+                      <div>{a.answer}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )
+        })}
+
+        {grouped[level].length === 0 && (
+          <p className="text-sm italic text-muted-foreground">Ingen</p>
+        )}
+      </div>
+    ))}
+
+    <div className="mt-6 text-sm text-muted-foreground italic">
+      Brug visningen som udgangspunkt for en god snak – især om forskellene.
+    </div>
+  </>
+)}
+
 
       {view === 'visual' && (
         <div className="space-y-6">

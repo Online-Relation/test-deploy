@@ -1441,3 +1441,238 @@ Denne README dokumenterer de nyeste ændringer og funktioner implementeret i das
 ---
 
 
+## Dags dato: 2025-06-16 — Opdatering af quiz-funktioner, anbefalinger og database ##
+
+| Funktion                   | Beskrivelse                                                                                                                |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Pause og genoptag quiz     | Brugere kan nu forlade en quiz og vende tilbage senere – svar gemmes løbende i databasen.                                  |
+| Quiz-overblik              | Oversigtsside viser alle quizzer med antal spørgsmål og status (påbegyndt / fuldført).                                     |
+| Genoptag-knap              | Hvis en quiz er startet men ikke færdiggjort, vises “Fortsæt – X spørgsmål tilbage” i stedet for “Start quiz”.             |
+| Overordnet anbefaling      | Implementeret særskilt anbefalingsside: `/fantasy/anbefalinger/generel`. Viser senest genererede anbefaling samt historik. |
+| Knap-feedback              | Når anbefaling genereres, skifter knaptekst fra “Generer ny” til “Klar”, og resettes ved reload.                           |
+| Bedre `Tilbage`-navigation | “Tilbage”-knap i quiz fungerer korrekt og er nu aktiv på side 2+.                                                          |
+
+🗃️ Nye og ændrede database-tabeller
+
+| Tabel            | Kolonner                                                                        | Ændring                                                                   |
+| ---------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `quiz_questions` | id, quiz\_key, question, type                                                   | Bruges til quiz-afvikling og overblik.                                    |
+| `quiz_responses` | id, question\_id, user\_id, answer, session\_id, quiz\_key, status, created\_at | Udvidet med `session_id` og `status` for at kunne gemme ufærdige quizzer. |
+| `overall_meta`   | id, user\_id, recommendation, generated\_at                                     | Ny tabel til lagring af overordnede anbefalinger.                         |
+
+🗂️ Opdaterede og nye filer
+| Fil / Mappe                                  | Beskrivelse                                                               |
+| -------------------------------------------- | ------------------------------------------------------------------------- |
+| `/app/quiz/[quiz_key]/page.tsx`              | Quizside med autosave, pagination og visning af tidligere svar.           |
+| `/app/parforhold/anbefalinger/page.tsx`      | Oversigt over quiz-anbefalinger + “Generér ny” for overordnet anbefaling. |
+| `/app/fantasy/anbefalinger/generel/page.tsx` | Ny side som viser overordnet anbefaling + historik.                       |
+| `/app/quiz/resultater/[quiz_key]/page.tsx`   | Resultatside efter færdiggørelse af quiz.                                 |
+| `/components/ui/card.tsx`                    | Bruges til layout af quiz og anbefalinger.                                |
+| `/lib/supabaseClient.ts`                     | Supabase-forbindelse.                                                     |
+| `/app/api/overall-recommendation/route.ts`   | Serverless API der genererer anbefaling via OpenAI.                       |
+
+
+🧠 Forbedringer i UI
+Quiz-knapper skifter til “Fortsæt” eller “Se resultat” afhængigt af hvor langt brugeren er.
+
+Progress-bar og antal viste spørgsmål er opdateret live.
+
+Responsivt layout til mobil.
+
+Tilbage-knap virker fra side 2 og frem.
+
+Anbefaling skjules på oversigtssiden – vises kun på detaljeside.
+
+Knap skifter dynamisk fra “Henter…” → “Klar” → “Generer ny” afhængig af status.
+
+💾 Andet
+Brug af upsert i Supabase for at gemme svar med mulighed for redigering.
+
+Brug af session_id til at gruppere individuelle quizbesvarelser.
+
+Alle kald til Supabase via await supabase.from(...).select().eq(...).in(...).order(...).
+
+🤖 OpenAI-anbefaling baseret på flere datakilder
+Vi har implementeret en AI-baseret anbefaling, der genereres ud fra brugerens samlede parforholdsdata. Den overordnede anbefaling genereres med OpenAI (GPT-4) og præsenteres på siden:
+/fantasy/anbefalinger/generel
+
+🧠 Hvordan det virker
+Når brugeren klikker “Generer ny”, kaldes et API-endpoint:
+POST /api/overall-recommendation
+
+Serverkoden henter data fra flere Supabase-tabeller (valgt dynamisk):
+
+const { data: sources } = await supabase
+  .from("recommendation_sources")
+  .select("table_name")
+  .eq("enabled", true)
+
+Tabellen recommendation_sources bruges til at styre hvilke datakilder AI’en skal bruge – uden at ændre kode.
+
+📊 Følgende tabeller er (aktuelt) i brug:
+| Tabelnavn           | Formål                                |
+| ------------------- | ------------------------------------- |
+| `couple_background` | Bruges som baggrundstekst i prompt    |
+| `checkin`           | Behovsindmeldinger og evalueringer    |
+| `sexlife_logs`      | Registrering af seksuelle aktiviteter |
+| `quiz_responses`    | Svar fra parquiz                      |
+| `quiz_questions`    | Kontekst til quiz-responsanalyse      |
+| `tasks_couple`      | Fælles opgaver og planlægning         |
+| `bucketlist_couple` | Fælles drømme og mål                  |
+
+📝 OpenAI Prompt-struktur
+Prompten der sendes til GPT-4 indeholder:
+
+Baggrundstekst fra couple_background
+
+JSON-dump af data fra de udvalgte tabeller
+
+Instruktion: Du er parterapeut. Giv en samlet, personlig anbefaling...
+
+📦 Output og lagring
+Svaret fra OpenAI gemmes i tabellen overall_meta:
+
+recommendation
+
+generated_at
+
+user_id
+
+Den nyeste anbefaling vises på siden /fantasy/anbefalinger/generel, og tidligere anbefalinger vises som historik.
+
+⚙️ Fordel ved denne opsætning
+Let at tilføje nye tabeller via frontend (Indstillinger > Tabeller)
+
+Ingen kodeændringer kræves for at medtage nye datakilder
+
+Brugeren får én samlet, overskuelig anbefaling
+
+## Dags dato: 2025-06-16 — Opdatering ##
+
+📋 Quiz Admin (parquiz) – opdatering
+Vi har nu et komplet system til at administrere parquiz under /settings/game. Funktionerne inkluderer:
+
+Funktioner i interface:
+Quiz nøgle: Opret eller vælg eksisterende quiz via quiz_key.
+
+Beskrivelse: Rediger og gem beskrivelse for quizzen.
+
+Sværhedsgrad: Vælg mellem easy, medium og hard. Gemmes som effort i quiz_meta.
+
+Tilføj spørgsmål: Med type boolean (ja/nej) eller scale (4 valgmuligheder).
+
+Rediger og slet spørgsmål.
+
+Drag & drop sortering af spørgsmål.
+
+Udgiv quiz med en knap der sætter published: true i quiz_meta.
+
+Slet quiz fjerner alt fra både quiz_meta og quiz_questions.
+
+Databaseændringer:
+quiz_meta har fået tilføjet kolonnen effort (varchar).
+
+xp_settings har fået nye rækker til complete_parquiz for både stine og mads med effort-niveauerne:
+
+easy
+
+medium
+
+hard
+
+Integration med XP-system:
+xp_settings-visningen under /settings/points er opdateret, så complete_parquiz nu vises under sektionen “Forhold – Parquiz” med effort-angivelse og mulighed for at redigere point.
+
+💡 Næste step: Implementere XP-logik når en quiz bliver gennemført under /parforhold/parquiz.
+
+
+✅ Quiz Admin (/settings/game)
+Oprettet mulighed for at redigere quizbeskrivelse og vælge sværhedsgrad (effort)
+
+"Opdater quiz"-knappen vises nu kun hvis quiz er udgivet (published)
+
+"Udgiv quiz"-knappen vises kun hvis quiz ikke er udgivet
+
+"Slet quiz"-knappen er flyttet nederst og står nu side om side med "Opdater quiz"
+
+Når man klikker på "Opdater quiz", bliver man automatisk redirectet til /quiz/parquiz
+
+✅ Quizoversigt (/quiz/parquiz)
+Tilføjet ny sektion "Gennemført quiz" nederst
+
+Viser alle quizzer hvor status er submitted
+
+Viser dato for gennemførelse (fra quiz_responses.created_at)
+
+Tilføjet "Se resultat"-knap for hver gennemført quiz
+
+🔄 Resultatside – klargjort
+Vi har identificeret at resultatvisning skal hente svar for begge brugere
+
+Forberedt næste skridt: at vise spørgsmål + sammenlignende svar for Mads og Stine
+
+Resultatvisning vil kobles med eksisterende OpenAI-anbefalinger
+
+🧠 GPT-anbefaling – gennemgang
+Bekræftet at recommendation_sources bruges til at vælge hvilke tabeller der skal inkluderes
+
+Gennemgået struktur for hvordan man dynamisk inkluderer flere tabeller
+
+Vi afventer implementering af promptforbedring pga. mavefornemmelse
+
+## Dags dato: 2025-06-16 — Opdatering ##
+
+🔨 Hvad vi har implementeret og løst:
+1. Genopbygget hele quiz-resultatvisningen:
+Viser begge brugeres svar
+
+Viser spørgsmål grupperet i:
+
+✅ Enige (grøn)
+
+🟡 Små forskelle (gul)
+
+🔴 Store forskelle (rød)
+
+2. Visuelt:
+Viser avatars og navne fra profiles
+
+Dynamisk farvekodede kort
+
+Doughnut- og bar-graf via Chart.js (visual fanen)
+
+3. Anbefalinger:
+Dynamisk hentet via /api/recommendations
+
+Vises på egen fane
+
+4. Tekniske forbedringer og debugging:
+quizKey bliver korrekt decodeURIComponent() behandlet
+
+Tilføjet console.log() for at debugge questions, answers, profiles
+
+Supabase-kaldsfejl blev håndteret med console.error()
+
+Vi fandt ud af at spørgsmål og svar returnerede tomt pga. %20 i quizKey
+
+5. Frontend fix:
+Fjernet spørgsmåls-tekst fra svarkort (bruger ønskede ikke at vise q.question)
+
+Alt vises nu uden spørgsmålsfelt – kun brugersvar
+
+🔁 Kendte tabeller involveret:
+quiz_questions → for quiz_key, question, type, order
+
+quiz_responses → for quiz_key, session_id, question_id, user_id, answer
+
+profiles → for id, display_name, avatar_url
+
+✅ Nu virker:
+Visning fungerer 100 % som tidligere
+
+Svar vises med korrekt logik
+
+Visuelle grafer og anbefalinger er aktive
+
+Data loades dynamisk for hver quizKey
+

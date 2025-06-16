@@ -1,4 +1,4 @@
-// Quiz Admin Page
+// /app/settings/game/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import TextareaAutosize from 'react-textarea-autosize'
-
+import { useRouter } from 'next/navigation'
 import {
   DndContext,
   closestCenter,
@@ -24,12 +24,6 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-
-// Helper function in case we need strict encoding
-function encodeKey(key: string) {
-  return encodeURIComponent(key.trim())
-}
-
 type Question = {
   id: string
   question: string
@@ -43,12 +37,14 @@ export default function QuizAdminPage() {
   const [availableKeys, setAvailableKeys] = useState<string[]>([])
   const [questionText, setQuestionText] = useState('')
   const [type, setType] = useState('boolean')
+  const [effort, setEffort] = useState('medium')
   const [questions, setQuestions] = useState<Question[]>([])
-  const [intro, setIntro] = useState('')
+  const [description, setDescription] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingText, setEditingText] = useState('')
   const [published, setPublished] = useState(false)
-
+  const [loadedPublished, setLoadedPublished] = useState(false)
+  const router = useRouter()
   const sensors = useSensors(useSensor(PointerSensor))
 
   const fetchAvailableKeys = async () => {
@@ -75,37 +71,50 @@ export default function QuizAdminPage() {
     if (data) setQuestions(data)
   }
 
-const fetchIntro = async () => {
-  const key = quizKey.trim()
-  if (!key) return
+  const fetchDescription = async () => {
+    const key = quizKey.trim()
+    if (!key) return
 
-  const { data, error } = await supabase
-    .from('quiz_meta')
-    .select('intro, published')
-    .eq('quiz_key', key)
-    .limit(1)
-    .maybeSingle()
+    const { data, error } = await supabase
+      .from('quiz_meta')
+      .select('description, published, effort')
+      .eq('quiz_key', key)
+      .limit(1)
+      .maybeSingle()
 
-  if (error) {
-    console.error('Fejl ved hentning af intro:', error)
-    return
+    if (error) {
+      console.error('Fejl ved hentning af description:', error)
+      return
+    }
+
+    if (data) {
+      setDescription(data.description || '')
+      setPublished(data.published ?? false)
+      setEffort(data.effort || 'medium')
+    } else {
+      setDescription('')
+      setPublished(false)
+      setEffort('medium')
+    }
+
+    setLoadedPublished(true)
   }
 
-  if (data) {
-    setIntro(data.intro || '')
-    setPublished(data.published ?? false)
-  }
+const saveDescription = async () => {
+  await supabase.from('quiz_meta').upsert({
+    quiz_key: quizKey.trim(),
+    description,
+    published,
+    effort
+  }, { onConflict: 'quiz_key' })
+
+  await fetchAvailableKeys()
+  await fetchQuestions()
+  await fetchDescription()
+
+  router.push('/quiz/parquiz')
 }
 
-
-  const saveIntro = async () => {
-    await supabase.from('quiz_meta').upsert({
-      quiz_key: quizKey.trim(),
-      intro,
-      published,
-    })
-    fetchIntro()
-  }
 
   const publishQuiz = async () => {
     const trimmedKey = quizKey.trim()
@@ -126,14 +135,16 @@ const fetchIntro = async () => {
     if (!existing || existing.length === 0) {
       const res = await supabase.from('quiz_meta').insert({
         quiz_key: trimmedKey,
-        intro,
+        description,
         published: true,
+        effort
       })
       error = res.error
     } else {
       const res = await supabase.from('quiz_meta').update({
-        intro,
+        description,
         published: true,
+        effort
       }).eq('quiz_key', trimmedKey)
       error = res.error
     }
@@ -150,8 +161,9 @@ const fetchIntro = async () => {
     await supabase.from('quiz_meta').delete().eq('quiz_key', quizKey.trim())
     setQuizKey('')
     setQuestions([])
-    setIntro('')
+    setDescription('')
     setPublished(false)
+    setEffort('medium')
     fetchAvailableKeys()
   }
 
@@ -161,7 +173,7 @@ const fetchIntro = async () => {
 
   useEffect(() => {
     fetchQuestions()
-    fetchIntro()
+    fetchDescription()
   }, [quizKey])
 
   const handleAdd = async () => {
@@ -231,26 +243,34 @@ const fetchIntro = async () => {
             className="mt-2"
             placeholder="Eller skriv en ny quiznøgle..."
           />
-          {quizKey && (
-            <>
-              <Button onClick={() => { fetchQuestions(); fetchIntro(); }} variant="secondary" className="mt-2">Indlæs data</Button>
-              <Button onClick={deleteQuiz} variant="destructive" className="mt-2">Slet hele quizzen</Button>
-            </>
-          )}
         </div>
 
         {quizKey && (
           <>
             <div>
-              <Label>Introtekst</Label>
+              <Label>Beskrivelse</Label>
               <TextareaAutosize
                 className="w-full border rounded p-2 mt-1 text-sm"
                 minRows={3}
-                value={intro}
-                onChange={(e) => setIntro(e.target.value)}
-                placeholder="Skriv introtekst til quizzen"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Skriv beskrivelsen af quizzen her"
               />
-              <Button onClick={saveIntro} className="mt-2">Gem intro</Button>
+   
+
+            </div>
+
+            <div>
+              <Label>Sværhedsgrad</Label>
+              <select
+                className="w-full border rounded p-2 mt-1"
+                value={effort}
+                onChange={(e) => setEffort(e.target.value)}
+              >
+                <option value="easy">Nem</option>
+                <option value="medium">Middel</option>
+                <option value="hard">Svær</option>
+              </select>
             </div>
 
             <div>
@@ -272,9 +292,9 @@ const fetchIntro = async () => {
                 onChange={(e) => setQuestionText(e.target.value)}
                 placeholder="Skriv spørgsmålet her..."
               />
+              <Button onClick={handleAdd} className="mt-2">Tilføj spørgsmål</Button>
             </div>
-
-            <Button onClick={handleAdd}>Tilføj spørgsmål</Button>
+            
           </>
         )}
       </Card>
@@ -314,8 +334,10 @@ const fetchIntro = async () => {
                             >
                               Rediger
                             </Button>
+                            
                             <Button variant="ghost" size="sm" onClick={() => handleDelete(q.id)}>Slet</Button>
                           </div>
+                          
                         </>
                       )}
                     </div>
@@ -325,11 +347,21 @@ const fetchIntro = async () => {
             </SortableContext>
           </DndContext>
 
-          {!published && (
+          {quizKey && loadedPublished && !published && (
             <Button onClick={publishQuiz} className="mt-4">📢 Udgiv quiz</Button>
           )}
         </Card>
       )}
+
+     {quizKey && (
+  <div className="pt-4 flex gap-4">
+    {published && (
+      <Button onClick={saveDescription}>Opdater quiz</Button>
+    )}
+    <Button onClick={deleteQuiz} variant="destructive">🗑️ Slet hele quizzen</Button>
+  </div>
+)}
+
     </div>
   )
 }

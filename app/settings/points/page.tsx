@@ -67,12 +67,18 @@ export default function PointsPage() {
     const quizSettings = roleSettings.filter((s) =>
       s.action === 'quiz_correct' || s.action === 'quiz_wrong'
     );
+    const taskSettings = roleSettings.filter((s) =>
+      s.action === 'complete_task'
+    );
+    const parquizSettings = roleSettings.filter((s) =>
+  s.action === 'complete_parquiz'
+);
 
     return (
       <div className="mb-10">
         <h2 className="text-xl font-semibold mb-4">{title}</h2>
 
-        {/* Fantasi-points */}
+        {/* Fantasier */}
         {fantasySettings.length > 0 && (
           <>
             <h3 className="font-semibold mb-2">Fantasier</h3>
@@ -106,7 +112,7 @@ export default function PointsPage() {
           </>
         )}
 
-        {/* Evaluering-points */}
+        {/* Evaluering */}
         {evaluationSettings.length > 0 && (
           <>
             <h3 className="font-semibold mb-2">Evaluering</h3>
@@ -140,7 +146,7 @@ export default function PointsPage() {
           </>
         )}
 
-        {/* Bucket-points */}
+        {/* Bucketmål */}
         {bucketSettings.length > 0 && (
           <>
             <h3 className="font-semibold mb-2">Bucketmål</h3>
@@ -241,6 +247,74 @@ export default function PointsPage() {
             </table>
           </>
         )}
+
+        {/* Opgaver */}
+        {taskSettings.length > 0 && (
+          <>
+            <h3 className="font-semibold mb-2">Opgaver</h3>
+            <table className="w-full border text-sm mb-6">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="border px-4 py-2 text-left">Handling</th>
+                  <th className="border px-4 py-2 text-left">Effort</th>
+                  <th className="border px-4 py-2 text-left">XP</th>
+                </tr>
+              </thead>
+              <tbody>
+                {taskSettings.map((setting) => (
+                  <tr key={setting.id}>
+                    <td className="border px-4 py-2">{setting.action}</td>
+                    <td className="border px-4 py-2">{setting.effort || '-'}</td>
+                    <td className="border px-4 py-2">
+                      <input
+                        type="number"
+                        value={setting.xp}
+                        onChange={(e) =>
+                          updateXP(setting.id, parseInt(e.target.value))
+                        }
+                        className="w-20 border px-2 py-1 text-right"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+        {/* Spil – Parquiz */}
+{parquizSettings.length > 0 && (
+  <>
+    <h3 className="font-semibold mb-2">Forhold – Parquiz</h3>
+    <table className="w-full border text-sm mb-6">
+      <thead className="bg-gray-100">
+        <tr>
+          <th className="border px-4 py-2 text-left">Handling</th>
+          <th className="border px-4 py-2 text-left">Sværhedsgrad</th>
+          <th className="border px-4 py-2 text-left">XP</th>
+        </tr>
+      </thead>
+      <tbody>
+        {parquizSettings.map((setting) => (
+          <tr key={setting.id}>
+            <td className="border px-4 py-2">{setting.action}</td>
+            <td className="border px-4 py-2">{setting.effort || '-'}</td>
+            <td className="border px-4 py-2">
+              <input
+                type="number"
+                value={setting.xp}
+                onChange={(e) =>
+                  updateXP(setting.id, parseInt(e.target.value))
+                }
+                className="w-20 border px-2 py-1 text-right"
+              />
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </>
+)}
+
 
         {/* Memory-upload */}
         <h3 className="font-semibold mb-2">Memory – Upload billede</h3>

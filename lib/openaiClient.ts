@@ -2,7 +2,7 @@
 import { OpenAI } from 'openai'
 
 const openai = new OpenAI({
-  apiKey: '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',
+  apiKey: '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',
 })
 
 export default openai

@@ -122,6 +122,7 @@ const accessHierarchy: AccessEntry[] = [
       { key: 'settings/access', label: 'Profiladgange', href: '/settings/access', children: [] },
       { key: 'settings/quiz-admin', label: 'Quiz admin', href: '/settings/quiz-admin', children: [] },
       { key: 'settings/couple-background', label: 'Baggrund', href: '/settings/couple-background', children: [] },
+      { key: 'settings/tables', label: 'Tables', href: '/settings/tables', children: [] },
     ],
   },
 ];
@@ -318,23 +319,16 @@ useEffect(() => {
         </Link>
       </div>
 
-      {mobileOpen && (
+    {mobileOpen && (
   <div
     ref={menuRef}
     className="md:hidden fixed inset-0 bg-gray-900 text-white overflow-y-auto p-4 space-y-2 z-40"
   >
-    <Link
-      href="/dashboard"
-      onClick={() => setMobileOpen(false)}
-      className={`flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition ${pathname === '/dashboard' ? 'bg-gray-700 font-semibold' : ''}`}
-    >
-      {iconMap['dashboard']}
-      Dashboard
-    </Link>
     {navContent}
     {bottomSection}
   </div>
 )}
+
 
 
       <div className="hidden md:flex h-screen w-64 bg-gray-900 text-white flex-col justify-between pt-6">

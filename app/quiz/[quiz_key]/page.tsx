@@ -1,97 +1,169 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { supabase } from '@/lib/supabaseClient'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { useUserContext } from '@/context/UserContext'
-import { v4 as uuidv4 } from 'uuid'
+import { useEffect, useState } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { useUserContext } from '@/context/UserContext';
+import { v4 as uuidv4 } from 'uuid';
 
 type Question = {
-  id: string
-  question: string
-  type: string
-}
+  id: string;
+  question: string;
+  type: string;
+};
 
-const QUESTIONS_PER_PAGE = 10
+const QUESTIONS_PER_PAGE = 10;
 
 export default function QuizPage() {
-  const { quiz_key } = useParams()
-  const { user } = useUserContext()
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const page = parseInt(searchParams.get('page') || '1')
+  const { quiz_key } = useParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const page = parseInt(searchParams.get('page') || '1');
+  const { user } = useUserContext();
 
-  const [questions, setQuestions] = useState<Question[]>([])
-  const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [quizDescription, setQuizDescription] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const decodedKey = decodeURIComponent(quiz_key as string);
+
     const fetchQuestions = async () => {
       const { data } = await supabase
         .from('quiz_questions')
         .select('id, question, type')
-        .eq('quiz_key', quiz_key as string)
-        .order('created_at', { ascending: true })
+        .eq('quiz_key', decodedKey)
+        .order('created_at', { ascending: true });
 
-      if (data) setQuestions(data)
-    }
+      if (data) setQuestions(data);
+    };
 
-    fetchQuestions()
-  }, [quiz_key])
+    const fetchSavedAnswers = async () => {
+      if (!user) return;
 
-  const handleChange = (id: string, value: string) => {
-    setAnswers((prev) => ({ ...prev, [id]: value }))
-  }
+      const { data } = await supabase
+        .from('quiz_responses')
+        .select('question_id, answer, session_id')
+        .eq('quiz_key', decodedKey)
+        .eq('user_id', user.id)
+        .eq('status', 'in_progress');
 
-  const startIndex = (page - 1) * QUESTIONS_PER_PAGE
-  const pageQuestions = questions.slice(startIndex, startIndex + QUESTIONS_PER_PAGE)
+      if (data && data.length > 0) {
+        const saved: Record<string, string> = {};
+        data.forEach((entry) => {
+          saved[entry.question_id] = entry.answer;
+        });
+        setAnswers(saved);
+        setSessionId(data[0].session_id);
+      } else {
+        setSessionId(uuidv4());
+      }
+    };
+
+const fetchQuizMeta = async () => {
+  const decodedKey = decodeURIComponent(quiz_key as string);
+  const { data } = await supabase
+    .from('quiz_meta')
+    .select('description')
+    .eq('quiz_key', decodedKey)
+    .single();
+
+  if (data?.description) setQuizDescription(data.description);
+};
+
+
+    Promise.all([
+      fetchQuestions(),
+      fetchSavedAnswers(),
+      fetchQuizMeta()
+    ]).then(() => setIsLoading(false));
+  }, [quiz_key, user]);
+
+  const handleChange = async (questionId: string, value: string) => {
+    if (!user || !sessionId) return;
+    const decodedKey = decodeURIComponent(quiz_key as string);
+
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+
+    const payload = {
+      quiz_key: decodedKey,
+      question_id: questionId,
+      user_id: user.id,
+      answer: value,
+      session_id: sessionId,
+      status: 'in_progress',
+    };
+
+    await supabase.from('quiz_responses').upsert(
+      [payload],
+      { onConflict: 'quiz_key,question_id,user_id' }
+    );
+  };
+
+  const startIndex = (page - 1) * QUESTIONS_PER_PAGE;
+  const pageQuestions = questions.slice(startIndex, startIndex + QUESTIONS_PER_PAGE);
 
   const handleNext = () => {
-    router.push(`/quiz/${quiz_key}?page=${page + 1}`)
-  }
+    router.push(`/quiz/${quiz_key}?page=${page + 1}`);
+  };
 
   const handleBack = () => {
-    router.push(`/quiz/${quiz_key}?page=${page - 1}`)
-  }
-
-  const handleSaveAnswers = async () => {
-    if (!user) return
-    const sessionId = uuidv4()
-
-    const payload = Object.entries(answers).map(([question_id, answer]) => ({
-      quiz_key: quiz_key as string,
-      question_id,
-      user_id: user.id,
-      answer,
-      session_id: sessionId,
-    }))
-
-    const { error } = await supabase.from('quiz_responses').insert(payload)
-    if (!error) {
-      router.push(`/quiz/resultater/${quiz_key}?session=${sessionId}`)
+    if (page > 1) {
+      router.push(`/quiz/parquiz ${quiz_key}?page=${page - 1}`);
+    } else {
+      router.push('/quiz/parquiz');
     }
+  };
+
+  const handleSubmit = async () => {
+    if (!sessionId || !user) return;
+
+    await supabase
+      .from('quiz_responses')
+      .update({ status: 'submitted' })
+      .eq('session_id', sessionId)
+      .eq('user_id', user.id);
+
+    router.push(`/quiz/resultater/${quiz_key}?session=${sessionId}`);
+  };
+
+  if (isLoading || !sessionId || !user) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        <p className="text-sm text-muted-foreground">Indlæser spørgsmål og svar...</p>
+      </div>
+    );
   }
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <h1 className="text-2xl font-bold mb-4">Parquiz – {quiz_key}</h1>
-      <div className="space-y-2">
-  <p className="text-sm text-muted-foreground">
-    {startIndex + 1} – {Math.min(startIndex + QUESTIONS_PER_PAGE, questions.length)} af {questions.length} spørgsmål
-  </p>
-  <div className="w-full h-2 bg-gray-300 rounded">
-    <div
-      className="h-full bg-purple-600 rounded"
-      style={{
-        width: `${Math.min(((startIndex + QUESTIONS_PER_PAGE) / questions.length) * 100, 100)}%`,
-        transition: 'width 0.3s ease',
-      }}
-    />
-  </div>
-</div>
+      <h1 className="text-2xl font-bold">
+        Parquiz – {decodeURIComponent(quiz_key as string)}
+      </h1>
+      {quizDescription && (
+        <p className="text-sm text-muted-foreground whitespace-pre-line">
+          {quizDescription}
+        </p>
+      )}
 
+      <div className="space-y-2">
+        <p className="text-sm text-muted-foreground">
+          {startIndex + 1} – {Math.min(startIndex + QUESTIONS_PER_PAGE, questions.length)} af {questions.length} spørgsmål
+        </p>
+        <div className="w-full h-2 bg-gray-300 rounded">
+          <div
+            className="h-full bg-purple-600 rounded"
+            style={{
+              width: `${Math.min(((startIndex + QUESTIONS_PER_PAGE) / questions.length) * 100, 100)}%`,
+              transition: 'width 0.3s ease',
+            }}
+          />
+        </div>
+      </div>
 
       {pageQuestions.map((q, index) => (
         <Card key={q.id} className="p-4">
@@ -128,13 +200,13 @@ export default function QuizPage() {
       ))}
 
       <div className="flex justify-between pt-4">
-        <Button onClick={handleBack} disabled={page === 1}>Tilbage</Button>
+        <Button onClick={handleBack}>Tilbage</Button>
         {startIndex + QUESTIONS_PER_PAGE < questions.length ? (
           <Button onClick={handleNext}>Næste</Button>
         ) : (
-          <Button onClick={handleSaveAnswers}>Send og vis resultat</Button>
+          <Button onClick={handleSubmit}>Send og vis resultat</Button>
         )}
       </div>
     </div>
-  )
+  );
 }
