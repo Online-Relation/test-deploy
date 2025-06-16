@@ -209,78 +209,75 @@ useEffect(() => {
     </Link>
   );
 
-  const navContent = [
-    dashboardLink,
-    ...accessHierarchy
-      .filter(entry => entry.key !== 'dashboard')
-      .map(entry => {
-        if (!hasAccessTo(entry.key)) return null;
-        const anyChild = entry.children.some(c => hasAccessTo(c.key));
-        const isOpen = entry.key === 'fantasy' ? fantasyOpen
-  : entry.key === 'checkin' ? checkinOpen
-  : entry.key === 'settings' ? settingsOpen
-  : entry.key === 'spil' ? spilOpen
-  : entry.key === 'kommunikation' ? kommunikationOpen
-  : entry.key === 'online-relation' ? onlineRelationOpen
-  : entry.key === 'indtjekning' ? indtjekningOpen
-  : entry.key === 'personlighed' ? personlighedOpen
-  : false;
+ const navContent = accessHierarchy.map(entry => {
+  if (!hasAccessTo(entry.key)) return null;
 
-        if (entry.children.length) {
-          return (
-            <div key={entry.key}>
-              <button
-                onClick={() => {
-                  if (entry.key === 'fantasy') setFantasyOpen(o => !o);
-                  else if (entry.key === 'checkin') setCheckinOpen(o => !o);
-                  else if (entry.key === 'settings') setSettingsOpen(o => !o);
-                  else if (entry.key === 'spil') setSpilOpen(o => !o);
-                  else if (entry.key === 'kommunikation') setKommunikationOpen(o => !o);
-                  else if (entry.key === 'online-relation') setOnlineRelationOpen(o => !o);
-                  else if (entry.key === 'indtjekning') setIndtjekningOpen(o => !o);
-                  else if (entry.key === 'personlighed') setPersonlighedOpen(o => !o);
+  const isOpen = entry.key === 'fantasy' ? fantasyOpen
+    : entry.key === 'checkin' ? checkinOpen
+    : entry.key === 'settings' ? settingsOpen
+    : entry.key === 'spil' ? spilOpen
+    : entry.key === 'kommunikation' ? kommunikationOpen
+    : entry.key === 'online-relation' ? onlineRelationOpen
+    : entry.key === 'indtjekning' ? indtjekningOpen
+    : entry.key === 'personlighed' ? personlighedOpen
+    : false;
 
-                }}
-                className={`w-full flex items-center justify-between px-4 py-2 rounded hover:bg-gray-800 transition ${pathname.startsWith(entry.href) ? 'bg-gray-700 font-semibold' : ''}`}
-              >
-                <span className="flex items-center gap-2">
-                  {iconMap[entry.key]}
-                  {entry.label}
-                </span>
-                {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-              </button>
-              {isOpen && anyChild && (
-                <div className="ml-6 mt-1 space-y-1">
-                  {entry.children.map(child => hasAccessTo(child.key) && (
-                    <Link
-                      key={child.key}
-                      href={child.href}
-                      onClick={() => setMobileOpen(false)}
-                      className={`flex items-center gap-2 px-3 py-1 rounded hover:bg-gray-800 transition ${pathname === child.href ? 'bg-gray-700 font-semibold' : ''}`}
-                    >
-                      {iconMap[child.key]}
-                      {child.label}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        }
+  const anyChild = entry.children.some(c => hasAccessTo(c.key));
 
-        return (
-          <Link
-            key={entry.key}
-            href={entry.href}
-            onClick={() => setMobileOpen(false)}
-            className={`flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition ${pathname === entry.href ? 'bg-gray-700 font-semibold' : ''}`}
-          >
+  if (entry.children.length) {
+    return (
+      <div key={entry.key}>
+        <button
+          onClick={() => {
+            if (entry.key === 'fantasy') setFantasyOpen(o => !o);
+            else if (entry.key === 'checkin') setCheckinOpen(o => !o);
+            else if (entry.key === 'settings') setSettingsOpen(o => !o);
+            else if (entry.key === 'spil') setSpilOpen(o => !o);
+            else if (entry.key === 'kommunikation') setKommunikationOpen(o => !o);
+            else if (entry.key === 'online-relation') setOnlineRelationOpen(o => !o);
+            else if (entry.key === 'indtjekning') setIndtjekningOpen(o => !o);
+            else if (entry.key === 'personlighed') setPersonlighedOpen(o => !o);
+          }}
+          className={`w-full flex items-center justify-between px-4 py-2 rounded hover:bg-gray-800 transition ${pathname.startsWith(entry.href) ? 'bg-gray-700 font-semibold' : ''}`}
+        >
+          <span className="flex items-center gap-2">
             {iconMap[entry.key]}
             {entry.label}
-          </Link>
-        );
-      }),
-  ];
+          </span>
+          {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+        </button>
+        {isOpen && anyChild && (
+          <div className="ml-6 mt-1 space-y-1">
+            {entry.children.map(child => hasAccessTo(child.key) && (
+              <Link
+                key={child.key}
+                href={child.href}
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center gap-2 px-3 py-1 rounded hover:bg-gray-800 transition ${pathname === child.href ? 'bg-gray-700 font-semibold' : ''}`}
+              >
+                {iconMap[child.key]}
+                {child.label}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      key={entry.key}
+      href={entry.href}
+      onClick={() => setMobileOpen(false)}
+      className={`flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition ${pathname === entry.href ? 'bg-gray-700 font-semibold' : ''}`}
+    >
+      {iconMap[entry.key]}
+      {entry.label}
+    </Link>
+  );
+});
+
 
   const profileLink = (
     <Link href="/profile" className="flex flex-col items-center gap-2 cursor-pointer mt-6">

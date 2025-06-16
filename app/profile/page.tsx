@@ -70,29 +70,15 @@ export default function ProfilePage() {
     setUploading(false);
   };
 
-const handleSaveSizes = async () => {
-  if (!user) return;
-
-  const fullProfile = {
-    ...sizes,
-    dopamine_triggers: JSON.stringify(dopaminList),
+  const handleSaveSizes = async () => {
+    if (!user) return;
+    const dataToSave = {
+      ...sizes,
+      dopamine_triggers: JSON.stringify(dopaminList)
+    };
+    const { error } = await supabase.from('profiles').update(dataToSave).eq('id', user.id);
+    alert(error ? 'Fejl ved opdatering af profil' : 'Profil gemt ✅');
   };
-
-  console.log("Gemmer følgende profil:", fullProfile);
-
-  const { error } = await supabase
-    .from('profiles')
-    .update(fullProfile)
-    .eq('id', user.id);
-
-  if (error) {
-    console.error("Fejl ved gem:", error);
-    alert('Fejl ved opdatering af profil');
-  } else {
-    alert('Profil gemt ✅');
-  }
-};
-
 
   const addWishField = () => setWishes(prev => [...prev, { description: '' }]);
   const updateWish = (idx: number, desc: string) => {

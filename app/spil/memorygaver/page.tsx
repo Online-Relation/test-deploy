@@ -77,27 +77,35 @@ export default function MemoryGaverPage() {
       revealed: false,
     })
 
-    if (!insertError) {
-      await Promise.all([
-        supabase.from("xp_log").insert({
-          user_id: profile.id,
-          role: profile.role,
-          action: "memory_upload",
-          xp: 5,
-        }),
-        supabase.from("xp_log").insert({
-          user_id: profile.partner_id,
-          role: profile.role === "mads" ? "stine" : "mads",
-          action: "memory_upload",
-          xp: 5,
-        })
-      ])
-
-      setSuccessMsg("🎉 +5 XP til dig")
-      setTimeout(() => setSuccessMsg(null), 3000)
+    if (insertError) {
+      console.error("Insert error", insertError)
+      setUploading(false)
+      return
     }
 
-    if (insertError) console.error("Insert error", insertError)
+    const { data: xpSetting } = await supabase
+      .from("xp_settings")
+      .select("xp")
+      .eq("action", "memory_upload")
+      .eq("role", profile.role)
+      .maybeSingle()
+
+    if (xpSetting && xpSetting.xp > 0) {
+      const { error: xpError } = await supabase.from("xp_log").insert({
+        user_id: profile.id,
+        role: profile.role,
+        action: "memory_upload",
+        change: xpSetting.xp,
+        description: "Uploadede memory-billede",
+      })
+
+      if (xpError) {
+        console.error("XP log fejl:", xpError)
+      } else {
+        setSuccessMsg(`🎉 +${xpSetting.xp} XP til dig!`)
+        setTimeout(() => setSuccessMsg(null), 3000)
+      }
+    }
 
     setImageFile(null)
     setNote("")

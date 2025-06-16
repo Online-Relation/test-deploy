@@ -113,10 +113,19 @@ export default function KomplimentPage() {
     setSavingToday(false);
   }
 
+  function handleIgnoreCompliment() {
+    if (currentIndex === null) return;
+    const ignored: number[] = JSON.parse(localStorage.getItem('ignoredCompliments') || '[]');
+    localStorage.setItem('ignoredCompliments', JSON.stringify([...ignored, currentIndex]));
+    localStorage.removeItem('complimentDate');
+    localStorage.removeItem('complimentIndex');
+    pickDaily(compliments);
+  }
+
   async function loadChartData() {
     const end = new Date();
     const start = new Date();
-    start.setDate(end.getDate() - 13); // 14 dage inkl. i dag
+    start.setDate(end.getDate() - 13);
     const startDate = formatDate(start);
     const endDate = formatDate(end);
 
@@ -192,6 +201,12 @@ export default function KomplimentPage() {
               className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-700 text-white"
             >
               {savingToday ? 'Gemmer…' : 'Registrer kompliment'}
+            </button>
+            <button
+              onClick={handleIgnoreCompliment}
+              className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400 text-gray-800"
+            >
+              Ignorer og vælg nyt
             </button>
           </div>
         )}
