@@ -46,17 +46,17 @@ const accessHierarchy: AccessEntry[] = [
     ],
   },
   { key: 'tasks-couple', label: 'Opgaver', href: '/tasks-couple', children: [] },
-  {
-    key: 'fantasy',
-    label: 'Parforhold',
-    href: '/fantasy',
-    children: [
-      { key: 'fantasy/fantasier', label: 'Fantasier', href: '/fantasy', children: [] },
-      { key: 'parquiz', label: 'Parquiz', href: '/quiz/parquiz', children: [] },
-      { key: 'anbefalinger', label: 'Anbefalinger', href: '/fantasy/anbefalinger', children: [] },
-      { key: 'dates', label: 'Date Ideas', href: '/dates', children: [] },
-    ],
-  },
+{
+  key: 'fantasy',
+  label: 'Parforhold',
+  href: '/fantasy',
+  children: [
+    { key: 'fantasy/fantasier', label: 'Fantasier', href: '/fantasy', children: [] },
+    { key: 'fantasy/parquiz', label: 'Parquiz', href: '/quiz/parquiz', children: [] },
+    { key: 'fantasy/anbefalinger', label: 'Anbefalinger', href: '/fantasy/anbefalinger', children: [] },
+    { key: 'dates', label: 'Date Ideas', href: '/dates', children: [] },
+  ],
+},
   {
     key: 'indtjekning',
     label: 'Indtjekning',
@@ -193,10 +193,18 @@ useEffect(() => {
   const userAccess: Record<string, boolean> = user?.access || {};
   console.log("🔍 user.access:", user?.access);
 
-  const hasAccessTo = (key: string) => {
-    if (key === 'dashboard') return true;
-    return isAdmin || !!userAccess[key];
-  };
+const hasAccessTo = (key: string) => {
+  if (key === 'dashboard') return true;
+  if (isAdmin) return true;
+
+  // Direkte adgang
+  if (userAccess[key]) return true;
+
+  // Underpunktsadgang (fx: fantasy/parquiz → tillader adgang til fantasy)
+  return Object.keys(userAccess).some(k => k.startsWith(`${key}/`) && userAccess[k]);
+};
+
+
 
   const dashboardLink = (
     <Link
@@ -223,7 +231,8 @@ useEffect(() => {
     : entry.key === 'personlighed' ? personlighedOpen
     : false;
 
-  const anyChild = entry.children.some(c => hasAccessTo(c.key));
+const anyChild = entry.children.length === 0 || entry.children.some(c => hasAccessTo(c.key));
+
 
   if (entry.children.length) {
     return (
@@ -335,7 +344,8 @@ useEffect(() => {
 
 
 
-      <div className="hidden md:flex h-screen w-64 bg-gray-900 text-white flex-col justify-between pt-6">
+      <div className="hidden md:flex min-h-screen w-64 bg-gray-900 text-white flex-col justify-between pt-6">
+
         <div>
           <div className="p-6 text-xl font-bold">
             <Link href="/dashboard" className="hover:underline">✨ Mit Dashboard</Link>

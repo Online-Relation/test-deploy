@@ -19,16 +19,17 @@ const accessHierarchy: AccessEntry[] = [
     children: [{ key: 'online-relation/tasks', label: 'Opgaver' }],
   },
   { key: 'tasks-couple', label: 'Opgaver', children: [] },
-  {
-    key: 'fantasy',
-    label: 'Parforhold',
-    children: [
-      { key: 'fantasy/fantasier', label: 'Fantasier' },
-      { key: 'dates', label: 'Date Ideas' },
-      { key: 'parquiz', label: 'Parquiz', },
-      { key: 'fantasy/anbefalinger', label: 'Anbefalinger' },
-    ],
-  },
+ {
+  key: 'fantasy',
+  label: 'Parforhold',
+  children: [
+    { key: 'fantasy/fantasier', label: 'Fantasier' },
+    { key: 'dates', label: 'Date Ideas' },
+    { key: 'fantasy/parquiz', label: 'Parquiz' },
+    { key: 'fantasy/anbefalinger', label: 'Anbefalinger' },
+  ],
+},
+
   {
     key: 'indtjekning',
     label: 'Indtjekning',
@@ -75,17 +76,19 @@ const accessHierarchy: AccessEntry[] = [
     ],
   },
   { key: 'profile', label: 'Profil', children: [] },
-  {
-    key: 'settings',
-    label: 'Indstillinger',
-    children: [
-      { key: 'settings/points', label: 'Points' },
-      { key: 'settings/rewards', label: 'Rewards' },
-      { key: 'settings/categories', label: 'Categories' },
-      { key: 'settings/game-themes', label: 'Temaer' },
-      { key: 'settings/access', label: 'Profiladgange' },
-    ],
-  },
+{
+  key: 'settings',
+  label: 'Indstillinger',
+  children: [
+    { key: 'settings/points', label: 'Points' },
+    { key: 'settings/rewards', label: 'Rewards' },
+    { key: 'settings/categories', label: 'Categories' },
+    { key: 'settings/game-themes', label: 'Temaer' },
+    { key: 'settings/access', label: 'Profiladgange' },
+    { key: 'settings/quiz-admin', label: 'Quiz Admin' }, // <-- korrekt
+  ],
+}
+
 ]
 
 

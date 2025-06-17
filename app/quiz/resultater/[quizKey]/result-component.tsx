@@ -99,24 +99,28 @@ export default function QuizResultPage() {
     fetchData()
   }, [quizKey, user])
 
-  const groupByAgreement = () => {
-    const grouped = {
-      green: [] as Question[],
-      yellow: [] as Question[],
-      red: [] as Question[],
-    }
-
-    for (const q of questions) {
-      const related = answers.filter(a => a.question_id === q.id)
-      if (related.length !== 2) continue
-      const [a1, a2] = related.map(a => a.answer)
-      if (a1 === a2) grouped.green.push(q)
-      else if ((a1 === 'Ja' && a2 === 'Nej') || (a1 === 'Nej' && a2 === 'Ja')) grouped.red.push(q)
-      else grouped.yellow.push(q)
-    }
-
-    return grouped
+const groupByAgreement = () => {
+  const grouped = {
+    green: [] as Question[],
+    yellow: [] as Question[],
+    red: [] as Question[],
   }
+
+  for (const q of questions) {
+    const related = answers.filter(a => a.question_id === q.id)
+    const uniqueUserIds = [...new Set(related.map(a => a.user_id))]
+
+    if (uniqueUserIds.length !== 2) continue
+
+    const [a1, a2] = related.map(a => a.answer)
+    if (a1 === a2) grouped.green.push(q)
+    else if ((a1 === 'Ja' && a2 === 'Nej') || (a1 === 'Nej' && a2 === 'Ja')) grouped.red.push(q)
+    else grouped.yellow.push(q)
+  }
+
+  return grouped
+}
+
 
   const grouped = groupByAgreement()
 

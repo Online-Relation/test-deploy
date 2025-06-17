@@ -68,18 +68,19 @@ export default function AnbefalingerOverview() {
 
       {/* 🔶 Overordnet anbefaling */}
       <Card className="p-4 space-y-2">
-        <div className="flex justify-between items-center">
-          <div className="font-semibold text-lg">🧠 Overordnet anbefaling</div>
-          <div className="flex gap-2">
-            <Button onClick={fetchOverall} disabled={loading}>
-              {loading ? "Henter..." : overallRecommendation ? "Klar" : "Generér ny"}
-            </Button>
+       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
+  <div className="font-semibold text-lg">🧠 Overordnet anbefaling</div>
+  <div className="flex flex-col sm:flex-row gap-2">
+    <Button onClick={fetchOverall} disabled={loading}>
+      {loading ? "Henter..." : overallRecommendation ? "Klar" : "Generér ny"}
+    </Button>
 
-            <Link href="/fantasy/anbefalinger/generel">
-              <Button variant="secondary">Gå til anbefaling</Button>
-            </Link>
-          </div>
-        </div>
+    <Link href="/fantasy/anbefalinger/generel">
+      <Button variant="secondary">Gå til anbefaling</Button>
+    </Link>
+  </div>
+</div>
+
 
         {lastGenerated && (
           <p className="text-xs text-muted-foreground">
