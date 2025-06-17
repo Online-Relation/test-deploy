@@ -174,7 +174,7 @@ export default function RewardsPage() {
             <div className="text-sm text-gray-500">Tildelt til: {reward.assigned_to}</div>
             <div className="text-sm text-gray-500">Kategori: {reward.category}</div>
             <div className="text-sm text-gray-400 italic">Type: {reward.type}</div>
-            <button onClick={() => startEdit(reward)} className="text-sm text-blue-600 hover:underline mt-2">Rediger</button>
+            <button onClick={() => startEdit(reward)} className="text-sm text-blue-600 hover:underline mt-2">Reddiger</button>
           </li>
         ))}
       </ul>
