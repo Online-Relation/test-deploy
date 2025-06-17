@@ -1,4 +1,5 @@
 // /app/api/overall-recommendation/route.ts
+console.log("ENV OPENAI_API_KEY:", process.env.OPENAI_API_KEY ? "SET" : "NOT SET");
 
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
