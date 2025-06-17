@@ -31,19 +31,14 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     const fetchUser = async () => {
       setLoading(true);
 
-      // 1) Hent session‐responsen
-      const sessionResult = await supabase.auth.getSession();
-      if (sessionResult.error) {
-        console.error('Fejl ved hentning af session:', sessionResult.error.message);
-      }
-      const session = sessionResult.data.session;
-      if (!session || !session.user) {
+      // 1) Hent auth bruger direkte
+      const { data: { user: authUser }, error } = await supabase.auth.getUser();
+      if (error || !authUser) {
+        console.error('❌ Fejl ved hentning af bruger:', error?.message);
         setUser(null);
         setLoading(false);
         return;
       }
-
-      const authUser = session.user;
 
       // 2) Hent profil‐data
       const profileResult = await supabase
@@ -53,7 +48,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         .single();
 
       if (profileResult.error || !profileResult.data) {
-        console.error('Fejl ved hentning af profil:', profileResult.error?.message);
+        console.error('❌ Fejl ved hentning af profil:', profileResult.error?.message);
         setUser(null);
         setLoading(false);
         return;
@@ -68,8 +63,9 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         .eq('user_id', authUser.id);
 
       if (accessResult.error) {
-        console.error('Fejl ved hentning af access_control:', accessResult.error.message);
+        console.error('❌ Fejl ved hentning af access_control:', accessResult.error.message);
       }
+
       const accessRows = accessResult.data || [];
 
       // 4) Byg accessMap
@@ -80,17 +76,16 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         }
       });
 
-      // 5) Sæt user‐state, konverter undefined → null
-     setUser({
-  id: authUser.id,
-  email: authUser.email ?? null,
-  role: profileData.role ?? null,
-  display_name: profileData.display_name ?? null,
-  avatar_url: profileData.avatar_url ?? null,
-  access: accessMap,
-  partner_id: profileData.partner_id ?? null, // 👈 tilføjet denne linje
-})
-
+      // 5) Sæt user‐state
+      setUser({
+        id: authUser.id,
+        email: authUser.email ?? null,
+        role: profileData.role ?? null,
+        display_name: profileData.display_name ?? null,
+        avatar_url: profileData.avatar_url ?? null,
+        access: accessMap,
+        partner_id: profileData.partner_id ?? null,
+      });
 
       setLoading(false);
     };
