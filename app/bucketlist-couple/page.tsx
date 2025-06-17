@@ -195,7 +195,8 @@ export default function BucketlistCouplePage() {
   const [view, setView] = useState<ViewMode>('board');
   return (
     <BucketProvider>
-      <div className="max-w-screen-lg mx-auto px-4 py-6">
+      <div className="w-full mx-auto px-0 sm:px-4 py-6" style={{ paddingLeft: '0px', paddingRight: '0px' }}>
+
         <h1 className="text-2xl font-bold mb-4 text-center sm:text-left">Bucketlist for Par</h1>
         <div className="flex gap-4 mb-6 justify-center sm:justify-start">
           <button onClick={() => setView('board')} className={`btn ${view === 'board' ? 'btn-primary' : 'btn-outline'}`}>Board</button>

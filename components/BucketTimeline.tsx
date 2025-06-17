@@ -56,7 +56,8 @@ export default function BucketTimeline() {
   if (loading) return <p className="p-4 text-center">Indlæser…</p>;
 
   return (
-    <div className="px-4 py-6 overflow-x-hidden">
+    <div className="container mx-auto px-2 sm:px-4 py-6 overflow-x-hidden">
+
       <div className="relative">
         {buckets.map(bucket => {
           const doneCount = bucket.goals.filter(s => s.done).length;
@@ -71,7 +72,8 @@ export default function BucketTimeline() {
           };
 
           return (
-            <div key={bucket.id} className="mb-8 relative space-y-4 sm:space-y-2 w-full max-w-md mx-auto">
+            <div key={bucket.id} className="mb-8 relative space-y-4 sm:space-y-2 w-full px-2">
+
               <div className="bg-white p-5 rounded-2xl shadow-md border border-gray-100">
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="text-lg font-semibold truncate text-violet-700">{bucket.title}</h3>
