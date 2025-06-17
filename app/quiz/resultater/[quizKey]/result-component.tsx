@@ -3,12 +3,13 @@
 'use client'
 
 import { useParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useUserContext } from '@/context/UserContext'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Doughnut, Bar } from 'react-chartjs-2'
+
 import {
   Chart as ChartJS,
   ArcElement,
@@ -44,7 +45,7 @@ export default function QuizResultPage() {
   const { quizKey: rawKey } = useParams()
   const quizKey = decodeURIComponent(rawKey as string)
 
-  const { user } = useUserContext()
+  const { user, loading } = useUserContext()
   const [questions, setQuestions] = useState<Question[]>([])
   const [answers, setAnswers] = useState<Answer[]>([])
   const [profiles, setProfiles] = useState<Record<string, Profile>>({})
@@ -54,38 +55,26 @@ export default function QuizResultPage() {
   const [recommendationError, setRecommendationError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!quizKey || !user) return
+    if (!quizKey || !user || loading) return
 
-      const { data: qData, error: questionError } = await supabase
-        .from('quiz_questions')
-        .select('id, question, type, order')
-        .eq('quiz_key', quizKey)
-        .order('order', { ascending: true })
+    const fetchAll = async () => {
+      const [{ data: qData }, { data: aData }] = await Promise.all([
+        supabase.from('quiz_questions')
+          .select('id, question, type, order')
+          .eq('quiz_key', quizKey)
+          .order('order', { ascending: true }),
 
-      if (questionError) {
-        console.error("❌ Fejl ved spørgsmål:", questionError.message)
-      }
-
-      const { data: aData, error: answerError } = await supabase
-        .from('quiz_responses')
-        .select('question_id, answer, user_id')
-        .eq('quiz_key', quizKey)
-
-      if (answerError) {
-        console.error("❌ Fejl ved svar:", answerError.message)
-      }
+        supabase.from('quiz_responses')
+          .select('question_id, answer, user_id')
+          .eq('quiz_key', quizKey)
+      ])
 
       const userIds = [...new Set(aData?.map(a => a.user_id) || [])]
 
-      const { data: pData, error: profileError } = await supabase
+      const { data: pData } = await supabase
         .from('profiles')
         .select('id, display_name, avatar_url')
         .in('id', userIds)
-
-      if (profileError) {
-        console.error("❌ Fejl ved profiler:", profileError.message)
-      }
 
       if (qData) setQuestions(qData)
       if (aData) setAnswers(aData)
@@ -96,64 +85,50 @@ export default function QuizResultPage() {
       }
     }
 
-    fetchData()
-  }, [quizKey, user])
+    fetchAll()
+  }, [quizKey, user, loading])
 
-const groupByAgreement = () => {
-  const grouped = {
-    green: [] as Question[],
-    yellow: [] as Question[],
-    red: [] as Question[],
-  }
+  const grouped = useMemo(() => {
+    if (questions.length === 0 || answers.length === 0) return { green: [], yellow: [], red: [] }
 
-  for (const q of questions) {
-    const related = answers.filter(a => a.question_id === q.id)
-    const uniqueUserIds = [...new Set(related.map(a => a.user_id))]
+    const result = { green: [] as Question[], yellow: [] as Question[], red: [] as Question[] }
 
-    if (uniqueUserIds.length !== 2) continue
+    for (const q of questions) {
+      const related = answers.filter(a => a.question_id === q.id)
+      const uniqueUserIds = [...new Set(related.map(a => a.user_id))]
+      if (uniqueUserIds.length !== 2) continue
 
-    const [a1, a2] = related.map(a => a.answer)
-    if (a1 === a2) grouped.green.push(q)
-    else if ((a1 === 'Ja' && a2 === 'Nej') || (a1 === 'Nej' && a2 === 'Ja')) grouped.red.push(q)
-    else grouped.yellow.push(q)
-  }
+      const [a1, a2] = related.map(a => a.answer.trim())
+      if (a1 === a2) result.green.push(q)
+      else if ((a1 === 'Ja' && a2 === 'Nej') || (a1 === 'Nej' && a2 === 'Ja')) result.red.push(q)
+      else result.yellow.push(q)
+    }
 
-  return grouped
-}
-
-
-  const grouped = groupByAgreement()
+    return result
+  }, [questions, answers])
 
   useEffect(() => {
-    const totalQuestions =
-      grouped.green.length + grouped.yellow.length + grouped.red.length
-
-    if (totalQuestions === 0 || recommendations !== null) return
+    if (!quizKey || grouped.green.length + grouped.yellow.length + grouped.red.length === 0) return
 
     const fetchRecommendations = async () => {
       setLoadingRecommendations(true)
       setRecommendationError(null)
+
       try {
         const res = await fetch('/api/recommendations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ groupedQuestions: grouped, quizKey }),
+          body: JSON.stringify({ groupedQuestions: grouped, quizKey })
         })
 
-        if (!res.ok) throw new Error(`HTTP error ${res.status}`)
-
         const resData = await res.json()
-
-        if (!resData.recommendation || resData.recommendation.length === 0) {
-          setRecommendations([])
-          setRecommendationError('Ingen anbefalinger fundet.')
-        } else {
+        if (resData.recommendation) {
           let rec = resData.recommendation
           rec += '\n\n— Hentet data fra Supabase'
           setRecommendations([rec])
         }
-      } catch (error: any) {
-        setRecommendationError(error.message || 'Ukendt fejl ved hentning af anbefalinger')
+      } catch (err: any) {
+        setRecommendationError(err.message || 'Ukendt fejl ved hentning af anbefalinger')
         setRecommendations([])
       } finally {
         setLoadingRecommendations(false)
@@ -161,7 +136,9 @@ const groupByAgreement = () => {
     }
 
     fetchRecommendations()
-  }, [grouped, quizKey, recommendations])
+  }, [quizKey, grouped])
+
+
 
   const chartData = {
     labels: ['Enige', 'Små forskelle', 'Store forskelle'],
@@ -211,7 +188,7 @@ const groupByAgreement = () => {
     ],
   }
 
-  return (
+   return (
     <div className="max-w-md mx-auto px-4 py-8 space-y-6">
       <h1 className="text-2xl font-bold capitalize">📋 Resultat: {quizKey}</h1>
 
@@ -254,8 +231,6 @@ const groupByAgreement = () => {
                 const related = answers.filter(a => a.question_id === q.id)
                 return (
                   <Card key={q.id} className="p-4 space-y-2">
-                    {/* <p className="text-sm font-medium mb-2">{q.question}</p> */}
-
                     <div className="grid grid-cols-2 gap-4">
                       {related.map(a => (
                         <div key={a.user_id} className="flex items-center gap-2">
@@ -290,13 +265,16 @@ const groupByAgreement = () => {
       {view === 'visual' && (
         <div className="space-y-6">
           <div className="w-64 mx-auto">
-            <Doughnut data={chartData} />
+            <Doughnut data={{
+              labels: ['Enige', 'Små forskelle', 'Store forskelle'],
+              datasets: [{
+                data: [grouped.green.length, grouped.yellow.length, grouped.red.length],
+                backgroundColor: ['#22c55e', '#eab308', '#ef4444'],
+                borderWidth: 1,
+              }]
+            }} />
           </div>
           <div className="text-sm text-center">Antal spørgsmål i hver kategori</div>
-          <div>
-            <h2 className="text-lg font-semibold mt-6 mb-2">Svarfordeling</h2>
-            <Bar data={barData} />
-          </div>
         </div>
       )}
 
@@ -329,5 +307,4 @@ const groupByAgreement = () => {
         </div>
       )}
     </div>
-  )
-}
+    ) }

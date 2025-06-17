@@ -1741,3 +1741,28 @@ OpenAI API-nøglen skal være sat som miljøvariabel OPENAI_API_KEY både lokalt
 
 Deployment:
 Tidligere fejl ved deployment er løst ved at fjerne hardcoded API-nøgle fra koden og sikre korrekt miljøvariabel-injektion.
+
+# Opdatering d. 17. juni 2025 ##
+
+### Fejl og debugging af quiz-resultat siden
+
+**Problem:**
+Ved gentagen navigation til en quizresultatside – fx fra sidemenu og tilbage – mistede anbefalingssektionen (`recommendations`) sine data, selvom de var korrekt vist første gang. Symptomerne:
+
+- Første gang siden indlæses efter gennemført quiz, fungerer alt korrekt.
+- Ved navigation væk og tilbage, vises kun spørgsmål og svar – anbefaling forsvinder.
+- Konsollen viser, at data (answers, questions, grouped) er til stede, men ingen ny anbefaling hentes.
+
+**Debugging og ændringer:**
+- Brugt `useEffect` til at trigge fetch af anbefalinger.
+- Skiftet fra `useMemo` til eksplicit `useState` og `setGrouped()` for at sikre re-evaluering.
+- Tilføjet fallback rendering: `return <div className="text-center text-sm text-muted-foreground">Rendering følger...</div>` indtil data er klar.
+- Fejlen er sandsynligvis forårsaget af afhængigheder der ikke trigger en genberegning, når kun data kommer sekundært ind.
+
+**Midlertidig løsning:**
+- `grouped` beregnes via separat `useEffect`, og opdateres med `setGrouped` når både questions og answers er loaded.
+- Anbefaling hentes kun hvis grouped har indhold.
+- Der logges aktivt til konsol for debugging.
+
+**Status:**
+Bug er delvist afhjulpet – anbefaling hentes igen korrekt i de fleste tilfælde, men fuld robusthed kræver yderligere forbedringer i afhængighedslogik og dataflyt.
