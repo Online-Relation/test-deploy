@@ -96,6 +96,9 @@ export default function GenerelAnbefalingPage() {
           <p className="whitespace-pre-line text-sm text-muted-foreground">
             {latest.recommendation}
           </p>
+          <p className="text-xs text-muted-foreground italic text-right">
+            — Hentet data fra Supabase
+          </p>
         </Card>
       )}
 

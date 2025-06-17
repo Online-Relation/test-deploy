@@ -8,6 +8,7 @@ export async function POST(req: Request) {
   let testMode = false;
   let quizKey = "parquiz";
   let groupedQuestions = null;
+  let isAdmin = false;
 
   try {
     const body = await req.json();
@@ -15,6 +16,7 @@ export async function POST(req: Request) {
     testMode = body?.testMode || false;
     quizKey = body?.quizKey || "parquiz";
     groupedQuestions = body?.groupedQuestions || null;
+    isAdmin = body?.isAdmin || false;
   } catch {
     // no body sent
   }
@@ -61,7 +63,7 @@ export async function POST(req: Request) {
       : "";
 
     // 4. Build full prompt with datapoints count added at the bottom
-    const fullPrompt = `
+    let fullPrompt = `
 Du er parterapeut og skal give en personlig anbefaling til et par baseret på deres data.
 
 ${groupedSection ? `📋 Deres besvarelser fordeler sig sådan:\n${groupedSection}\n` : ''}
@@ -70,9 +72,6 @@ ${groupedSection ? `📋 Deres besvarelser fordeler sig sådan:\n${groupedSectio
 ${tableData.join("\n\n")}
 
 Giv nu en personlig, ærlig og omsorgsfuld anbefaling. Brug dataene aktivt i analysen.
-
----
-Anbefalingen er baseret på ${totalRows} datapoints.
     `.trim();
 
     // 5. Call OpenAI
@@ -85,6 +84,11 @@ Anbefalingen er baseret på ${totalRows} datapoints.
       });
 
       recommendation = openaiRes.choices[0]?.message?.content || recommendation;
+
+      // Tilføj ekstra tekst for admin
+      if (isAdmin) {
+        recommendation += `\n\n---\nHentet data fra Supabase`;
+      }
     } catch (err: any) {
       console.error("❌ OpenAI fejl:", err?.message || err);
       throw new Error("OpenAI API fejlede – tjek din nøgle eller prompt.");
