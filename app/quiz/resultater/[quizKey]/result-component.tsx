@@ -8,18 +8,6 @@ import { supabase } from '@/lib/supabaseClient'
 import { useUserContext } from '@/context/UserContext'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Doughnut, Bar } from 'react-chartjs-2'
-import {
-  Chart as ChartJS,
-  ArcElement,
-  Tooltip,
-  Legend,
-  CategoryScale,
-  LinearScale,
-  BarElement
-} from 'chart.js'
-
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement)
 
 interface Answer {
   question_id: string
@@ -49,9 +37,6 @@ export default function QuizResultPage() {
   const [answers, setAnswers] = useState<Answer[]>([])
   const [profiles, setProfiles] = useState<Record<string, Profile>>({})
   const [view, setView] = useState<'results' | 'visual' | 'recommendations'>('results')
-  const [recommendations, setRecommendations] = useState<string[] | null>(null)
-  const [loadingRecommendations, setLoadingRecommendations] = useState(false)
-  const [recommendationError, setRecommendationError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -120,99 +105,29 @@ export default function QuizResultPage() {
 
   const grouped = groupByAgreement()
 
-  useEffect(() => {
-    const totalQuestions =
-      grouped.green.length + grouped.yellow.length + grouped.red.length
-
-    if (totalQuestions === 0 || recommendations !== null) return
-
-    const fetchRecommendations = async () => {
-      setLoadingRecommendations(true)
-      setRecommendationError(null)
-      try {
-        const res = await fetch('/api/recommendations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ groupedQuestions: grouped, quizKey }),
-        })
-
-        if (!res.ok) throw new Error(`HTTP error ${res.status}`)
-
-        const resData = await res.json()
-
-        if (!resData.recommendation || resData.recommendation.length === 0) {
-          setRecommendations([])
-          setRecommendationError('Ingen anbefalinger fundet.')
-        } else {
-          setRecommendations([resData.recommendation])
-        }
-      } catch (error: any) {
-        setRecommendationError(error.message || 'Ukendt fejl ved hentning af anbefalinger')
-        setRecommendations([])
-      } finally {
-        setLoadingRecommendations(false)
-      }
-    }
-
-    fetchRecommendations()
-  }, [grouped, quizKey, recommendations])
-
-  const chartData = {
-    labels: ['Enige', 'Små forskelle', 'Store forskelle'],
-    datasets: [
-      {
-        data: [grouped.green.length, grouped.yellow.length, grouped.red.length],
-        backgroundColor: ['#22c55e', '#eab308', '#ef4444'],
-        borderWidth: 1
-      }
-    ]
-  }
-
-  const perUserStats = Object.values(profiles).map(profile => {
-    const userAnswers = answers.filter(a => a.user_id === profile.id)
-    const counts = { Ja: 0, Nej: 0, Andet: 0 }
-    for (const a of userAnswers) {
-      if (a.answer === 'Ja') counts.Ja++
-      else if (a.answer === 'Nej') counts.Nej++
-      else counts.Andet++
-    }
-    return {
-      name: profile.display_name,
-      ja: counts.Ja,
-      nej: counts.Nej,
-      andet: counts.Andet,
-    }
-  })
-
-  const barData = {
-    labels: perUserStats.map(s => s.name),
-    datasets: [
-      {
-        label: 'Ja',
-        data: perUserStats.map(s => s.ja),
-        backgroundColor: '#22c55e'
-      },
-      {
-        label: 'Nej',
-        data: perUserStats.map(s => s.nej),
-        backgroundColor: '#ef4444'
-      },
-      {
-        label: 'Andet',
-        data: perUserStats.map(s => s.andet),
-        backgroundColor: '#3b82f6'
-      },
-    ]
-  }
-
   return (
     <div className="max-w-md mx-auto px-4 py-8 space-y-6">
       <h1 className="text-2xl font-bold capitalize">📋 Resultat: {quizKey}</h1>
 
       <div className="flex justify-between gap-2 text-sm">
-        <Button onClick={() => setView('results')} variant={view === 'results' ? 'secondary' : 'ghost'}>Resultater</Button>
-        <Button onClick={() => setView('visual')} variant={view === 'visual' ? 'secondary' : 'ghost'}>Visuelt</Button>
-        <Button onClick={() => setView('recommendations')} variant={view === 'recommendations' ? 'secondary' : 'ghost'}>Anbefalinger</Button>
+        <Button
+          onClick={() => setView('results')}
+          variant={view === 'results' ? 'secondary' : 'ghost'}
+        >
+          Resultater
+        </Button>
+        <Button
+          onClick={() => setView('visual')}
+          variant={view === 'visual' ? 'secondary' : 'ghost'}
+        >
+          Visuelt
+        </Button>
+        <Button
+          onClick={() => setView('recommendations')}
+          variant={view === 'recommendations' ? 'secondary' : 'ghost'}
+        >
+          Anbefalinger
+        </Button>
       </div>
 
       {view === 'results' && (
@@ -221,7 +136,7 @@ export default function QuizResultPage() {
             Herunder kan I se, hvor jeres svar er ens eller forskellige – med profil og tydelig farvekode.
           </p>
 
-          {(['green', 'yellow', 'red'] as const).map(level => (
+          {(['green', 'yellow', 'red'] as const).map((level) => (
             <div key={level} className="space-y-2">
               <h2 className="text-lg font-semibold mt-6">
                 {level === 'green' && '✅ Enige'}
@@ -229,12 +144,14 @@ export default function QuizResultPage() {
                 {level === 'red' && '🔴 Store forskelle'}
               </h2>
 
+              {grouped[level].length === 0 && (
+                <p className="text-sm italic text-muted-foreground">Ingen</p>
+              )}
+
               {grouped[level].map((q) => {
-                const related = answers.filter(a => a.question_id === q.id)
+                const related = answers.filter((a) => a.question_id === q.id)
                 return (
                   <Card key={q.id} className="p-4 space-y-2">
-                    {/* <p className="text-sm font-medium mb-2">{q.question}</p> */}
-
                     <div className="grid grid-cols-2 gap-4">
                       {related.map((a) => (
                         <div key={a.user_id} className="flex items-center gap-2">
@@ -248,7 +165,9 @@ export default function QuizResultPage() {
                             <div className="w-6 h-6 rounded-full bg-gray-300" />
                           )}
                           <div className="text-sm">
-                            <div className="font-medium">{profiles[a.user_id]?.display_name || 'Ukendt'}</div>
+                            <div className="font-medium">
+                              {profiles[a.user_id]?.display_name || 'Ukendt'}
+                            </div>
                             <div>{a.answer}</div>
                           </div>
                         </div>
@@ -257,10 +176,6 @@ export default function QuizResultPage() {
                   </Card>
                 )
               })}
-
-              {grouped[level].length === 0 && (
-                <p className="text-sm italic text-muted-foreground">Ingen</p>
-              )}
             </div>
           ))}
 
@@ -273,12 +188,8 @@ export default function QuizResultPage() {
       {view === 'visual' && (
         <div className="space-y-6">
           <div className="w-64 mx-auto">
-            <Doughnut data={chartData} />
-          </div>
-          <div className="text-sm text-center">Antal spørgsmål i hver kategori</div>
-          <div>
-            <h2 className="text-lg font-semibold mt-6 mb-2">Svarfordeling</h2>
-            <Bar data={barData} />
+            {/* Visuelt indhold kan tilføjes her */}
+            <p className="text-center text-muted-foreground">Visuelt indhold kommer her</p>
           </div>
         </div>
       )}
@@ -286,29 +197,8 @@ export default function QuizResultPage() {
       {view === 'recommendations' && (
         <div className="space-y-4 text-sm bg-muted/50 p-4 rounded-xl shadow-inner">
           <h2 className="text-xl font-semibold text-center">📚 Anbefalinger til jer</h2>
-          {loadingRecommendations && (
-            <p className="italic text-muted-foreground text-center">Analyserer jeres svar...</p>
-          )}
-          {recommendationError && (
-            <p className="text-red-600 text-center">{recommendationError}</p>
-          )}
-          {!loadingRecommendations && !recommendationError && (
-            <>
-              {recommendations === null ? (
-                <p className="italic text-muted-foreground text-center">Analyserer jeres svar...</p>
-              ) : recommendations.length === 0 ? (
-                <p className="italic text-muted-foreground text-center">Ingen anbefalinger fundet.</p>
-              ) : (
-                <ul className="space-y-4">
-                  {recommendations.map((r, i) => (
-                    <li key={i} className="bg-white rounded-lg p-4 shadow border-l-4 border-blue-300">
-                      <div className="text-base leading-snug">{r}</div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
-          )}
+          {/* Anbefalinger kan tilføjes her */}
+          <p className="italic text-muted-foreground text-center">Anbefalinger vises her</p>
         </div>
       )}
     </div>

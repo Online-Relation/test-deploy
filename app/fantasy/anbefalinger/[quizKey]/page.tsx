@@ -9,12 +9,12 @@ import { Badge } from "@/components/ui/badge";
 
 type Response = {
   question_id: number;
-  answer: number;
+  answer: string; // Ændret til string for at matche frontend
 };
 
 type Question = {
   id: number;
-  text: string;
+  question: string;
 };
 
 export default function QuizResultPage() {
@@ -27,43 +27,51 @@ export default function QuizResultPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [responses, setResponses] = useState<Response[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"results" | "visual" | "recommendations">("results");
 
   useEffect(() => {
     const loadData = async () => {
       console.log("🔍 quizKey:", quizKey);
       console.log("🔍 sessionId:", sessionId);
 
-      if (!quizKey || !sessionId) {
-        console.error("❌ quizKey eller session mangler");
+      if (!quizKey) {
+        console.error("❌ quizKey mangler");
         return;
       }
 
       setLoading(true);
 
+      // Hent spørgsmål
       const { data: questionData, error: questionError } = await supabase
         .from("quiz_questions")
-        .select("id, text")
+        .select("id, question")
         .eq("quiz_key", quizKey)
         .order("order", { ascending: true });
 
       if (questionError) {
         console.error("❌ Fejl ved hentning af spørgsmål:", questionError.message);
       } else {
-        console.log("✅ Spørgsmål hentet:", questionData);
         setQuestions(questionData || []);
+        console.log("✅ Spørgsmål hentet:", questionData);
       }
 
-      const { data: responseData, error: responseError } = await supabase
+      // Hent svar, filtrer på sessionId hvis til stede
+      let query = supabase
         .from("quiz_responses")
         .select("question_id, answer")
-        .eq("quiz_key", quizKey)
-        .eq("session_id", sessionId);
+        .eq("quiz_key", quizKey);
+
+      if (sessionId) {
+        query = query.eq("session_id", sessionId);
+      }
+
+      const { data: responseData, error: responseError } = await query;
 
       if (responseError) {
         console.error("❌ Fejl ved hentning af svar:", responseError.message);
       } else {
-        console.log("✅ Svar hentet:", responseData);
         setResponses(responseData || []);
+        console.log("✅ Svar hentet:", responseData);
       }
 
       setLoading(false);
@@ -82,14 +90,29 @@ export default function QuizResultPage() {
       <h1 className="text-2xl font-bold">📋 Resultat: {quizKey}</h1>
 
       <div className="flex gap-4 border-b pb-2 text-sm">
-        <span className="font-semibold text-primary">Resultater</span>
-        <span className="text-muted-foreground">Visuelt</span>
-        <span className="text-muted-foreground">Anbefalinger</span>
+        <button
+          className={`font-semibold ${activeTab === "results" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
+          onClick={() => setActiveTab("results")}
+        >
+          Resultater
+        </button>
+        <button
+          className={`font-semibold ${activeTab === "visual" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
+          onClick={() => setActiveTab("visual")}
+        >
+          Visuelt
+        </button>
+        <button
+          className={`font-semibold ${activeTab === "recommendations" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
+          onClick={() => setActiveTab("recommendations")}
+        >
+          Anbefalinger
+        </button>
       </div>
 
-      {loading ? (
-        <p>Indlæser...</p>
-      ) : (
+      {loading && <p>Indlæser...</p>}
+
+      {!loading && activeTab === "results" && (
         <Card className="p-4 space-y-4">
           {questions.length === 0 && (
             <p className="text-sm italic text-muted-foreground">Ingen spørgsmål fundet.</p>
@@ -99,7 +122,7 @@ export default function QuizResultPage() {
             const answer = getAnswer(q.id);
             return (
               <div key={q.id} className="space-y-1">
-                <p className="font-medium">{q.text}</p>
+                <p className="font-medium">{q.question}</p>
                 {answer !== null ? (
                   <Badge variant="default">Svar: {answer}</Badge>
                 ) : (
@@ -109,6 +132,20 @@ export default function QuizResultPage() {
             );
           })}
         </Card>
+      )}
+
+      {!loading && activeTab === "visual" && (
+        <div>
+          {/* Her kan du indsætte den visuelle visning (grafer osv) når klar */}
+          <p className="text-center text-muted-foreground">Visuel visning kommer snart.</p>
+        </div>
+      )}
+
+      {!loading && activeTab === "recommendations" && (
+        <div>
+          {/* Her kan du indsætte anbefalingskomponenten når klar */}
+          <p className="text-center text-muted-foreground">Anbefalinger kommer snart.</p>
+        </div>
       )}
     </div>
   );

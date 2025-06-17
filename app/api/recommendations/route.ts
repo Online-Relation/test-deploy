@@ -1,3 +1,5 @@
+// /app/api/recommendations/route.ts
+
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
 import openai from "@/lib/openaiClient";
@@ -9,18 +11,18 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    console.log("📩 REQUEST BODY:", JSON.stringify(body, null, 2)); // <-- her logger vi request body
+    console.log("📩 REQUEST BODY:", JSON.stringify(body, null, 2));
     testMode = body?.testMode || false;
     quizKey = body?.quizKey || "parquiz";
     groupedQuestions = body?.groupedQuestions || null;
   } catch {
-    // ingen body sendt
+    // no body sent
   }
 
   if (testMode) return NextResponse.json({ ok: true });
 
   try {
-    // 1. Hent aktiverede kilder
+    // 1. Fetch enabled sources (tables)
     const { data: sources, error: sourceError } = await supabase
       .from("recommendation_sources")
       .select("*")
@@ -28,16 +30,7 @@ export async function POST(req: Request) {
 
     if (sourceError || !sources) throw new Error("Failed to load sources");
 
-    // 2. Hent baggrund fra quiz_meta
-    const { data: backgroundMeta } = await supabase
-      .from("quiz_meta")
-      .select("background")
-      .eq("quiz_key", quizKey)
-      .maybeSingle();
-
-    const background = backgroundMeta?.background || "Ingen baggrundsbeskrivelse fundet.";
-
-    // 3. Hent data fra hver tabel
+    // 2. Fetch data from each enabled table
     const rowCounts: Record<string, number> = {};
     const tableData: string[] = [];
 
@@ -62,16 +55,14 @@ export async function POST(req: Request) {
       throw new Error("Ingen datakilder kunne hentes – alle fejlede.");
     }
 
-    // 4. Byg prompt
+    // 3. Build grouped questions section if present
     const groupedSection = groupedQuestions
       ? `🟩 Enige:\n${groupedQuestions.green.map((q: any) => q.question).join("\n")}\n\n🟨 Små forskelle:\n${groupedQuestions.yellow.map((q: any) => q.question).join("\n")}\n\n🟥 Store forskelle:\n${groupedQuestions.red.map((q: any) => q.question).join("\n")}`
       : "";
 
+    // 4. Build full prompt with datapoints count added at the bottom
     const fullPrompt = `
 Du er parterapeut og skal give en personlig anbefaling til et par baseret på deres data.
-
-🧠 Baggrund:
-${background}
 
 ${groupedSection ? `📋 Deres besvarelser fordeler sig sådan:\n${groupedSection}\n` : ''}
 
@@ -79,9 +70,12 @@ ${groupedSection ? `📋 Deres besvarelser fordeler sig sådan:\n${groupedSectio
 ${tableData.join("\n\n")}
 
 Giv nu en personlig, ærlig og omsorgsfuld anbefaling. Brug dataene aktivt i analysen.
+
+---
+Anbefalingen er baseret på ${totalRows} datapoints.
     `.trim();
 
-    // 5. Kald OpenAI
+    // 5. Call OpenAI
     let recommendation = "Ingen anbefaling genereret.";
     try {
       const openaiRes = await openai.chat.completions.create({
@@ -96,7 +90,7 @@ Giv nu en personlig, ærlig og omsorgsfuld anbefaling. Brug dataene aktivt i ana
       throw new Error("OpenAI API fejlede – tjek din nøgle eller prompt.");
     }
 
-    // 6. Gem resultat
+    // 6. Save result in Supabase
     const { error: insertError } = await supabase.from("overall_meta").insert({
       recommendation,
       generated_at: new Date().toISOString(),
@@ -106,6 +100,7 @@ Giv nu en personlig, ærlig og omsorgsfuld anbefaling. Brug dataene aktivt i ana
 
     if (insertError) throw new Error("Fejl ved indsættelse i Supabase: " + insertError.message);
 
+    // 7. Return response
     return NextResponse.json({
       recommendation,
       used_tables: usedTables,
