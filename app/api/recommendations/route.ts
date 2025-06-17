@@ -90,7 +90,7 @@ Giv nu en personlig, ærlig og omsorgsfuld anbefaling. Brug dataene aktivt i ana
         recommendation += `\n\n---\nHentet data fra Supabase`;
       }
     } catch (err: any) {
-      console.error("❌ OpenAI ffejl:", err?.message || err);
+      console.error("❌ OpenAI fejl:", err?.message || err);
       throw new Error("OpenAI API fejlede – tjek din nøgle eller prompt.");
     }
 
