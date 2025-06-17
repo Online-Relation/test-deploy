@@ -17,7 +17,6 @@ export default function BucketTimeline() {
     { id: string; display_name: string; avatar_url: string | null }[]
   >([]);
 
-  // Delmål-form state pr. bucket
   const [subgoalInputs, setSubgoalInputs] = useState<{
     [bucketId: string]: {
       title: string;
@@ -57,10 +56,8 @@ export default function BucketTimeline() {
   if (loading) return <p className="p-4 text-center">Indlæser…</p>;
 
   return (
-    <div className="px-4 py-6">
+    <div className="px-4 py-6 overflow-x-hidden">
       <div className="relative">
-        <div className="absolute left-4 top-0 bottom-0 border-l-2 border-gray-300"></div>
-
         {buckets.map(bucket => {
           const doneCount = bucket.goals.filter(s => s.done).length;
           const progress = bucket.goals.length
@@ -68,27 +65,24 @@ export default function BucketTimeline() {
             : 0;
           const bucketDate = bucket.deadline || bucket.created_at.slice(0, 10);
           const input = {
-  title: subgoalInputs[bucket.id]?.title || '',
-  dueDate: subgoalInputs[bucket.id]?.dueDate || '',
-  owner: subgoalInputs[bucket.id]?.owner || users[0]?.id || '',
-};
-
+            title: subgoalInputs[bucket.id]?.title || '',
+            dueDate: subgoalInputs[bucket.id]?.dueDate || '',
+            owner: subgoalInputs[bucket.id]?.owner || users[0]?.id || '',
+          };
 
           return (
-            <div key={bucket.id} className="mb-8 pl-8 relative">
-              <div className="absolute left-0 top-1 w-3 h-3 bg-purple-600 rounded-full" />
-
-              <div className="bg-white p-4 rounded-lg shadow-sm">
+            <div key={bucket.id} className="mb-8 relative space-y-4 sm:space-y-2 w-full max-w-md mx-auto">
+              <div className="bg-white p-5 rounded-2xl shadow-md border border-gray-100">
                 <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-lg font-semibold truncate">{bucket.title}</h3>
+                  <h3 className="text-lg font-semibold truncate text-violet-700">{bucket.title}</h3>
                   <span className="text-sm text-gray-500">
                     {new Date(bucketDate).toLocaleDateString()}
                   </span>
                 </div>
 
-                <div className="w-full bg-gray-200 h-2 rounded-full mb-4">
+                <div className="w-full bg-gray-200 h-2 rounded-full mb-4 overflow-hidden">
                   <div
-                    className="h-2 rounded-full bg-purple-600"
+                    className="h-2 bg-purple-600 rounded-full transition-all duration-300"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
@@ -142,22 +136,22 @@ export default function BucketTimeline() {
                   ))}
                 </ul>
 
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mt-4">
                   <input
                     type="text"
                     placeholder="Nyt delmål"
-                    className="flex-1 border rounded px-3 py-2"
+                    className="border rounded px-3 py-2 w-full"
                     value={input.title}
                     onChange={e => handleInputChange(bucket.id, 'title', e.target.value)}
                   />
                   <input
                     type="date"
-                    className="border rounded px-3 py-2"
+                    className="border rounded px-3 py-2 w-full"
                     value={input.dueDate}
                     onChange={e => handleInputChange(bucket.id, 'dueDate', e.target.value)}
                   />
                   <select
-                    className="border rounded px-3 py-2"
+                    className="border rounded px-3 py-2 w-full"
                     value={input.owner}
                     onChange={e => handleInputChange(bucket.id, 'owner', e.target.value)}
                   >
@@ -179,7 +173,7 @@ export default function BucketTimeline() {
                         resetInputs(bucket.id);
                       }
                     }}
-                    className="btn btn-primary"
+                    className="btn btn-primary w-full"
                   >
                     Tilføj delmål
                   </button>

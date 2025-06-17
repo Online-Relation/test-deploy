@@ -53,6 +53,7 @@ export default function RewardProgress({
   }, []);
 
   const canRedeem = reward && xp >= reward.required_xp;
+  const progressPercent = reward ? Math.min((xp / reward.required_xp) * 100, 100) : 0;
 
   const handleRedeem = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -80,35 +81,36 @@ export default function RewardProgress({
     large: 'min-h-[400px]',
   }[height] || 'h-auto';
 
-  const textSizeClass = {
-    small: 'text-base',
-    medium: 'text-lg',
-    large: 'text-xl',
-  }[layout] || 'text-base';
-
-  const spacingClass = {
-    small: 'space-y-2',
-    medium: 'space-y-4',
-    large: 'space-y-6',
-  }[layout] || 'space-y-2';
-
   return (
     <Card className={`shadow ${heightClass} flex flex-col justify-center`}>
-      <CardContent className={`p-6 text-center ${spacingClass}`}>
-        <h2 className={`font-bold ${textSizeClass}`}>🎁 Næste gave</h2>
+      <CardContent className="p-6 flex flex-col items-center space-y-4 text-center">
+        <h2 className="text-xl font-extrabold text-purple-600 flex items-center gap-2">
+          🎁 Næste gave
+        </h2>
+
         {reward ? (
           <>
-            <p className="text-base font-semibold">{reward.title}</p>
+            <p className="text-2xl font-semibold text-gray-800">{reward.title}</p>
             <p className="text-sm text-gray-500">Kræver: {reward.required_xp} XP</p>
-            {!canRedeem && (
-              <p className="text-sm text-gray-500 italic">
-                Mangler {reward.required_xp - xp} XP
-              </p>
-            )}
+
+            <div className="w-full bg-gray-200 rounded-full h-4 mt-2 overflow-hidden">
+              <div
+                className="bg-green-500 h-4 transition-all duration-500"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <p className="text-sm italic text-gray-500">
+              {canRedeem ? 'Klar til indløsning!' : `Mangler ${reward.required_xp - xp} XP`}
+            </p>
+
             <button
               onClick={handleRedeem}
               disabled={!canRedeem}
-              className={`px-4 py-2 rounded text-white transition ${canRedeem ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400 cursor-not-allowed'}`}
+              className={`px-5 py-2 rounded-full font-semibold transition shadow ${
+                canRedeem
+                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                  : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+              }`}
             >
               Indløs gave
             </button>

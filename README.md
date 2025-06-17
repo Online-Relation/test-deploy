@@ -1712,3 +1712,32 @@ Teste at OpenAI prompt konstrueres korrekt med alle nødvendige data.
 Sikre at frontend korrekt håndterer og viser anbefalinger, herunder håndtering af tilfælde hvor ingen anbefalinger returneres.
 
 Fortsætte med at forbedre UX omkring visning af anbefalinger, loading, og fejl.
+
+## Opdatering 2025-06-17 ##
+
+
+Implementerede funktioner og forbedringer
+Anbefalingssystem baseret på OpenAI:
+Vi har bygget et dynamisk API, der henter data fra aktive tabeller i recommendation_sources, samler svar fra quizzer og bruger OpenAI GPT-4 til at generere personlige anbefalinger til par baseret på deres svar og øvrige data.
+Anbefalingerne gemmes i tabellen overall_meta for caching, så vi undgår unødvendige API-kald til OpenAI ved gentagne forespørgsler.
+
+Visning af anbefalinger i front-end:
+Vi har opdateret komponenten /app/components/result-component.tsx med faner til visning af resultater, visuelle data og anbefalinger. Anbefalingerne viser nu også en note nederst om, at data er hentet fra Supabase, hvis brugeren er admin (kan fjernes efter ønske).
+
+Overordnet anbefalingsside (/fantasy/anbefalinger/generel):
+Implementeret en lignende OpenAI-baseret anbefalingsfunktion, der henter data og viser den overordnede anbefaling med caching i overall_meta.
+
+Databaseændringer
+Ny kolonne i overall_meta:
+Tilføjet kolonnen quiz_key (tekst) for at kunne identificere anbefalinger per quiz. Dette har fjernet fejl ved forespørgsler, der filtrerede på denne kolonne.
+SQL tilføjet for at opdatere eksisterende rækker med et standard quiz_key
+
+Tabel recommendation_sources:
+Indeholder information om hvilke tabeller der er aktive som datakilder til anbefalingerne. API henter kun data fra tabeller, hvor enabled=true.
+
+Øvrigt
+Miljøvariabler og API-nøgle:
+OpenAI API-nøglen skal være sat som miljøvariabel OPENAI_API_KEY både lokalt i .env.local og i Railway eller anden deployment-platform for at undgå fejl ved kald til OpenAI.
+
+Deployment:
+Tidligere fejl ved deployment er løst ved at fjerne hardcoded API-nøgle fra koden og sikre korrekt miljøvariabel-injektion.

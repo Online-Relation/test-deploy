@@ -1,9 +1,10 @@
 // /app/api/recommendations/route.ts
-console.log("ENV OPENAI_API_KEY:", process.env.OPENAI_API_KEY ? "SET" : "NOT SET");
 
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
 import openai from "@/lib/openaiClient";
+
+console.log("ENV OPENAI_API_KEY:", process.env.OPENAI_API_KEY ? "SET" : "NOT SET");
 
 export async function POST(req: Request) {
   let testMode = false;
@@ -25,6 +26,26 @@ export async function POST(req: Request) {
   if (testMode) return NextResponse.json({ ok: true });
 
   try {
+    // 0. Check for cached recommendation for this quizKey
+    const { data: cached, error: cacheError } = await supabase
+      .from("overall_meta")
+      .select("recommendation, generated_at")
+      .eq("quiz_key", quizKey)
+      .order("generated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (cacheError) {
+      console.error("❌ Fejl ved hentning af cache:", cacheError.message);
+    } else if (cached?.recommendation) {
+      console.log("♻️ Returnerer cached anbefaling");
+      return NextResponse.json({
+        recommendation: cached.recommendation,
+        cached: true,
+        generated_at: cached.generated_at,
+      });
+    }
+
     // 1. Fetch enabled sources (tables)
     const { data: sources, error: sourceError } = await supabase
       .from("recommendation_sources")
@@ -97,6 +118,7 @@ Giv nu en personlig, ærlig og omsorgsfuld anbefaling. Brug dataene aktivt i ana
 
     // 6. Save result in Supabase
     const { error: insertError } = await supabase.from("overall_meta").insert({
+      quiz_key: quizKey,
       recommendation,
       generated_at: new Date().toISOString(),
       table_count: usedTables.length,
@@ -111,6 +133,7 @@ Giv nu en personlig, ærlig og omsorgsfuld anbefaling. Brug dataene aktivt i ana
       used_tables: usedTables,
       row_counts: rowCounts,
       total_rows: totalRows,
+      cached: false,
     });
   } catch (err: any) {
     console.error("❌ RECOMMENDATIONS API ERROR:", JSON.stringify(err, null, 2));

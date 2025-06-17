@@ -40,6 +40,10 @@ export default function XpMeter({
   }[height] || 'h-auto';
 
   const getSizeClass = (layout: string, height: string) => {
+    if (typeof window !== 'undefined' && window.innerWidth < 640) {
+      // Mobil: ekstra stor
+      return 'w-64 h-64'; // 256px
+    }
     if (layout === 'large' && height === 'large') return 'w-[18vw] h-[18vw] max-w-[360px] max-h-[360px]';
     if (layout === 'large') return 'w-[16vw] h-[16vw] max-w-[320px] max-h-[320px]';
     if (layout === 'medium') return 'w-[12vw] h-[12vw] max-w-[260px] max-h-[260px]';
