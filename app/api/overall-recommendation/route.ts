@@ -89,7 +89,7 @@ Giv nu en personlig, ærlig og omsorgsfuld anbefaling. Brug dataene aktivt i ana
     let recommendation = "Ingen anbefaling genereret.";
     try {
       const openaiRes = await openai.chat.completions.create({
-        model: "gpt-4",
+        model: "gpt-3.5-turbo",
         messages: [{ role: "user", content: fullPrompt }],
         temperature: 0.7,
       });

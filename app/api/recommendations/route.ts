@@ -1,10 +1,10 @@
 // /app/api/recommendations/route.ts
-
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
 import openai from "@/lib/openaiClient";
 
 console.log("ENV OPENAI_API_KEY:", process.env.OPENAI_API_KEY ? "SET" : "NOT SET");
+console.log("🔐 Active API Key:", process.env.OPENAI_API_KEY);
 
 export async function POST(req: Request) {
   let testMode = false;
@@ -26,7 +26,6 @@ export async function POST(req: Request) {
   if (testMode) return NextResponse.json({ ok: true });
 
   try {
-    // 0. Check for cached recommendation for this quizKey
     const { data: cached, error: cacheError } = await supabase
       .from("overall_meta")
       .select("recommendation, generated_at")
@@ -46,7 +45,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // 1. Fetch enabled sources (tables)
     const { data: sources, error: sourceError } = await supabase
       .from("recommendation_sources")
       .select("*")
@@ -54,7 +52,6 @@ export async function POST(req: Request) {
 
     if (sourceError || !sources) throw new Error("Failed to load sources");
 
-    // 2. Fetch data from each enabled table
     const rowCounts: Record<string, number> = {};
     const tableData: string[] = [];
 
@@ -79,12 +76,10 @@ export async function POST(req: Request) {
       throw new Error("Ingen datakilder kunne hentes – alle fejlede.");
     }
 
-    // 3. Build grouped questions section if present
     const groupedSection = groupedQuestions
       ? `🟩 Enige:\n${groupedQuestions.green.map((q: any) => q.question).join("\n")}\n\n🟨 Små forskelle:\n${groupedQuestions.yellow.map((q: any) => q.question).join("\n")}\n\n🟥 Store forskelle:\n${groupedQuestions.red.map((q: any) => q.question).join("\n")}`
       : "";
 
-    // 4. Build full prompt with datapoints count added at the bottom
     let fullPrompt = `
 Du er parterapeut og skal give en personlig anbefaling til et par baseret på deres data.
 
@@ -96,27 +91,27 @@ ${tableData.join("\n\n")}
 Giv nu en personlig, ærlig og omsorgsfuld anbefaling. Brug dataene aktivt i analysen.
     `.trim();
 
-    // 5. Call OpenAI
+    console.log("🔐 Sender prompt til OpenAI med længde:", fullPrompt.length);
+
     let recommendation = "Ingen anbefaling genereret.";
     try {
       const openaiRes = await openai.chat.completions.create({
-        model: "gpt-4",
+        model: "gpt-3.5-turbo",
         messages: [{ role: "user", content: fullPrompt }],
         temperature: 0.7,
       });
 
       recommendation = openaiRes.choices[0]?.message?.content || recommendation;
 
-      // Add admin notice
       if (isAdmin) {
         recommendation += `\n\n---\nHentet data fra Supabase`;
       }
     } catch (err: any) {
       console.error("❌ OpenAI fejl:", err?.message || err);
+      console.error("🔧 Full error:", JSON.stringify(err, null, 2));
       throw new Error("OpenAI API fejlede – tjek din nøgle eller prompt.");
     }
 
-    // 6. Save result in Supabase
     const { error: insertError } = await supabase.from("overall_meta").insert({
       quiz_key: quizKey,
       recommendation,
@@ -127,7 +122,6 @@ Giv nu en personlig, ærlig og omsorgsfuld anbefaling. Brug dataene aktivt i ana
 
     if (insertError) throw new Error("Fejl ved indsættelse i Supabase: " + insertError.message);
 
-    // 7. Return response
     return NextResponse.json({
       recommendation,
       used_tables: usedTables,
