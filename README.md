@@ -1766,3 +1766,69 @@ Ved gentagen navigation til en quizresultatside – fx fra sidemenu og tilbage �
 
 **Status:**
 Bug er delvist afhjulpet – anbefaling hentes igen korrekt i de fleste tilfælde, men fuld robusthed kræver yderligere forbedringer i afhængighedslogik og dataflyt.
+
+✅ Opdatering – 2025-06-18
+Personlighedsmodul på profilsiden
+🎨 Funktionel ændring:
+
+Der er tilføjet en ny sektion/fane på /app/profile/page.tsx med navnet Personlighed.
+
+Sektionen giver brugeren mulighed for at:
+
+Trække fire farver i rækkefølge, som afspejler deres personlighed (baseret på DISC-lignende model):
+
+🔴 Rød – handlekraftig
+
+🟡 Gul – kreativ
+
+🟢 Grøn – omsorgsfuld
+
+🔵 Blå – analytisk
+
+Hver farve tildeles en prioritet fra 1 til 4, som gemmes i databasen.
+
+Skrive en personlig beskrivelse i en textarea.
+
+Indtaste fem frie nøgleord om sig selv.
+
+🧠 Teknisk implementering:
+
+DnD (drag-and-drop) håndtering implementeret med @dnd-kit/core og @dnd-kit/sortable.
+
+Hook-ordensfejl blev løst ved at flytte useSensors uden for render-flowet.
+
+Farvernes rækkefølge gemmes ved hjælp af arrayMove, og prioritet udregnes via deres index-position.
+
+Alle data lagres i Supabase gennem eksisterende handleSaveSizes() funktion.
+
+💾 Databaseændring (Supabase):
+Følgende nye kolonner er tilføjet til profiles-tabellen:
+
+sql
+Kopiér
+Rediger
+ALTER TABLE profiles
+ADD COLUMN red text,
+ADD COLUMN yellow text,
+ADD COLUMN green text,
+ADD COLUMN blue text,
+ADD COLUMN personality_description text,
+ADD COLUMN keyword_1 text,
+ADD COLUMN keyword_2 text,
+ADD COLUMN keyword_3 text,
+ADD COLUMN keyword_4 text,
+ADD COLUMN keyword_5 text;
+📂 Datahåndtering:
+
+Når brugeren gemmer sin profil, bliver farveprioriteter og personlighedsdata inkluderet i dataToSave og opdateret med supabase.from('profiles').update(...).
+
+Felterne vises og redigeres i komponenten via state-objektet sizes.
+
+👤 UI / UX:
+
+Fanen vises på profilsiden sammen med eksisterende faner (tøjstørrelser, ønsker, etc.).
+
+Designet følger det visuelle system med kort, afrundede bokse og bløde skygger.
+
+Fuldt mobiloptimeret.
+

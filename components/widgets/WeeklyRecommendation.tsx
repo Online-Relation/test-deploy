@@ -111,8 +111,8 @@ export default function WeeklyRecommendation() {
 
   const heading =
     user.role === 'mads'
-      ? '❤️ Ugens parforholds-anbefaling til Mads'
-      : '❤️ Ugens parforholds-anbefaling til Stine';
+      ? '❤️ Ugens parforholds-anbefaling til Stine'
+      : '❤️ Ugens parforholds-anbefaling til Mads';
 
   return (
     <div className="bg-white rounded-2xl shadow p-4 space-y-3">

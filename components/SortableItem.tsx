@@ -1,10 +1,17 @@
+// /components/SortableItem.tsx
 'use client';
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, X } from 'lucide-react';
 
-export function SortableItem({ id, onDelete }: { id: string; onDelete: () => void }) {
+interface Props {
+  id: string;
+  onDelete?: () => void;
+  label?: string;
+}
+
+export function SortableItem({ id, onDelete, label }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
 
   const style = {
@@ -25,11 +32,13 @@ export function SortableItem({ id, onDelete }: { id: string; onDelete: () => voi
           {...attributes}
           {...listeners}
         />
-        <span className="text-sm">{id}</span>
+        <span className="text-sm">{label || id}</span>
       </div>
-      <button onClick={onDelete} className="text-violet-500 hover:text-red-500 transition-colors">
-        <X size={16} />
-      </button>
+      {onDelete && (
+        <button onClick={onDelete} className="text-violet-500 hover:text-red-500 transition-colors">
+          <X size={16} />
+        </button>
+      )}
     </li>
   );
 }

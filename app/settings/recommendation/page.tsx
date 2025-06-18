@@ -12,28 +12,34 @@ export default function RecommendationSettingsPage() {
   const [tables, setTables] = useState<string[]>([]);
   const [selectedTables, setSelectedTables] = useState<string[]>([]);
   const [tone, setTone] = useState('');
+  const [excludeWords, setExcludeWords] = useState('');
   const [status, setStatus] = useState('');
   const [hiddenTables, setHiddenTables] = useState<string[]>([]);
 
   useEffect(() => {
-    const fetchInitial = async () => {
-      const { data: usersData } = await supabase.from('profiles').select('id, display_name');
-      const formatted = (usersData || []).map((u: any) => ({ id: u.id, name: u.display_name || 'Ukendt' }));
+    const fetchUsers = async () => {
+      const { data, error } = await supabase.from('profiles').select('id, display_name');
+      if (error) return console.error('Fejl ved hentning af brugere:', error.message);
+      const formatted = data.map((u: any) => ({ id: u.id, name: u.display_name || 'Ukendt' }));
       setUsers(formatted);
-
-      const { data: tableList } = await supabase.rpc('list_tables');
-      const storedHidden = JSON.parse(localStorage.getItem('hiddenTables') || '[]');
-      setHiddenTables(storedHidden);
-      setTables(tableList || []);
     };
 
-    fetchInitial();
+    const fetchTables = async () => {
+      const { data, error } = await supabase.rpc('list_tables');
+      if (error) return console.error('Fejl ved hentning af tabeller:', error.message);
+      const storedHidden = JSON.parse(localStorage.getItem('hiddenTables') || '[]');
+      setHiddenTables(storedHidden);
+      setTables(data);
+    };
+
+    fetchUsers();
+    fetchTables();
   }, []);
 
   useEffect(() => {
-    if (!selectedUser) return;
+    if (!selectedUser || !widgetKey) return;
 
-    const fetchUserConfig = async () => {
+    const fetchConfig = async () => {
       const { data, error } = await supabase
         .from('widget_config')
         .select('config')
@@ -41,22 +47,30 @@ export default function RecommendationSettingsPage() {
         .eq('widget_key', widgetKey)
         .maybeSingle();
 
-      if (!error && data?.config) {
+      if (error) {
+        console.error('Fejl ved hentning af eksisterende config:', error.message);
+        return;
+      }
+
+      if (data?.config) {
         setSelectedTables(data.config.tables || []);
         setTone(data.config.tone || '');
+        setExcludeWords((data.config.excludeWords || []).join(', '));
       }
     };
 
-    fetchUserConfig();
+    fetchConfig();
   }, [selectedUser, widgetKey]);
 
   const handleSave = async () => {
     if (!selectedUser || !widgetKey) return;
 
+    const forPartner = selectedUser === 'mads' ? 'stine' : 'mads';
     const config = {
-      for_partner: selectedUser === 'mads' ? 'stine' : 'mads',
+      for_partner: forPartner,
       tables: selectedTables,
       tone,
+      excludeWords: excludeWords.split(',').map(w => w.trim()),
     };
 
     const { error } = await supabase
@@ -66,11 +80,18 @@ export default function RecommendationSettingsPage() {
           user_id: selectedUser,
           widget_key: widgetKey,
           config,
+          for_partner: forPartner,
+          selected_tables: selectedTables,
         },
         { onConflict: 'user_id,widget_key' }
       );
 
-    setStatus(error ? '❌ Kunne ikke gemme' : '✅ Gemt!');
+    if (error) {
+      console.error('Fejl ved gem:', error.message);
+      setStatus('❌ Kunne ikke gemme');
+    } else {
+      setStatus('✅ Gemt!');
+    }
   };
 
   const handleTableToggle = (table: string) => {
@@ -159,6 +180,17 @@ export default function RecommendationSettingsPage() {
             onChange={e => setTone(e.target.value)}
             className="w-full border rounded px-3 py-2"
             placeholder="f.eks. kærlig og initiativrig"
+          />
+        </div>
+
+        <div>
+          <label className="block mb-1 font-medium">Ekskluder ord (komma-separeret)</label>
+          <input
+            type="text"
+            value={excludeWords}
+            onChange={e => setExcludeWords(e.target.value)}
+            className="w-full border rounded px-3 py-2"
+            placeholder="f.eks. fjernsyn, biograf"
           />
         </div>
 
