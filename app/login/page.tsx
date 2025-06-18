@@ -31,7 +31,7 @@ export default function LoginPage() {
             Din rejse mod et sjovere og mere nærværende parforhold starter her.
           </p>
           <Image
-            src="/motivating-illustration.svg"
+            src="/motivating-illustration.webp"
             alt="Par illustration"
             width={220}
             height={220}
