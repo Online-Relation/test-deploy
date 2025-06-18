@@ -1,4 +1,5 @@
-// /app/quiz/resultater/[quizKey]/page.tsx
+// /app/fantasy/anbefalinger/page.tsx
+
 "use client";
 
 import { useSearchParams, useParams } from "next/navigation";
@@ -6,16 +7,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import QuizResultComponent from "@/app/quiz/resultater/[quizKey]/result-component";
 
-type Response = {
-  question_id: number;
-  answer: string; // Ændret til string for at matche frontend
-};
-
-type Question = {
-  id: number;
-  question: string;
-};
 
 export default function QuizResultPage() {
   const { quizKey: rawKey } = useParams();
@@ -24,128 +17,90 @@ export default function QuizResultPage() {
 
   const quizKey = decodeURIComponent(rawKey as string);
 
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [responses, setResponses] = useState<Response[]>([]);
+  const [grouped, setGrouped] = useState<any>(null);
+  const [recommendation, setRecommendation] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"results" | "visual" | "recommendations">("results");
+  const [activeTab, setActiveTab] = useState<"results" | "compare" | "recommendation">("results");
 
-  useEffect(() => {
-    const loadData = async () => {
-      console.log("🔍 quizKey:", quizKey);
-      console.log("🔍 sessionId:", sessionId);
+useEffect(() => {
+  const fetchData = async () => {
+    const { data, error } = await supabase
+      .from("overall_meta")
+      .select("recommendation, grouped")
+      .eq("quiz_key", quizKey)
+      .order("generated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-      if (!quizKey) {
-        console.error("❌ quizKey mangler");
-        return;
-      }
+    if (error) {
+      console.error("Fejl ved hentning:", error.message);
+    } else {
+      setRecommendation(data?.recommendation ?? null);
+      setGrouped(data?.grouped ?? null); // 👈 tilføjet
+    }
 
-      setLoading(true);
-
-      // Hent spørgsmål
-      const { data: questionData, error: questionError } = await supabase
-        .from("quiz_questions")
-        .select("id, question")
-        .eq("quiz_key", quizKey)
-        .order("order", { ascending: true });
-
-      if (questionError) {
-        console.error("❌ Fejl ved hentning af spørgsmål:", questionError.message);
-      } else {
-        setQuestions(questionData || []);
-        console.log("✅ Spørgsmål hentet:", questionData);
-      }
-
-      // Hent svar, filtrer på sessionId hvis til stede
-      let query = supabase
-        .from("quiz_responses")
-        .select("question_id, answer")
-        .eq("quiz_key", quizKey);
-
-      if (sessionId) {
-        query = query.eq("session_id", sessionId);
-      }
-
-      const { data: responseData, error: responseError } = await query;
-
-      if (responseError) {
-        console.error("❌ Fejl ved hentning af svar:", responseError.message);
-      } else {
-        setResponses(responseData || []);
-        console.log("✅ Svar hentet:", responseData);
-      }
-
-      setLoading(false);
-    };
-
-    loadData();
-  }, [quizKey, sessionId]);
-
-  const getAnswer = (questionId: number) => {
-    const found = responses.find((r) => r.question_id === questionId);
-    return found?.answer ?? null;
+    setLoading(false);
   };
 
+  fetchData();
+}, [quizKey]);
+
+
+
+  const tabs = [
+    { key: "results", label: "Resultater" },
+    { key: "compare", label: "Sammenligning" },
+    { key: "recommendation", label: "Anbefaling" },
+  ];
+
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <h1 className="text-2xl font-bold">📋 Resultat: {quizKey}</h1>
+    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      <h1 className="text-2xl font-bold">📋 Quizresultat</h1>
 
       <div className="flex gap-4 border-b pb-2 text-sm">
-        <button
-          className={`font-semibold ${activeTab === "results" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
-          onClick={() => setActiveTab("results")}
-        >
-          Resultater
-        </button>
-        <button
-          className={`font-semibold ${activeTab === "visual" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
-          onClick={() => setActiveTab("visual")}
-        >
-          Visuelt
-        </button>
-        <button
-          className={`font-semibold ${activeTab === "recommendations" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
-          onClick={() => setActiveTab("recommendations")}
-        >
-          Anbefalinger
-        </button>
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            className={`font-semibold ${
+              activeTab === tab.key
+                ? "text-primary border-b-2 border-primary"
+                : "text-muted-foreground"
+            }`}
+            onClick={() => setActiveTab(tab.key as any)}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {loading && <p>Indlæser...</p>}
+      {loading && <p className="text-muted-foreground text-sm">Indlæser data...</p>}
 
-      {!loading && activeTab === "results" && (
-        <Card className="p-4 space-y-4">
-          {questions.length === 0 && (
-            <p className="text-sm italic text-muted-foreground">Ingen spørgsmål fundet.</p>
+      {!loading && grouped && (
+        <>
+          {activeTab === "results" && (
+            <QuizResultComponent grouped={grouped} />
           )}
 
-          {questions.map((q) => {
-            const answer = getAnswer(q.id);
-            return (
-              <div key={q.id} className="space-y-1">
-                <p className="font-medium">{q.question}</p>
-                {answer !== null ? (
-                  <Badge variant="default">Svar: {answer}</Badge>
-                ) : (
-                  <p className="text-sm italic text-muted-foreground">Intet svar</p>
-                )}
-              </div>
-            );
-          })}
-        </Card>
+          {activeTab === "compare" && (
+            <Card className="p-4 space-y-4">
+              <p className="text-sm text-muted-foreground">Visualisering af enighed/uenighed</p>
+              <QuizResultComponent grouped={grouped} showGraphsOnly />
+            </Card>
+          )}
+
+          {activeTab === "recommendation" && (
+            <Card className="p-4 space-y-4">
+              <p className="text-sm text-muted-foreground">Anbefaling fra GPT</p>
+              <p className="whitespace-pre-line text-sm">{recommendation}</p>
+            </Card>
+          )}
+        </>
       )}
 
-      {!loading && activeTab === "visual" && (
-        <div>
-          {/* Her kan du indsætte den visuelle visning (grafer osv) når klar */}
-          <p className="text-center text-muted-foreground">Visuel visning kommer snart.</p>
-        </div>
-      )}
-
-      {!loading && activeTab === "recommendations" && (
-        <div>
-          {/* Her kan du indsætte anbefalingskomponenten når klar */}
-          <p className="text-center text-muted-foreground">Anbefalinger kommer snart.</p>
-        </div>
+      {!loading && !grouped && (
+        <p className="text-muted-foreground text-sm italic">
+          Ingen analyseret data fundet endnu for denne quiz.
+        </p>
       )}
     </div>
   );

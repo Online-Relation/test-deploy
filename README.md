@@ -1832,3 +1832,68 @@ Designet følger det visuelle system med kort, afrundede bokse og bløde skygger
 
 Fuldt mobiloptimeret.
 
+## README-opdatering – 2025-06-19
+
+### 🔄 Overblik over ændringer i denne session
+
+#### 🧠 GPT Anbefalingssystem: 
+Vi har arbejdet massivt på at gøre GPT-anbefalinger mere effektive, gennemsigtige og konfigurerbare:
+
+#### 🧾 Nye database-tabeller
+- `gpt_log`: Logger alle GPT-kald med prompt preview, model, tokenforbrug og tidspunkt.
+- `recommendation_sources`: Indeholder prioriterede datakilder med beskrivelse og aktivering ("enabled").
+- `widget_config`: Brugerkonfiguration af GPT-widgets (tonalitet, valgte tabeller, udeladelsesord).
+
+#### 📁 Nye og opdaterede filer
+- **`/lib/gptHelper.ts`**
+  - Tilføjet `generateGptRecommendation` med logging til `gpt_log`.
+  - Tilføjet `getTokensForText` til estimering af tokenforbrug.
+
+- **`/lib/generateWeeklyRecommendation.ts`**
+  - Omskrevet til at bruge `getTokensForText` og stoppe ved 12000 tokens.
+  - Logger alle GPT-kald.
+
+- **API routes oprettet og/eller opdateret:**
+  - `/api/weekly-recommendation`
+  - `/api/generate-recommendation`
+  - `/api/overall-recommendation`
+  - Alle anvender `generateGptRecommendation` og logger til `gpt_log`
+
+- **Frontend-side oprettet:**
+  - `/settings/gpt/api/page.tsx`
+    - Viser seneste 50 GPT-kald fra `gpt_log` med model, tidspunkt og tokenforbrug.
+
+- **Sidebar-opdatering:**
+  - Tilføjet korrekt undermenu for `Indstillinger > Gpt > API kald`.
+  - Fejl i visning og tilstandsstyring er blevet debugget og rettet.
+
+#### ⚠️ Aktuelle problemer (skal løses i næste session)
+1. **`/api/overall-recommendation` fejler med `Manglende data`**
+   - Fejlhåndtering i route skjuler reelt input; `groupedQuestions` bliver `null`.
+
+2. **`gpt_log` er tom efter kald**
+   - Fordi ruten ikke når frem til GPT-kaldet pga. valideringsfejl.
+
+3. **Side `/settings/gpt/api`**
+   - Fungerer, men virker tom fordi der endnu ikke er loggede data.
+
+4. **Manglende initial `getTokensForText` eksport**
+   - Blev tilføjet og integreret efter fejl i import.
+
+5. **Tokenbegrænsning fungerer men kræver bedre feedback**
+   - Det er svært at se hvor tokens bruges – mulig forbedring: visualisering per tabel.
+
+6. **Sidebar state håndtering har været ustabil**
+   - Vi har forsøgt at refaktorere for at gøre det mere vedligeholdbart, men det blev for omfattende – næste session bør overveje at vende tilbage til enkel if-baseret state.
+
+---
+
+### 📝 Næste skridt
+- Få `overall-recommendation` til at virke (rettelse af JSON-parse blok).
+- Bekræft at data bliver logget i `gpt_log`.
+- Implementer en visuel indikator på hvor tokens bliver brugt (pr. tabel).
+- Optimér Sidebar hvis det stadig giver ustabil visning af undermenuer.
+
+---
+
+Alt ovenstående er dokumenteret i denne README-opdatering. Næste GPT-session kan arbejde videre direkte herfra uden tab af kontekst.

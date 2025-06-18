@@ -11,6 +11,7 @@ export default function RecommendationSettingsPage() {
   const [widgetKey, setWidgetKey] = useState('weekly_recommendation');
   const [tables, setTables] = useState<string[]>([]);
   const [selectedTables, setSelectedTables] = useState<string[]>([]);
+  const [otherSelectedTables, setOtherSelectedTables] = useState<string[]>([]);
   const [tone, setTone] = useState('');
   const [excludeWords, setExcludeWords] = useState('');
   const [status, setStatus] = useState('');
@@ -42,20 +43,27 @@ export default function RecommendationSettingsPage() {
     const fetchConfig = async () => {
       const { data, error } = await supabase
         .from('widget_config')
-        .select('config')
-        .eq('user_id', selectedUser)
-        .eq('widget_key', widgetKey)
-        .maybeSingle();
+        .select('user_id, config')
+        .eq('widget_key', widgetKey);
 
       if (error) {
-        console.error('Fejl ved hentning af eksisterende config:', error.message);
+        console.error('Fejl ved hentning af config:', error.message);
         return;
       }
 
-      if (data?.config) {
-        setSelectedTables(data.config.tables || []);
-        setTone(data.config.tone || '');
-        setExcludeWords((data.config.excludeWords || []).join(', '));
+      const current = data.find((item: any) => item.user_id === selectedUser);
+      const other = data.find((item: any) => item.user_id !== selectedUser);
+
+      if (current?.config) {
+        setSelectedTables(current.config.tables || []);
+        setTone(current.config.tone || '');
+        setExcludeWords((current.config.excludeWords || []).join(', '));
+      }
+
+      if (other?.config) {
+        setOtherSelectedTables(other.config.tables || []);
+      } else {
+        setOtherSelectedTables([]);
       }
     };
 
@@ -148,19 +156,29 @@ export default function RecommendationSettingsPage() {
         <div>
           <label className="block mb-1 font-medium">Inkluder tabeller</label>
           <div className="grid grid-cols-2 gap-2">
-            {visibleTables.map(table => (
-              <div key={table} className="flex items-center justify-between text-sm">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={selectedTables.includes(table)}
-                    onChange={() => handleTableToggle(table)}
-                  />
-                  {table}
-                </label>
-                <button onClick={() => handleHideTable(table)} className="text-red-500 text-xs">❌</button>
-              </div>
-            ))}
+            {visibleTables.map(table => {
+              const isCurrent = selectedTables.includes(table);
+              const isOther = otherSelectedTables.includes(table);
+              const isMatch = isCurrent && isOther;
+              const isMismatch = isCurrent !== isOther;
+
+              return (
+                <div
+                  key={table}
+                  className={`flex items-center justify-between text-sm rounded px-2 py-1 ${isMatch ? 'bg-green-100' : isMismatch ? 'bg-red-100' : ''}`}
+                >
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={isCurrent}
+                      onChange={() => handleTableToggle(table)}
+                    />
+                    {table}
+                  </label>
+                  <button onClick={() => handleHideTable(table)} className="text-red-500 text-xs">❌</button>
+                </div>
+              );
+            })}
           </div>
           {hiddenTables.length > 0 && (
             <button

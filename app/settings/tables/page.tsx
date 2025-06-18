@@ -1,3 +1,5 @@
+// /app/settings/tables/page.tsx
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -8,12 +10,25 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import GptStatus from "@/components/GptStatus";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Source = {
   table_name: string;
   enabled: boolean;
   description: string | null;
+  priority?: number;
 };
+
+const GPT_MODELS = [
+  { value: "gpt-3.5-turbo", label: "GPT-3.5" },
+  { value: "gpt-4", label: "GPT-4" },
+];
 
 export default function TableSettingsPage() {
   const [sources, setSources] = useState<Source[]>([]);
@@ -21,23 +36,52 @@ export default function TableSettingsPage() {
   const [savingIndex, setSavingIndex] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [rowCounts, setRowCounts] = useState<Record<string, number>>({});
+  const [latestRowCounts, setLatestRowCounts] = useState<Record<string, number>>({});
   const [newSource, setNewSource] = useState<Source>({
     table_name: "",
     enabled: true,
     description: "",
+    priority: 5,
   });
   const [confirmations, setConfirmations] = useState<Record<string, boolean>>({});
+  const [selectedModel, setSelectedModel] = useState("gpt-3.5-turbo");
 
   useEffect(() => {
     fetchSources();
+    fetchLatestRowCounts();
+    fetchSelectedModel();
   }, []);
+
+  const fetchSelectedModel = async () => {
+    const { data } = await supabase
+      .from("gpt_settings")
+      .select("value")
+      .eq("key", "default_model")
+      .maybeSingle();
+
+    if (data?.value) {
+      setSelectedModel(data.value);
+    }
+  };
+
+  const updateSelectedModel = async (value: string) => {
+    setSelectedModel(value);
+
+    const { error } = await supabase
+      .from("gpt_settings")
+      .upsert({ key: "default_model", value }, { onConflict: "key" });
+
+    if (!error) {
+      alert("🧠 GPT-model opdateret til: " + value);
+    }
+  };
 
   const fetchSources = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("recommendation_sources")
       .select("*")
-      .order("table_name");
+      .order("priority", { ascending: true });
 
     if (error) {
       console.error("❌ Fejl ved hentning:", error.message);
@@ -48,6 +92,19 @@ export default function TableSettingsPage() {
     }
 
     setLoading(false);
+  };
+
+  const fetchLatestRowCounts = async () => {
+    const { data } = await supabase
+      .from("overall_meta")
+      .select("row_counts")
+      .order("generated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (data?.row_counts) {
+      setLatestRowCounts(data.row_counts);
+    }
   };
 
   const fetchCounts = async (sourceList: Source[]) => {
@@ -90,6 +147,7 @@ export default function TableSettingsPage() {
         table_name: source.table_name,
         enabled: source.enabled,
         description: source.description ?? "",
+        priority: source.priority ?? 5,
       },
       { onConflict: "table_name" }
     );
@@ -109,6 +167,11 @@ export default function TableSettingsPage() {
           [source.table_name]: false,
         }));
       }, 2000);
+
+      // sortér efter ny prioritet
+      setSources((prev) =>
+        [...prev].sort((a, b) => (a.priority ?? 99) - (b.priority ?? 99))
+      );
     }
 
     setSavingIndex(null);
@@ -129,7 +192,7 @@ export default function TableSettingsPage() {
       setErrorMsg("Kunne ikke tilføje tabellen.");
     } else {
       setErrorMsg(null);
-      setNewSource({ table_name: "", enabled: true, description: "" });
+      setNewSource({ table_name: "", enabled: true, description: "", priority: 5 });
       await fetchSources();
     }
   };
@@ -137,6 +200,24 @@ export default function TableSettingsPage() {
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-6">
       <h1 className="text-xl font-bold">Anbefalingstabeller</h1>
+
+      <div className="flex items-center space-x-4">
+        <Label>GPT-model</Label>
+        <Select value={selectedModel} onValueChange={updateSelectedModel}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Vælg model" />
+          </SelectTrigger>
+          <SelectContent>
+            {GPT_MODELS.map((model) => (
+              <SelectItem key={model.value} value={model.value}>
+                {model.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <GptStatus model={selectedModel} />
+      </div>
 
       {errorMsg && (
         <div className="p-2 text-sm text-red-700 border border-red-300 bg-red-100 rounded">
@@ -169,13 +250,34 @@ export default function TableSettingsPage() {
                 placeholder="Forklar hvad GPT skal analysere i denne tabel"
               />
 
+              <div className="mt-2">
+                <Label>Prioritet (1 = vigtigst)</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={source.priority ?? 5}
+                  onChange={(e) => {
+                    const updated = [...sources];
+                    updated[index].priority = parseInt(e.target.value);
+                    setSources(updated);
+                  }}
+                />
+              </div>
+
               {confirmations[source.table_name] && (
                 <p className="text-xs text-green-600 mt-1">✅ Opdateret</p>
               )}
 
               {rowCounts[source.table_name] !== undefined && (
                 <p className="text-xs text-muted-foreground mt-2">
-                  Denne tabel indeholder {rowCounts[source.table_name]} datapunkter.
+                  Aktuelle rækker i Supabase: {rowCounts[source.table_name]}
+                </p>
+              )}
+
+              {latestRowCounts[source.table_name] !== undefined && (
+                <p className="text-xs text-blue-600">
+                  Brugte rækker i seneste anbefaling: {latestRowCounts[source.table_name]}
                 </p>
               )}
             </div>
@@ -237,8 +339,6 @@ export default function TableSettingsPage() {
           <Button onClick={handleAddSource}>Tilføj tabel</Button>
         </div>
       </Card>
-
-      <GptStatus />
     </div>
   );
 }

@@ -1,56 +1,45 @@
 // /components/GptStatus.tsx
 
-"use client"
+import { useEffect, useState } from "react";
 
-import { useEffect, useState } from "react"
-import { supabase } from "@/lib/supabaseClient"
+interface Props {
+  model: string;
+}
 
-export default function GptStatus() {
-  const [status, setStatus] = useState<"loading" | "ok" | "error">("loading")
-  const [isAdmin, setIsAdmin] = useState(false)
+export default function GptStatus({ model }: Props) {
+  const [status, setStatus] = useState<"ok" | "error" | "loading">("loading");
 
   useEffect(() => {
-    const checkStatus = async () => {
-      // Hent brugerrolle
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      const userId = session?.user?.id
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", userId)
-        .single()
-
-      if (profile?.role === "mads") {
-        setIsAdmin(true)
-
-        // Lav test-kald til GPT API-route
-        const res = await fetch("/api/overall-recommendation", {
+    const check = async () => {
+      try {
+        const res = await fetch("/api/gpt-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ testMode: true }),
-        })
+          body: JSON.stringify({ model }),
+        });
 
-        if (res.ok) {
-          setStatus("ok")
-        } else {
-          setStatus("error")
-        }
+        const data = await res.json();
+        if (res.ok && data?.ok) setStatus("ok");
+        else setStatus("error");
+      } catch {
+        setStatus("error");
       }
-    }
+    };
 
-    checkStatus()
-  }, [])
+    check();
+  }, [model]);
 
-  if (!isAdmin) return null
+  if (status === "loading") return null;
 
   return (
-    <div className="text-sm text-gray-600 mt-4">
-      {status === "loading" && "Tjekker GPT-forbindelse..."}
-      {status === "ok" && <span className="text-green-600">✅ GPT er forbundet og klar</span>}
-      {status === "error" && <span className="text-red-600">❌ GPT-forbindelse fejlede – tjek API eller Supabase-data</span>}
+    <div
+      className={`text-sm px-3 py-2 rounded shadow w-fit ${
+        status === "ok" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+      }`}
+    >
+      {status === "ok"
+        ? `GPT-${model.includes("4") ? "4" : "3.5"} er forbundet og klar`
+        : "GPT kunne ikke tilgås"}
     </div>
-  )
+  );
 }

@@ -25,9 +25,12 @@ export default function GenerelAnbefalingPage() {
       .order("generated_at", { ascending: false })
       .limit(2);
 
-    if (data) {
+    if (data && data.length > 0) {
       setLatest(data[0] ?? null);
       setPrevious(data[1] ?? null);
+    } else {
+      setLatest(null);
+      setPrevious(null);
     }
   };
 
@@ -45,29 +48,12 @@ export default function GenerelAnbefalingPage() {
   const renderDataComparison = () => {
     if (!latest || latest.table_count == null || latest.row_count == null) return null;
 
-    const nowTables = latest.table_count;
-    const nowRows = latest.row_count;
-
-    const prevTables = previous?.table_count ?? null;
-    const prevRows = previous?.row_count ?? null;
-
-    const tableDiff = prevTables !== null ? nowTables - prevTables : null;
-    const rowDiff = prevRows !== null ? nowRows - prevRows : null;
-
     return (
-      <Card className="p-4 bg-blue-50 border border-blue-200 text-sm text-gray-700 space-y-1">
+      <Card className="p-4 bg-blue-50 border border-blue-200 text-sm text-gray-700">
         <p>
-          Denne anbefaling er baseret på <strong>{nowTables}</strong> tabeller og{" "}
-          <strong>{nowRows}</strong> datapunkter.
+          Denne anbefaling er baseret på <strong>{latest.table_count}</strong> tabeller og{" "}
+          <strong>{latest.row_count}</strong> datapunkter.
         </p>
-
-        {tableDiff !== null && rowDiff !== null && (
-          <p>
-            Siden sidste gang er der tilføjet{" "}
-            <strong>{tableDiff >= 0 ? "+" + tableDiff : tableDiff}</strong> tabeller og{" "}
-            <strong>{rowDiff >= 0 ? "+" + rowDiff : rowDiff}</strong> datapunkter.
-          </p>
-        )}
       </Card>
     );
   };

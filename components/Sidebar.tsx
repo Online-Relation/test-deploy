@@ -46,17 +46,17 @@ const accessHierarchy: AccessEntry[] = [
     ],
   },
   { key: 'tasks-couple', label: 'Opgaver', href: '/tasks-couple', children: [] },
-{
-  key: 'fantasy',
-  label: 'Parforhold',
-  href: '/fantasy',
-  children: [
-    { key: 'fantasy/fantasier', label: 'Fantasier', href: '/fantasy', children: [] },
-    { key: 'fantasy/parquiz', label: 'Parquiz', href: '/quiz/parquiz', children: [] },
-    { key: 'fantasy/anbefalinger', label: 'Anbefalinger', href: '/fantasy/anbefalinger', children: [] },
-    { key: 'dates', label: 'Date Ideas', href: '/dates', children: [] },
-  ],
-},
+  {
+    key: 'fantasy',
+    label: 'Parforhold',
+    href: '/fantasy',
+    children: [
+      { key: 'fantasy/fantasier', label: 'Fantasier', href: '/fantasy', children: [] },
+      { key: 'fantasy/parquiz', label: 'Parquiz', href: '/quiz/parquiz', children: [] },
+      { key: 'fantasy/anbefalinger', label: 'Anbefalinger', href: '/fantasy/anbefalinger', children: [] },
+      { key: 'dates', label: 'Date Ideas', href: '/dates', children: [] },
+    ],
+  },
   {
     key: 'indtjekning',
     label: 'Indtjekning',
@@ -124,6 +124,14 @@ const accessHierarchy: AccessEntry[] = [
       { key: 'settings/quiz-admin', label: 'Quiz admin', href: '/settings/quiz-admin', children: [] },
       { key: 'settings/couple-background', label: 'Baggrund', href: '/settings/couple-background', children: [] },
       { key: 'settings/tables', label: 'Tables', href: '/settings/tables', children: [] },
+      {
+        key: 'settings/gpt',
+        label: 'Gpt',
+        href: '/settings/gpt/api',
+        children: [
+          { key: 'settings/gpt/api', label: 'API kald', href: '/settings/gpt/api', children: [] },
+        ],
+      },
     ],
   },
 ];
@@ -157,55 +165,37 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  const [fantasyOpen, setFantasyOpen] = useState(false);
-  const [checkinOpen, setCheckinOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [spilOpen, setSpilOpen] = useState(false);
-  const [kommunikationOpen, setKommunikationOpen] = useState(false);
-  const [onlineRelationOpen, setOnlineRelationOpen] = useState(false);
-  const [personlighedOpen, setPersonlighedOpen] = useState(false);
-  const [indtjekningOpen, setIndtjekningOpen] = useState(false);
+  const openMap = {
+    fantasy: useState(false),
+    checkin: useState(false),
+    settings: useState(false),
+    'settings/gpt': useState(false),
+    spil: useState(false),
+    kommunikation: useState(false),
+    'online-relation': useState(false),
+    personlighed: useState(false),
+    indtjekning: useState(false),
+  };
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMobileOpen(false);
+    for (const key in openMap) {
+      if (pathname.startsWith(`/${key}`)) {
+        openMap[key as keyof typeof openMap][1](true);
       }
-    };
-    if (mobileOpen) document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [mobileOpen]);
-
-useEffect(() => {
-  setFantasyOpen(pathname.startsWith('/fantasy'));
-  setCheckinOpen(pathname.startsWith('/checkin'));
-  setSettingsOpen(pathname.startsWith('/settings'));
-  setSpilOpen(pathname.startsWith('/spil'));
-  setKommunikationOpen(pathname.startsWith('/kommunikation'));
-  setOnlineRelationOpen(pathname.startsWith('/online-relation'));
-  setIndtjekningOpen(pathname.startsWith('/indtjekning'));
-  setPersonlighedOpen(pathname.startsWith('/personlighed'));
-}, [pathname]);
-
+    }
+  }, [pathname]);
 
   if (!hasMounted || loading || !user) return null;
 
   const isAdmin = user?.email === 'mads@onlinerelation.dk';
   const userAccess: Record<string, boolean> = user?.access || {};
-  console.log("🔍 user.access:", user?.access);
 
-const hasAccessTo = (key: string) => {
-  if (key === 'dashboard') return true;
-  if (isAdmin) return true;
-
-  // Direkte adgang
-  if (userAccess[key]) return true;
-
-  // Underpunktsadgang (fx: fantasy/parquiz → tillader adgang til fantasy)
-  return Object.keys(userAccess).some(k => k.startsWith(`${key}/`) && userAccess[k]);
-};
-
-
+  const hasAccessTo = (key: string) => {
+    if (key === 'dashboard') return true;
+    if (isAdmin) return true;
+    if (userAccess[key]) return true;
+    return Object.keys(userAccess).some(k => k.startsWith(`${key}/`) && userAccess[k]);
+  };
 
   const dashboardLink = (
     <Link
@@ -219,107 +209,61 @@ const hasAccessTo = (key: string) => {
     </Link>
   );
 
- const navContent = accessHierarchy.map(entry => {
-  if (!hasAccessTo(entry.key)) return null;
-
-  const isOpen = entry.key === 'fantasy' ? fantasyOpen
-    : entry.key === 'checkin' ? checkinOpen
-    : entry.key === 'settings' ? settingsOpen
-    : entry.key === 'spil' ? spilOpen
-    : entry.key === 'kommunikation' ? kommunikationOpen
-    : entry.key === 'online-relation' ? onlineRelationOpen
-    : entry.key === 'indtjekning' ? indtjekningOpen
-    : entry.key === 'personlighed' ? personlighedOpen
-    : false;
-
-const anyChild = entry.children.length === 0 || entry.children.some(c => hasAccessTo(c.key));
+  const navContent = accessHierarchy.map(entry => {
+    if (!hasAccessTo(entry.key)) return null;
+    const isOpen = (entry.key in openMap) ? openMap[entry.key as keyof typeof openMap][0] : false;
 
 
-  if (entry.children.length) {
-    return (
-      <div key={entry.key}>
-        <button
-          onClick={() => {
-            if (entry.key === 'fantasy') setFantasyOpen(o => !o);
-            else if (entry.key === 'checkin') setCheckinOpen(o => !o);
-            else if (entry.key === 'settings') setSettingsOpen(o => !o);
-            else if (entry.key === 'spil') setSpilOpen(o => !o);
-            else if (entry.key === 'kommunikation') setKommunikationOpen(o => !o);
-            else if (entry.key === 'online-relation') setOnlineRelationOpen(o => !o);
-            else if (entry.key === 'indtjekning') setIndtjekningOpen(o => !o);
-            else if (entry.key === 'personlighed') setPersonlighedOpen(o => !o);
-          }}
-          className={`w-full flex items-center justify-between px-4 py-2 rounded hover:bg-gray-800 transition ${pathname.startsWith(entry.href) ? 'bg-gray-700 font-semibold' : ''}`}
-        >
-          <span className="flex items-center gap-2">
-            {iconMap[entry.key]}
-            {entry.label}
-          </span>
-          {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        </button>
-        {isOpen && anyChild && (
-          <div className="ml-6 mt-1 space-y-1">
-            {entry.children.map(child => hasAccessTo(child.key) && (
-              <Link
-                key={child.key}
-                href={child.href}
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-2 px-3 py-1 rounded hover:bg-gray-800 transition ${pathname === child.href ? 'bg-gray-700 font-semibold' : ''}`}
-              >
-                {iconMap[child.key]}
-                {child.label}
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
 
-  return (
-    <Link
-      key={entry.key}
-      href={entry.href}
-      onClick={() => setMobileOpen(false)}
-      className={`flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition ${pathname === entry.href ? 'bg-gray-700 font-semibold' : ''}`}
-    >
-      {iconMap[entry.key]}
-      {entry.label}
-    </Link>
-  );
-});
+    if (entry.children.length) {
+      return (
+        <div key={entry.key}>
+          <button
+            onClick={() => (entry.key in openMap) && openMap[entry.key as keyof typeof openMap][1](o => !o)}
 
-
-  const profileLink = (
-    <Link href="/profile" className="flex flex-col items-center gap-2 cursor-pointer mt-6">
-      {user.avatar_url ? (
-        <img src={user.avatar_url} className="w-14 h-14 rounded-full" alt="avatar" />
-      ) : (
-        <div className="w-14 h-14 rounded-full bg-gray-700 text-white flex items-center justify-center font-semibold">
-          {user.display_name?.[0] || '👤'}
+            className={`w-full flex items-center justify-between px-4 py-2 rounded hover:bg-gray-800 transition ${pathname.startsWith(entry.href) ? 'bg-gray-700 font-semibold' : ''}`}
+          >
+            <span className="flex items-center gap-2">
+              {iconMap[entry.key]}
+              {entry.label}
+            </span>
+            {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          </button>
+          {isOpen && (
+            <div className="ml-6 mt-1 space-y-1">
+              {entry.children.map(child => hasAccessTo(child.key) && (
+                <Link
+                  key={child.key}
+                  href={child.href}
+                  onClick={() => setMobileOpen(false)}
+                  className={`flex items-center gap-2 px-3 py-1 rounded hover:bg-gray-800 transition ${pathname === child.href ? 'bg-gray-700 font-semibold' : ''}`}
+                >
+                  {iconMap[child.key]}
+                  {child.label}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
-      )}
-      <div className="text-sm font-medium text-white">{user.display_name}</div>
-    </Link>
-  );
+      );
+    }
 
-  const bottomSection = (
-    <div className="mb-6 flex flex-col items-center gap-2 px-4">
-      {profileLink}
-      <button
-        onClick={async () => { await supabase.auth.signOut(); router.push('/login'); }}
-        className="text-xs text-gray-300 hover:text-white"
+    return (
+      <Link
+        key={entry.key}
+        href={entry.href}
+        onClick={() => setMobileOpen(false)}
+        className={`flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition ${pathname === entry.href ? 'bg-gray-700 font-semibold' : ''}`}
       >
-        Log ud
-      </button>
-      <div className="text-center bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
-        🎯 XP: {xp}
-      </div>
-    </div>
-  );
+        {iconMap[entry.key]}
+        {entry.label}
+      </Link>
+    );
+  });
 
   return (
     <>
+      {/* Mobilmenu */}
       <div className="md:hidden flex items-center justify-between bg-gray-900 text-white px-4 py-3 fixed top-0 left-0 right-0 z-50">
         <button onClick={() => setMobileOpen(prev => !prev)}>
           {mobileOpen ? <X size={24} /> : <Menu size={24} />}
@@ -329,31 +273,45 @@ const anyChild = entry.children.length === 0 || entry.children.some(c => hasAcce
         </Link>
       </div>
 
-   {mobileOpen && (
-  <div
-    ref={menuRef}
-    className="md:hidden fixed inset-0 bg-gray-900 text-white overflow-y-auto p-4 space-y-2 z-40"
-  >
-    <>
-      {dashboardLink}
-      {navContent}
-    </>
-    {bottomSection}
-  </div>
-)}
+      {mobileOpen && (
+        <div
+          ref={menuRef}
+          className="md:hidden fixed inset-0 bg-gray-900 text-white overflow-y-auto p-4 space-y-2 z-40"
+        >
+          {dashboardLink}
+          {navContent}
+        </div>
+      )}
 
-
-
-
+      {/* Desktopmenu */}
       <div className="hidden md:flex min-h-screen w-64 bg-gray-900 text-white flex-col justify-between pt-6">
-
         <div>
           <div className="p-6 text-xl font-bold">
             <Link href="/dashboard" className="hover:underline">✨ Mit Dashboard</Link>
           </div>
           <nav className="flex flex-col space-y-1 px-4 mt-4">{navContent}</nav>
         </div>
-        {bottomSection}
+        <div className="mb-6 flex flex-col items-center gap-2 px-4">
+          <Link href="/profile" className="flex flex-col items-center gap-2 cursor-pointer mt-6">
+            {user.avatar_url ? (
+              <img src={user.avatar_url} className="w-14 h-14 rounded-full" alt="avatar" />
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-gray-700 text-white flex items-center justify-center font-semibold">
+                {user.display_name?.[0] || '👤'}
+              </div>
+            )}
+            <div className="text-sm font-medium text-white">{user.display_name}</div>
+          </Link>
+          <button
+            onClick={async () => { await supabase.auth.signOut(); router.push('/login'); }}
+            className="text-xs text-gray-300 hover:text-white"
+          >
+            Log ud
+          </button>
+          <div className="text-center bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
+            🎯 XP: {xp}
+          </div>
+        </div>
       </div>
     </>
   );

@@ -1,12 +1,9 @@
 // /lib/gptHelper.ts
+
 import openai from "@/lib/openaiClient";
 import { supabase } from "@/lib/supabaseClient";
 
-export async function generateGptRecommendation(
-  prompt: string,
-  model: "gpt-4" | "gpt-3.5-turbo" = "gpt-3.5-turbo",
-  userId?: string
-) {
+export async function generateGptRecommendation(prompt: string, model: "gpt-4" | "gpt-3.5-turbo" = "gpt-3.5-turbo") {
   try {
     const response = await openai.chat.completions.create({
       model,
@@ -15,13 +12,12 @@ export async function generateGptRecommendation(
     });
 
     const text = response.choices[0]?.message?.content || "Ingen svar genereret.";
-    const tokens = response.usage?.total_tokens || Math.ceil(prompt.length / 4);
+    const tokens = response.usage?.total_tokens || getTokensForText(prompt);
 
     await supabase.from("gpt_log").insert({
       prompt_preview: prompt.slice(0, 2000),
       tokens,
       model,
-      user_id: userId ?? null,
     });
 
     return text;
@@ -29,4 +25,8 @@ export async function generateGptRecommendation(
     console.error("❌ GPT-fejl:", err?.message || err);
     throw new Error("GPT-fejl: " + (err?.message || "ukendt fejl"));
   }
+}
+
+export function getTokensForText(text: string): number {
+  return Math.ceil(text.length / 4);
 }

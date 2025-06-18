@@ -1,14 +1,12 @@
-// /app/components/result-component.tsx
+'use client';
 
-'use client'
-
-import { useParams } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
-import { useUserContext } from '@/context/UserContext'
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Doughnut, Bar } from 'react-chartjs-2'
+import { FC, useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { useUserContext } from '@/context/UserContext';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Doughnut } from 'react-chartjs-2';
+import { useParams } from 'next/navigation';
 
 import {
   Chart as ChartJS,
@@ -17,127 +15,132 @@ import {
   Legend,
   CategoryScale,
   LinearScale,
-  BarElement
-} from 'chart.js'
+  BarElement,
+} from 'chart.js';
 
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement)
-
-interface Answer {
-  question_id: string
-  answer: string
-  user_id: string
-}
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 interface Question {
-  id: string
-  question: string
-  type: string
-  order: number
+  id: string;
+  question: string;
+  type: string;
+  order: number;
+}
+
+interface Answer {
+  question_id: string;
+  answer: string;
+  user_id: string;
 }
 
 interface Profile {
-  id: string
-  display_name: string
-  avatar_url: string | null
+  id: string;
+  display_name: string;
+  avatar_url: string | null;
 }
 
-export default function QuizResultPage() {
-  const { quizKey: rawKey } = useParams()
-  const quizKey = decodeURIComponent(rawKey as string)
+interface Grouped {
+  green: Question[];
+  yellow: Question[];
+  red: Question[];
+}
 
-  const { user, loading } = useUserContext()
-  const [questions, setQuestions] = useState<Question[]>([])
-  const [answers, setAnswers] = useState<Answer[]>([])
-  const [profiles, setProfiles] = useState<Record<string, Profile>>({})
-  const [view, setView] = useState<'results' | 'visual' | 'recommendations'>('results')
-  const [recommendations, setRecommendations] = useState<string[] | null>(null)
-  const [loadingRecommendations, setLoadingRecommendations] = useState(false)
-  const [recommendationError, setRecommendationError] = useState<string | null>(null)
+interface Props {
+  grouped: Grouped;
+  showGraphsOnly?: boolean;
+}
+
+const QuizResultComponent: FC<Props> = ({ grouped, showGraphsOnly = false }) => {
+  const { quizKey: rawKey } = useParams();
+  const quizKey = rawKey as string; // ⚠️ vigtigt: brug raw string direkte
+  const { user } = useUserContext();
+
+  const [answers, setAnswers] = useState<Answer[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, Profile>>({});
+  const [recommendations, setRecommendations] = useState<string[] | null>(null);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const [recommendationError, setRecommendationError] = useState<string | null>(null);
+  const [view, setView] = useState<'results' | 'visual' | 'recommendations'>('results');
 
   useEffect(() => {
-    if (!quizKey || !user || loading) return
+    const fetchAnswersAndProfiles = async () => {
+      const { data: aData } = await supabase
+        .from('quiz_responses')
+        .select('question_id, answer, user_id')
+        .eq('quiz_key', quizKey);
 
-    const fetchAll = async () => {
-      const [{ data: qData }, { data: aData }] = await Promise.all([
-        supabase.from('quiz_questions')
-          .select('id, question, type, order')
-          .eq('quiz_key', quizKey)
-          .order('order', { ascending: true }),
-
-        supabase.from('quiz_responses')
-          .select('question_id, answer, user_id')
-          .eq('quiz_key', quizKey)
-      ])
-
-      const userIds = [...new Set(aData?.map(a => a.user_id) || [])]
+      const userIds = [...new Set(aData?.map(a => a.user_id) || [])];
 
       const { data: pData } = await supabase
         .from('profiles')
         .select('id, display_name, avatar_url')
-        .in('id', userIds)
+        .in('id', userIds);
 
-      if (qData) setQuestions(qData)
-      if (aData) setAnswers(aData)
+      if (aData) setAnswers(aData);
       if (pData) {
-        const map: Record<string, Profile> = {}
-        pData.forEach(p => (map[p.id] = p))
-        setProfiles(map)
+        const map: Record<string, Profile> = {};
+        pData.forEach(p => (map[p.id] = p));
+        setProfiles(map);
       }
+    };
+
+    fetchAnswersAndProfiles();
+  }, [quizKey]);
+
+useEffect(() => {
+  const cleanedKey = quizKey.replace(/\+/g, ' ');
+  if (!cleanedKey || (grouped.green.length + grouped.yellow.length + grouped.red.length === 0)) return;
+
+  const fetchOrCacheRecommendation = async () => {
+    setLoadingRecommendations(true);
+    setRecommendationError(null);
+
+    console.log("🔍 Henter anbefaling for quizKey:", cleanedKey);
+
+    const { data: cached } = await supabase
+      .from('quiz_recommendations')
+      .select('recommendation')
+      .eq('quiz_key', cleanedKey)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (cached?.recommendation) {
+      setRecommendations([cached.recommendation]);
+      setLoadingRecommendations(false);
+      return;
     }
 
-    fetchAll()
-  }, [quizKey, user, loading])
+    try {
+      const res = await fetch('/api/recommendations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupedQuestions: grouped, quizKey: cleanedKey }),
+      });
 
-  const grouped = useMemo(() => {
-    if (questions.length === 0 || answers.length === 0) return { green: [], yellow: [], red: [] }
+      const resData = await res.json();
+      if (resData.recommendation) {
+        console.log("📝 Gemmer anbefaling for quizKey:", cleanedKey);
 
-    const result = { green: [] as Question[], yellow: [] as Question[], red: [] as Question[] }
+        await supabase.from('quiz_recommendations').insert({
+          quiz_key: cleanedKey,
+          recommendation: resData.recommendation,
+        });
 
-    for (const q of questions) {
-      const related = answers.filter(a => a.question_id === q.id)
-      const uniqueUserIds = [...new Set(related.map(a => a.user_id))]
-      if (uniqueUserIds.length !== 2) continue
-
-      const [a1, a2] = related.map(a => a.answer.trim())
-      if (a1 === a2) result.green.push(q)
-      else if ((a1 === 'Ja' && a2 === 'Nej') || (a1 === 'Nej' && a2 === 'Ja')) result.red.push(q)
-      else result.yellow.push(q)
-    }
-
-    return result
-  }, [questions, answers])
-
-  useEffect(() => {
-    if (!quizKey || grouped.green.length + grouped.yellow.length + grouped.red.length === 0) return
-
-    const fetchRecommendations = async () => {
-      setLoadingRecommendations(true)
-      setRecommendationError(null)
-
-      try {
-        const res = await fetch('/api/recommendations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ groupedQuestions: grouped, quizKey })
-        })
-
-        const resData = await res.json()
-        if (resData.recommendation) {
-          let rec = resData.recommendation
-          rec += '\n\n— Hentet data fra Supabase'
-          setRecommendations([rec])
-        }
-      } catch (err: any) {
-        setRecommendationError(err.message || 'Ukendt fejl ved hentning af anbefalinger')
-        setRecommendations([])
-      } finally {
-        setLoadingRecommendations(false)
+        let rec = resData.recommendation;
+        rec += '\n\n— Hentet data fra Supabase';
+        setRecommendations([rec]);
       }
+    } catch (err: any) {
+      setRecommendationError(err.message || 'Ukendt fejl ved hentning af anbefalinger');
+      setRecommendations([]);
+    } finally {
+      setLoadingRecommendations(false);
     }
+  };
 
-    fetchRecommendations()
-  }, [quizKey, grouped])
-
+  fetchOrCacheRecommendation();
+}, [quizKey, grouped]);
 
 
   const chartData = {
@@ -149,76 +152,35 @@ export default function QuizResultPage() {
         borderWidth: 1,
       },
     ],
+  };
+
+  if (showGraphsOnly) {
+    return (
+      <div className="space-y-6">
+        <div className="w-64 mx-auto">
+          <Doughnut data={chartData} />
+        </div>
+        <div className="text-sm text-center">Antal spørgsmål i hver kategori</div>
+      </div>
+    );
   }
 
-  const perUserStats = Object.values(profiles).map(profile => {
-    const userAnswers = answers.filter(a => a.user_id === profile.id)
-    const counts = { Ja: 0, Nej: 0, Andet: 0 }
-    for (const a of userAnswers) {
-      if (a.answer === 'Ja') counts.Ja++
-      else if (a.answer === 'Nej') counts.Nej++
-      else counts.Andet++
-    }
-    return {
-      name: profile.display_name,
-      ja: counts.Ja,
-      nej: counts.Nej,
-      andet: counts.Andet,
-    }
-  })
-
-  const barData = {
-    labels: perUserStats.map(s => s.name),
-    datasets: [
-      {
-        label: 'Ja',
-        data: perUserStats.map(s => s.ja),
-        backgroundColor: '#22c55e',
-      },
-      {
-        label: 'Nej',
-        data: perUserStats.map(s => s.nej),
-        backgroundColor: '#ef4444',
-      },
-      {
-        label: 'Andet',
-        data: perUserStats.map(s => s.andet),
-        backgroundColor: '#3b82f6',
-      },
-    ],
-  }
-
-   return (
-    <div className="max-w-md mx-auto px-4 py-8 space-y-6">
-      <h1 className="text-2xl font-bold capitalize">📋 Resultat: {quizKey}</h1>
-
+  return (
+    <div className="space-y-6">
       <div className="flex justify-between gap-2 text-sm">
-        <Button
-          onClick={() => setView('results')}
-          variant={view === 'results' ? 'secondary' : 'ghost'}
-        >
+        <Button onClick={() => setView('results')} variant={view === 'results' ? 'secondary' : 'ghost'}>
           Resultater
         </Button>
-        <Button
-          onClick={() => setView('visual')}
-          variant={view === 'visual' ? 'secondary' : 'ghost'}
-        >
+        <Button onClick={() => setView('visual')} variant={view === 'visual' ? 'secondary' : 'ghost'}>
           Visuelt
         </Button>
-        <Button
-          onClick={() => setView('recommendations')}
-          variant={view === 'recommendations' ? 'secondary' : 'ghost'}
-        >
+        <Button onClick={() => setView('recommendations')} variant={view === 'recommendations' ? 'secondary' : 'ghost'}>
           Anbefalinger
         </Button>
       </div>
 
       {view === 'results' && (
         <>
-          <p className="text-sm text-muted-foreground">
-            Herunder kan I se, hvor jeres svar er ens eller forskellige – med profil og tydelig farvekode.
-          </p>
-
           {(['green', 'yellow', 'red'] as const).map(level => (
             <div key={level} className="space-y-2">
               <h2 className="text-lg font-semibold mt-6">
@@ -228,7 +190,7 @@ export default function QuizResultPage() {
               </h2>
 
               {grouped[level].map(q => {
-                const related = answers.filter(a => a.question_id === q.id)
+                const related = answers.filter(a => a.question_id === q.id);
                 return (
                   <Card key={q.id} className="p-4 space-y-2">
                     <div className="grid grid-cols-2 gap-4">
@@ -247,7 +209,7 @@ export default function QuizResultPage() {
                       ))}
                     </div>
                   </Card>
-                )
+                );
               })}
 
               {grouped[level].length === 0 && (
@@ -255,24 +217,13 @@ export default function QuizResultPage() {
               )}
             </div>
           ))}
-
-          <div className="mt-6 text-sm text-muted-foreground italic">
-            Brug visningen som udgangspunkt for en god snak – især om forskellene.
-          </div>
         </>
       )}
 
       {view === 'visual' && (
         <div className="space-y-6">
           <div className="w-64 mx-auto">
-            <Doughnut data={{
-              labels: ['Enige', 'Små forskelle', 'Store forskelle'],
-              datasets: [{
-                data: [grouped.green.length, grouped.yellow.length, grouped.red.length],
-                backgroundColor: ['#22c55e', '#eab308', '#ef4444'],
-                borderWidth: 1,
-              }]
-            }} />
+            <Doughnut data={chartData} />
           </div>
           <div className="text-sm text-center">Antal spørgsmål i hver kategori</div>
         </div>
@@ -307,4 +258,7 @@ export default function QuizResultPage() {
         </div>
       )}
     </div>
-    ) }
+  );
+};
+
+export default QuizResultComponent;
