@@ -5,6 +5,7 @@ import KomplimentReminder from './KomplimentReminder';
 import XpMeter from './XpMeter';
 import RewardProgress from './RewardProgress';
 import TaskSummary from './TaskSummary';
+import WeeklyRecommendation from './WeeklyRecommendation'; // 👈 Tilføjet
 
 interface Widget {
   widget_key: string;
@@ -22,7 +23,10 @@ export default function WidgetRenderer({ widget }: { widget: Widget }) {
       return <RewardProgress height={widget.height} layout={widget.layout} />;
     case 'task_summary':
       return <TaskSummary height={widget.height} layout={widget.layout} />;
+    case 'weekly_recommendation': // 👈 Indsat
+      return <WeeklyRecommendation />;
     default:
       return null;
   }
 }
+

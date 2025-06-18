@@ -13,7 +13,8 @@ export default function ProfilePage() {
   const { user } = useUserContext();
   const [uploading, setUploading] = useState(false);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'sizes' | 'wishes' | 'preferences'>('sizes');
+const [activeTab, setActiveTab] = useState<'sizes' | 'wishes' | 'preferences' | 'energy'>('sizes');
+
 
   const [sizes, setSizes] = useState({
     bh: '', trusser: '', sko: '', jeans: '', kjoler: '', nederdele: '', tshirts: '', toppe: '', buksedragt: '',
@@ -132,6 +133,8 @@ export default function ProfilePage() {
         <button onClick={() => setActiveTab('sizes')} className={tabClass('sizes')}>👗 Tøjstørrelser</button>
         <button onClick={() => setActiveTab('wishes')} className={tabClass('wishes')}>🎁 Ønskeliste</button>
         <button onClick={() => setActiveTab('preferences')} className={tabClass('preferences')}>💖 Kærlighed</button>
+          <button onClick={() => setActiveTab('energy')} className={tabClass('energy')}>⚡ Energi</button>
+
       </div>
 
       <AnimatePresence mode="wait">

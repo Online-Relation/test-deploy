@@ -17,12 +17,13 @@ export default function DashboardPage() {
   const { user } = useUserContext();
   const [widgets, setWidgets] = useState<Widget[]>([]);
 
-  const supportedWidgets = [
-    'xp_meter',
-    'reward_progress',
-    'task_summary',
-    'kompliment_reminder',
-  ];
+const supportedWidgets = [
+  'xp_meter',
+  'reward_progress',
+  'task_summary',
+  'kompliment_reminder',
+  'weekly_recommendation', // 👈 tilføjet
+];
 
   useEffect(() => {
     const fetchWidgets = async () => {

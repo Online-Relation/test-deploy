@@ -1,4 +1,3 @@
-// /app/settings/widgets/layout.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -18,7 +17,8 @@ const allWidgets: Widget[] = [
   { key: 'kompliment_reminder', label: 'Kompliment' },
   { key: 'xp_meter', label: 'XP-meter' },
   { key: 'reward_progress', label: 'Næste gave' },
-  { key: 'task_summary', label: 'Opgaver klar' }, // Hvis du bruger denne også
+  { key: 'task_summary', label: 'Opgaver klar' },
+  { key: 'weekly_recommendation', label: 'Ugens anbefaling' },
 ];
 
 const layoutOptions = ['small', 'medium', 'large'];

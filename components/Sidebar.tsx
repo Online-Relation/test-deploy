@@ -115,6 +115,7 @@ const accessHierarchy: AccessEntry[] = [
     children: [
       { key: 'settings/widgets/layout', label: 'Layout', href: '/settings/widgets/layout', children: [] },
       { key: 'settings/widgets', label: 'Widgets', href: '/settings/widgets', children: [] },
+      { key: 'settings/recommendation', label: 'Anbefaling', href: '/settings/recommendation', children: [] },
       { key: 'settings/points', label: 'Points', href: '/settings/points', children: [] },
       { key: 'settings/rewards', label: 'Rewards', href: '/settings/rewards', children: [] },
       { key: 'settings/categories', label: 'Categories', href: '/settings/categories', children: [] },

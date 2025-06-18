@@ -13,7 +13,8 @@ const allWidgets = [
   { key: 'kompliment_reminder', label: 'Kompliment' },
   { key: 'xp_meter', label: 'XP-meter' },
   { key: 'reward_progress', label: 'Næste gave' },
-  { key: 'task_summary', label: 'Opgaver klar' }, // Tilføjet hvis den mangler
+  { key: 'task_summary', label: 'Opgaver klar' },
+  { key: 'weekly_recommendation', label: 'Ugens anbefaling' },
 ];
 
 const heightOptions = ['auto', 'medium', 'large'];
