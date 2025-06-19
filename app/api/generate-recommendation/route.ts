@@ -37,7 +37,7 @@ export async function POST(req: Request) {
       .in('table_name', selectedTables)
       .order('priority', { ascending: true });
 
-    if (!sources) {
+    if (!sources || sources.length === 0) {
       return NextResponse.json({ error: 'Ingen datakilder fundet' }, { status: 400 });
     }
 
@@ -75,7 +75,6 @@ Svar med en varm, personlig anbefaling.
 
     const recommendation = await generateGptRecommendation(prompt, 'gpt-3.5-turbo');
 
-    // 📤 Log til gpt_logs
     await supabase.from('gpt_logs').insert({
       user_id,
       widget: 'weekly_recommendation',
@@ -85,7 +84,7 @@ Svar med en varm, personlig anbefaling.
       token_count: getTokensForText(prompt),
     });
 
-    // Valgfrit: Gem i separat tabel til caching
+    // ✅ Caching (valgfrit – fjern kommentartegn hvis du ønsker det)
     // await supabase.from('weekly_recommendations').insert({
     //   user_id,
     //   for_partner,
@@ -96,7 +95,7 @@ Svar med en varm, personlig anbefaling.
     return NextResponse.json({ recommendation });
 
   } catch (err: any) {
-    console.error('FEJL I API:', err.message || err);
+    console.error('❌ FEJL I weekly-recommendation API:', err.message || err);
     return NextResponse.json(
       { error: err.message || 'Ukendt serverfejl' },
       { status: 500 }

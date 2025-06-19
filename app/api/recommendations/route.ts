@@ -16,13 +16,24 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
+    console.log("📨 Received body:", body);
+
     testMode = body?.testMode || false;
     quizKey = body?.quizKey || 'parquiz';
     groupedQuestions = body?.groupedQuestions || null;
     isAdmin = body?.isAdmin || false;
     user_id = body?.user_id || null;
     for_partner = body?.for_partner || null;
-  } catch {}
+
+    if (!groupedQuestions || !groupedQuestions.green || !groupedQuestions.yellow || !groupedQuestions.red) {
+      console.warn("⚠️ groupedQuestions mangler eller er ugyldig:", groupedQuestions);
+      return NextResponse.json({ error: "Ugyldigt groupedQuestions payload" }, { status: 400 });
+    }
+
+  } catch (err: any) {
+    console.error("❌ JSON parsing-fejl:", err.message);
+    return NextResponse.json({ error: "Ugyldigt request body" }, { status: 400 });
+  }
 
   if (testMode) return NextResponse.json({ ok: true });
 
@@ -56,18 +67,18 @@ export async function POST(req: Request) {
       tableData.push(text);
     }
 
-    if (tableData.length === 0) throw new Error('Ingen data kunne hentes.');
+    if (tableData.length === 0) {
+      console.warn("❌ Ingen tabeldata fundet – afslutter");
+      return NextResponse.json({ error: 'Ingen data kunne hentes.' }, { status: 400 });
+    }
 
-    const groupedText = groupedQuestions
-      ? `🟩 Enige:\n${groupedQuestions.green.map((q: any) => q.question).join('\n')}\n\n🟨 Små forskelle:\n${groupedQuestions.yellow.map((q: any) => q.question).join('\n')}\n\n🟥 Store forskelle:\n${groupedQuestions.red.map((q: any) => q.question).join('\n')}`
-      : '';
+    const groupedText = `🟩 Enige:\n${groupedQuestions.green.map((q: any) => q.question).join('\n')}\n\n🟨 Små forskelle:\n${groupedQuestions.yellow.map((q: any) => q.question).join('\n')}\n\n🟥 Store forskelle:\n${groupedQuestions.red.map((q: any) => q.question).join('\n')}`;
 
     const promptHeader = `Du er parterapeut og skal give en personlig anbefaling til et par baseret på deres data.`;
-    const promptGrouped = groupedText ? `\n\n📋 Deres besvarelser:\n${groupedText}` : '';
     const promptData = `\n\n📊 Data:\n${tableData.join('\n\n')}`;
     const promptFooter = `\n\nGiv nu en personlig, ærlig og omsorgsfuld anbefaling. Brug dataene aktivt i analysen.`;
 
-    const fullPrompt = `${promptHeader}${promptGrouped}${promptData}${promptFooter}`;
+    const fullPrompt = `${promptHeader}\n\n📋 Deres besvarelser:\n${groupedText}${promptData}${promptFooter}`;
     const promptTokens = getTokensForText(fullPrompt);
 
     const recommendation = await generateGptRecommendation(fullPrompt, 'gpt-3.5-turbo');
@@ -93,6 +104,7 @@ export async function POST(req: Request) {
       total_rows: Object.values(rowCounts).reduce((sum, n) => sum + n, 0),
       cached: false,
     });
+
   } catch (err: any) {
     console.error('❌ RECOMMENDATIONS API ERROR:', err);
     return NextResponse.json({ error: 'Serverfejl i anbefaling' }, { status: 500 });

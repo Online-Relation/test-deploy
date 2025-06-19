@@ -7,10 +7,13 @@ import { supabase } from '@/lib/supabaseClient';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    console.log("📨 quiz-recommendation body:", body);
+
     const { user_id, for_partner, quiz_summary, background, tone } = body;
 
     if (!user_id || !for_partner || !quiz_summary) {
-      return NextResponse.json({ error: 'Manglende data' }, { status: 400 });
+      console.warn("⚠️ Manglende påkrævede felter", { user_id, for_partner, quiz_summary });
+      return NextResponse.json({ error: 'Manglende data i request' }, { status: 400 });
     }
 
     const prompt = `
@@ -29,17 +32,15 @@ Svar med kun anbefalingen. Ikke noget andet.
 
     const recommendation = await generateGptRecommendation(prompt, 'gpt-4');
 
-    // Log til gpt_logs
     await supabase.from('gpt_logs').insert({
       user_id,
       widget: 'quiz_recommendation',
-      prompt,
+      prompt: prompt.slice(0, 2000),
       response: recommendation,
       model: 'gpt-4',
       total_tokens: tokens,
     });
 
-    // Gem i quiz_recommendations (valgfrit – fjern hvis du ikke ønsker det)
     await supabase.from('quiz_recommendations').insert({
       user_id,
       recommendation,
@@ -48,8 +49,9 @@ Svar med kun anbefalingen. Ikke noget andet.
     });
 
     return NextResponse.json({ recommendation });
+
   } catch (err: any) {
-    console.error('❌ Fejl i quiz-anbefaling:', err);
-    return NextResponse.json({ error: err.message || 'Ukendt fejl' }, { status: 500 });
+    console.error('❌ Fejl i quiz-anbefaling:', err.message || err);
+    return NextResponse.json({ error: err.message || 'Ukendt fejl i anbefaling' }, { status: 500 });
   }
 }

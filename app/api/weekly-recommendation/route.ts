@@ -1,111 +1,104 @@
 // /app/api/weekly-recommendation/route.ts
 
-import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabaseClient";
-import { generateGptRecommendation, getTokensForText } from "@/lib/gptHelper";
+import { NextResponse } from 'next/server';
+import { generateGptRecommendation, getTokensForText } from '@/lib/gptHelper';
+import { supabase } from '@/lib/supabaseClient';
 
 export async function POST(req: Request) {
-  const { user_id } = await req.json();
-
-
-  if (!user_id) {
-    return NextResponse.json({ error: "Mangler bruger-ID" }, { status: 400 });
-  }
-
-  const { data: widgetData, error } = await supabase
-    .from("widget_config")
-    .select("config")
-    .eq("user_id", user_id)
-    .eq("widget_key", "weekly_recommendation")
-    .maybeSingle();
-
-  if (error || !widgetData?.config) {
-    return NextResponse.json({ error: "Ingen konfiguration fundet" }, { status: 404 });
-  }
-
-  const config = widgetData.config;
-  let selectedTables: string[] = config.tables || [];
-
-  const { data: priorities } = await supabase
-    .from("recommendation_sources")
-    .select("table_name, priority")
-    .in("table_name", selectedTables);
-
-  if (priorities) {
-    selectedTables = priorities
-      .sort((a, b) => (a.priority ?? 999) - (b.priority ?? 999))
-      .map((row) => row.table_name);
-  }
-
-  const tone = config.tone || "varm og ærlig";
-  const excludeWords: string[] = config.excludeWords || [];
-
-  async function getRecentRows(table: string, days: number) {
-    const since = new Date();
-    since.setDate(since.getDate() - days);
-
-    const { data, error } = await supabase.from(table).select("*");
-    if (error || !data || data.length === 0) return [];
-    if (!("created_at" in data[0])) return data;
-
-    return data.filter((row) => new Date(row.created_at) >= since);
-  }
-
-  const summaryData: Record<string, { d14: any[]; d30: any[]; d90: any[] }> = {};
-  let tokenCounter = 0;
-
-  for (const table of selectedTables) {
-    const d14 = await getRecentRows(table, 14);
-    const d30 = await getRecentRows(table, 30);
-    const d90 = await getRecentRows(table, 90);
-
-    const preview = `🗂️ ${table}\n- Sidste 14 dage: ${d14.length}\n- Sidste 30 dage: ${d30.length}\n- Sidste 90 dage: ${d90.length}\n\n`;
-    const estimatedTokens = getTokensForText(preview);
-
-    if (tokenCounter + estimatedTokens > 12000) {
-      console.warn(`⛔️ Tokengrænse nået ved ${table}`);
-      break;
-    }
-
-    tokenCounter += estimatedTokens;
-    summaryData[table] = { d14, d30, d90 };
-  }
-
-  function generateSummaryText() {
-    const lines: string[] = [];
-
-    for (const [table, d] of Object.entries(summaryData)) {
-      lines.push(`🗂️ ${table}`);
-      lines.push(`- Sidste 14 dage: ${d.d14.length}`);
-      lines.push(`- Sidste 30 dage: ${d.d30.length}`);
-      lines.push(`- Sidste 90 dage: ${d.d90.length}`);
-      lines.push("");
-    }
-
-    return lines.join("\n");
-  }
-
-  const prompt = `
-Du skal skrive en personlig og kærlig anbefaling til en partners dashboard-widget.
-
-🧠 Dataoversigt:
-${generateSummaryText()}
-
-Tonens stil: ${tone}
-Undgå ord: ${excludeWords.join(", ")}
-
-Svar ærligt, kærligt og konstruktivt med en kort anbefaling.
-`.trim();
-
   try {
-    const recommendation = await generateGptRecommendation(prompt, "gpt-3.5-turbo");
+    const body = await req.json();
+    const user_id = body.user_id;
+    const for_partner = body.for_partner;
 
-    return NextResponse.json({
-      recommendation,
-      summary: generateSummaryText(),
+    if (!user_id || !for_partner) {
+      console.error('⛔️ Mangler userId eller forPartner', body);
+      return NextResponse.json({ error: 'Mangler userId eller forPartner' }, { status: 400 });
+    }
+
+    const { data: widgetConfig } = await supabase
+      .from('widget_config')
+      .select('config')
+      .eq('user_id', user_id)
+      .eq('widget_key', 'weekly_recommendation')
+      .maybeSingle();
+
+    if (!widgetConfig?.config) {
+      return NextResponse.json({ error: 'Ingen konfiguration fundet' }, { status: 404 });
+    }
+
+    const config = widgetConfig.config;
+    const selectedTables: string[] = config.tables || [];
+    const tone = config.tone || 'venlig og ærlig';
+    const excludeWords: string[] = config.excludeWords || [];
+
+    const { data: sources } = await supabase
+      .from('recommendation_sources')
+      .select('*')
+      .in('table_name', selectedTables)
+      .order('priority', { ascending: true });
+
+    if (!sources || sources.length === 0) {
+      return NextResponse.json({ error: 'Ingen datakilder fundet' }, { status: 400 });
+    }
+
+    const summaryLines: string[] = [];
+    let tokenCount = 0;
+
+    for (const source of sources) {
+      const { table_name, description } = source;
+      const { data } = await supabase.from(table_name).select('*');
+      const count = data?.length || 0;
+
+      const line = `- ${table_name} (${count} rækker): ${description || "Ingen beskrivelse."}`;
+      const estimatedTokens = getTokensForText(line);
+
+      if (tokenCount + estimatedTokens > 12000) {
+        console.warn(`⛔️ Tokenbegrænsning nået ved ${table_name}`);
+        break;
+      }
+
+      summaryLines.push(line);
+      tokenCount += estimatedTokens;
+    }
+
+    const prompt = `
+Du skal generere en kærlig og ærlig anbefaling til ${for_partner} baseret på deres seneste aktivitet.
+
+📊 Aktivitetsoversigt:
+${summaryLines.join('\n')}
+
+Tone: ${tone}
+Undgå følgende ord: ${excludeWords.join(', ')}
+
+Svar med en varm, personlig anbefaling.
+    `.trim();
+
+    const recommendation = await generateGptRecommendation(prompt, 'gpt-3.5-turbo');
+
+    await supabase.from('gpt_logs').insert({
+      user_id,
+      widget: 'weekly_recommendation',
+      prompt: prompt.slice(0, 2000),
+      response: recommendation,
+      model: 'gpt-3.5-turbo',
+      token_count: getTokensForText(prompt),
     });
+
+    // ✅ Caching (valgfrit – fjern kommentartegn hvis du ønsker det)
+    // await supabase.from('weekly_recommendations').insert({
+    //   user_id,
+    //   for_partner,
+    //   recommendation,
+    //   generated_at: new Date().toISOString(),
+    // });
+
+    return NextResponse.json({ recommendation });
+
   } catch (err: any) {
-    console.error("❌ GPT-fejl:", err.message);
-    return NextResponse.json({ error: "GPT-fejl" }, { status: 500 });
+    console.error('❌ FEJL I weekly-recommendation API:', err.message || err);
+    return NextResponse.json(
+      { error: err.message || 'Ukendt serverfejl' },
+      { status: 500 }
+    );
   }
 }
