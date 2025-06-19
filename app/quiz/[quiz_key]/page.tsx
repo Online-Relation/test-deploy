@@ -1,3 +1,5 @@
+// /app/quiz/[quizKey]/page.tsx
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -7,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useUserContext } from '@/context/UserContext';
 import { v4 as uuidv4 } from 'uuid';
+
 
 type Question = {
   id: string;
@@ -42,27 +45,62 @@ export default function QuizPage() {
       if (data) setQuestions(data);
     };
 
-    const fetchSavedAnswers = async () => {
-      if (!user) return;
+const fetchSavedAnswers = async () => {
+  if (!user) return;
 
-      const { data } = await supabase
-        .from('quiz_responses')
-        .select('question_id, answer, session_id')
-        .eq('quiz_key', decodedKey)
-        .eq('user_id', user.id)
-        .eq('status', 'in_progress');
+  const decodedKey = decodeURIComponent(quiz_key as string);
+  const localKey = `quiz_session_${decodedKey}`;
+  let storedSessionId = localStorage.getItem(localKey);
 
-      if (data && data.length > 0) {
-        const saved: Record<string, string> = {};
-        data.forEach((entry) => {
-          saved[entry.question_id] = entry.answer;
-        });
-        setAnswers(saved);
-        setSessionId(data[0].session_id);
-      } else {
-        setSessionId(uuidv4());
-      }
-    };
+  if (!storedSessionId) {
+    // Tjek i Supabase om brugeren tidligere har oprettet en session
+   const { data: existing } = await supabase
+  .from('quiz_sessions')
+  .select('session_id')
+  .eq('quiz_key', decodedKey)
+  .order('created_at', { ascending: false })
+  .limit(1)
+  .maybeSingle();
+
+
+    if (existing?.session_id) {
+      storedSessionId = existing.session_id;
+    } else {
+      const newId = uuidv4();
+      await supabase.from('quiz_sessions').insert({
+        quiz_key: decodedKey,
+        session_id: newId,
+        starter_user_id: user.id,
+      });
+      storedSessionId = newId;
+    }
+
+   if (storedSessionId) {
+  localStorage.setItem(localKey, storedSessionId);
+}
+
+  }
+
+  setSessionId(storedSessionId);
+
+  // Hent svar (hvis nogen) for denne session
+  const { data } = await supabase
+    .from('quiz_responses')
+    .select('question_id, answer, session_id')
+    .eq('quiz_key', decodedKey)
+    .eq('user_id', user.id)
+    .eq('session_id', storedSessionId)
+    .eq('status', 'in_progress');
+
+  if (data && data.length > 0) {
+    const saved: Record<string, string> = {};
+    data.forEach((entry) => {
+      saved[entry.question_id] = entry.answer;
+    });
+    setAnswers(saved);
+  }
+};
+
 
 const fetchQuizMeta = async () => {
   const decodedKey = decodeURIComponent(quiz_key as string);

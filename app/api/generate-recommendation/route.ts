@@ -1,4 +1,4 @@
-// /app/api/generate-recommendation/route.ts
+// /app/api/weekly-recommendation/route.ts
 
 import { NextResponse } from 'next/server';
 import { generateGptRecommendation, getTokensForText } from '@/lib/gptHelper';
@@ -73,9 +73,27 @@ Undgå følgende ord: ${excludeWords.join(', ')}
 Svar med en varm, personlig anbefaling.
     `.trim();
 
-    const text = await generateGptRecommendation(prompt, 'gpt-3.5-turbo');
+    const recommendation = await generateGptRecommendation(prompt, 'gpt-3.5-turbo');
 
-    return NextResponse.json({ text });
+    // 📤 Log til gpt_logs
+    await supabase.from('gpt_logs').insert({
+      user_id,
+      widget: 'weekly_recommendation',
+      prompt: prompt.slice(0, 2000),
+      response: recommendation,
+      model: 'gpt-3.5-turbo',
+      token_count: getTokensForText(prompt),
+    });
+
+    // Valgfrit: Gem i separat tabel til caching
+    // await supabase.from('weekly_recommendations').insert({
+    //   user_id,
+    //   for_partner,
+    //   recommendation,
+    //   generated_at: new Date().toISOString(),
+    // });
+
+    return NextResponse.json({ recommendation });
 
   } catch (err: any) {
     console.error('FEJL I API:', err.message || err);

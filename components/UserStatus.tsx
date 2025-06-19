@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function UserStatus() {
-  const { user, role, loading } = useUserContext();
+  const { user, loading } = useUserContext();
   const [name, setName] = useState('');
   const router = useRouter();
 

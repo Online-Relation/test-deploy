@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Card } from "@/components/ui/card";
+import { useUserContext } from "@/context/UserContext";
 
 type Recommendation = {
   recommendation: string;
@@ -14,6 +15,7 @@ type Recommendation = {
 };
 
 export default function GenerelAnbefalingPage() {
+  const { user } = useUserContext();
   const [latest, setLatest] = useState<Recommendation | null>(null);
   const [previous, setPrevious] = useState<Recommendation | null>(null);
   const [loading, setLoading] = useState(false);
@@ -39,8 +41,23 @@ export default function GenerelAnbefalingPage() {
   }, []);
 
   const handleGenerate = async () => {
+    if (!user) return;
+
     setLoading(true);
-    await fetch("/api/overall-recommendation", { method: "POST" });
+
+    const forPartner = user.role === "mads" ? "stine" : "mads";
+
+    await fetch("/api/overall-recommendation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: user.id,
+        for_partner: forPartner,
+        gatheredData: "", // ← opdater senere med rigtig data
+        tone: "kærlig og ærlig",
+      }),
+    });
+
     await fetchRecommendations();
     setLoading(false);
   };
@@ -71,6 +88,10 @@ export default function GenerelAnbefalingPage() {
           {loading ? "Genererer..." : "Generér ny anbefaling"}
         </button>
       </div>
+
+      {loading && (
+        <p className="text-sm italic text-muted-foreground text-center">Genererer anbefaling...</p>
+      )}
 
       {renderDataComparison()}
 

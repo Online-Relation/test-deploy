@@ -21,9 +21,10 @@ interface GptLog {
   prompt: string;
   response: string;
   model: string;
-  token_count: number;
+  total_tokens: number;
   created_at: string;
 }
+
 
 export default function GptApiLogPage() {
   const [logs, setLogs] = useState<GptLog[]>([]);
@@ -67,8 +68,11 @@ export default function GptApiLogPage() {
                 <p className="font-semibold line-clamp-2">{log.prompt}</p>
               </div>
               <div className="text-sm text-right w-28 shrink-0">
-                <p>{log.token_count} tokens</p>
-                <p className="text-muted-foreground">{log.model}</p>
+    <p className="text-muted-foreground">
+  {log.model} · {log.total_tokens} tokens
+</p>
+
+
                 <p className="text-muted-foreground">{log.widget}</p>
               </div>
             </div>

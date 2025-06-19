@@ -4,13 +4,15 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import { generateGptRecommendation, getTokensForText } from '@/lib/gptHelper';
 
-const MAX_TOKENS = 12000;
+const MAX_TOKENS = 16000;
 
 export async function POST(req: Request) {
   let testMode = false;
   let quizKey = 'parquiz';
   let groupedQuestions = null;
   let isAdmin = false;
+  let user_id = null;
+  let for_partner = null;
 
   try {
     const body = await req.json();
@@ -18,6 +20,8 @@ export async function POST(req: Request) {
     quizKey = body?.quizKey || 'parquiz';
     groupedQuestions = body?.groupedQuestions || null;
     isAdmin = body?.isAdmin || false;
+    user_id = body?.user_id || null;
+    for_partner = body?.for_partner || null;
   } catch {}
 
   if (testMode) return NextResponse.json({ ok: true });
@@ -35,13 +39,17 @@ export async function POST(req: Request) {
 
     for (const source of sources || []) {
       const { table_name, description } = source;
-      const { data, error } = await supabase.from(table_name).select('*');
+      const { data, error } = await supabase
+        .from(table_name)
+        .select('*')
+        .limit(5);
+
       if (error || !data) continue;
 
       const text = `### Tabel: ${table_name}\n${description || ''}\n${JSON.stringify(data, null, 2)}`;
       const tokens = getTokensForText(text);
 
-      if (totalTokens + tokens > MAX_TOKENS) break;
+      if (totalTokens + tokens > 12000) break;
 
       totalTokens += tokens;
       rowCounts[table_name] = data.length;
@@ -54,14 +62,13 @@ export async function POST(req: Request) {
       ? `🟩 Enige:\n${groupedQuestions.green.map((q: any) => q.question).join('\n')}\n\n🟨 Små forskelle:\n${groupedQuestions.yellow.map((q: any) => q.question).join('\n')}\n\n🟥 Store forskelle:\n${groupedQuestions.red.map((q: any) => q.question).join('\n')}`
       : '';
 
-    let fullPrompt = `
-Du er parterapeut og skal give en personlig anbefaling til et par baseret på deres data.
+    const promptHeader = `Du er parterapeut og skal give en personlig anbefaling til et par baseret på deres data.`;
+    const promptGrouped = groupedText ? `\n\n📋 Deres besvarelser:\n${groupedText}` : '';
+    const promptData = `\n\n📊 Data:\n${tableData.join('\n\n')}`;
+    const promptFooter = `\n\nGiv nu en personlig, ærlig og omsorgsfuld anbefaling. Brug dataene aktivt i analysen.`;
 
-${groupedText ? `📋 Deres besvarelser:\n${groupedText}\n` : ''}
-
-📊 Data:\n${tableData.join('\n\n')}
-
-Giv nu en personlig, ærlig og omsorgsfuld anbefaling. Brug dataene aktivt i analysen.`.trim();
+    const fullPrompt = `${promptHeader}${promptGrouped}${promptData}${promptFooter}`;
+    const promptTokens = getTokensForText(fullPrompt);
 
     const recommendation = await generateGptRecommendation(fullPrompt, 'gpt-3.5-turbo');
 
@@ -73,6 +80,10 @@ Giv nu en personlig, ærlig og omsorgsfuld anbefaling. Brug dataene aktivt i ana
       row_count: Object.values(rowCounts).reduce((sum, n) => sum + n, 0),
       row_counts: rowCounts,
       used_tables: Object.keys(rowCounts),
+      user_id,
+      for_partner,
+      grouped_questions_hash: null,
+      token_count: promptTokens,
     });
 
     return NextResponse.json({

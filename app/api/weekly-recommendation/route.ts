@@ -5,16 +5,17 @@ import { supabase } from "@/lib/supabaseClient";
 import { generateGptRecommendation, getTokensForText } from "@/lib/gptHelper";
 
 export async function POST(req: Request) {
-  const { userId } = await req.json();
+  const { user_id } = await req.json();
 
-  if (!userId) {
+
+  if (!user_id) {
     return NextResponse.json({ error: "Mangler bruger-ID" }, { status: 400 });
   }
 
   const { data: widgetData, error } = await supabase
     .from("widget_config")
     .select("config")
-    .eq("user_id", userId)
+    .eq("user_id", user_id)
     .eq("widget_key", "weekly_recommendation")
     .maybeSingle();
 
