@@ -22,17 +22,25 @@ export default function QuizResultPage() {
   const [activeTab, setActiveTab] = useState<"results" | "compare" | "recommendation">("results");
 
   // Fallback: find sessionId fra URL eller localStorage
-  useEffect(() => {
-    const paramId = searchParams.get("session");
-    if (paramId) {
-      setSessionId(paramId);
+useEffect(() => {
+  const paramId = searchParams.get("session");
+  const key = `quiz_session_${quizKey}`;
+
+  if (paramId) {
+    console.log("🔑 Fandt session ID i URL:", paramId);
+    setSessionId(paramId);
+    localStorage.setItem(key, paramId); // gem den igen for sikkerhed
+  } else {
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      console.log("💾 Henter session ID fra localStorage:", stored);
+      setSessionId(stored);
     } else {
-      const stored = localStorage.getItem(`quiz_session_${quizKey}`);
-      if (stored) {
-        setSessionId(stored);
-      }
+      console.warn("❌ Ingen session ID fundet i URL eller localStorage");
     }
-  }, [quizKey, searchParams]);
+  }
+}, [quizKey, searchParams]);
+
 
   useEffect(() => {
     if (sessionId) fetchData();

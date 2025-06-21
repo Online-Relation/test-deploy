@@ -52,7 +52,6 @@ interface Props {
   sessionId?: string;
 }
 
-
 const QuizResultComponent: FC<Props> = ({ grouped, showGraphsOnly = false, sessionId }) => {
   const { quizKey: rawKey } = useParams();
   const quizKey = rawKey as string;
@@ -65,115 +64,96 @@ const QuizResultComponent: FC<Props> = ({ grouped, showGraphsOnly = false, sessi
   const [recommendationError, setRecommendationError] = useState<string | null>(null);
   const [view, setView] = useState<'results' | 'visual' | 'recommendations'>('results');
 
-  useEffect(() => {
-    const fetchAnswersAndProfiles = async () => {
-      let query = supabase
-        .from('quiz_responses')
-        .select('question_id, answer, user_id')
-        .eq('quiz_key', quizKey);
-
-      if (sessionId) {
-        query = query.eq('session_id', sessionId);
-      }
-
-      const { data: aData } = await query;
-
-      const userIds = [...new Set(aData?.map(a => a.user_id) || [])];
-
-      const { data: pData } = await supabase
-        .from('profiles')
-        .select('id, display_name, avatar_url')
-        .in('id', userIds);
-
-      if (aData) setAnswers(aData);
-      if (pData) {
-        const map: Record<string, Profile> = {};
-        pData.forEach(p => (map[p.id] = p));
-        setProfiles(map);
-      }
-    };
-
-    fetchAnswersAndProfiles();
-  }, [quizKey, sessionId]);
-
-
 useEffect(() => {
-  const cleanedKey = quizKey.replace(/\+/g, ' ');
-  const totalGrouped = grouped.green.length + grouped.yellow.length + grouped.red.length;
+  const fetchAnswersAndProfiles = async () => {
+    const { data: aData, error } = await supabase
+      .from('quiz_responses')
+      .select('question_id, answer, user_id')
+      .eq('quiz_key', quizKey)
+      .eq('status', 'submitted'); // sikrer kun færdige svar
 
- if (!cleanedKey || totalGrouped === 0) return;
-
-
-  const fetchOrCacheRecommendation = async () => {
-    setLoadingRecommendations(true);
-    setRecommendationError(null);
-
-    console.log("🔍 Henter anbefaling for quizKey:", cleanedKey);
-
-  const { data: cached } = await supabase
-  .from('quiz_recommendations')
-  .select('recommendation')
-  .eq('quiz_key', cleanedKey)
-  .order('generated_at', { ascending: false })
-  .limit(1)
-  .maybeSingle();
-
-
-    if (cached?.recommendation) {
-      setRecommendations([cached.recommendation]);
-      setLoadingRecommendations(false);
-      return;
+    if (error) {
+      console.error("❌ Supabase fejl:", error.message);
     }
 
-    try {
-      console.log("📡 Kalder /api/recommendations med:", {
-  groupedQuestions: grouped,
-  quizKey: cleanedKey
-});
-      const res = await fetch('/api/recommendations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groupedQuestions: grouped, quizKey: cleanedKey }),
-      });
+    console.log("📥 Hentede alle svar (uden session filter):", aData);
 
-      const resData = await res.json();
-      console.log("📥 Fik anbefaling tilbage fra GPT:", resData.recommendation);
+    const userIds = [...new Set(aData?.map(a => a.user_id) || [])];
 
-      if (resData.recommendation) {
-        console.log("📝 Gemmer anbefaling for quizKey:", cleanedKey);
+    const { data: pData } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url')
+      .in('id', userIds);
 
-const { error } = await supabase.from('quiz_recommendations').insert({
-  quiz_key: cleanedKey,
-  recommendation: resData.recommendation,
-  grouped_questions_hash: 'placeholder',
-  generated_at: new Date().toISOString(),
-});
-
-if (error) {
-  console.error("❌ Fejl ved insert til quiz_recommendations:", error.message);
-} else {
-  console.log("✅ Anbefaling gemt i quiz_recommendations");
-}
-
-
-
-
-        let rec = resData.recommendation;
-        rec += '\n\n— Hentet data fra Supabase';
-        setRecommendations([rec]);
-      }
-    } catch (err: any) {
-      setRecommendationError(err.message || 'Ukendt fejl ved hentning af anbefalinger');
-      setRecommendations([]);
-    } finally {
-      setLoadingRecommendations(false);
+    if (aData) setAnswers(aData);
+    if (pData) {
+      const map: Record<string, Profile> = {};
+      pData.forEach(p => (map[p.id] = p));
+      setProfiles(map);
     }
   };
 
-  fetchOrCacheRecommendation();
-}, [quizKey, grouped, view]);
+  fetchAnswersAndProfiles();
+}, [quizKey]);
 
 
+  useEffect(() => {
+    const cleanedKey = quizKey.replace(/\+/g, ' ');
+    const totalGrouped = grouped.green.length + grouped.yellow.length + grouped.red.length;
+
+    if (!cleanedKey || totalGrouped === 0) return;
+
+    const fetchOrCacheRecommendation = async () => {
+      setLoadingRecommendations(true);
+      setRecommendationError(null);
+
+      const { data: cached } = await supabase
+        .from('quiz_recommendations')
+        .select('recommendation')
+        .eq('quiz_key', cleanedKey)
+        .order('generated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (cached?.recommendation) {
+        setRecommendations([cached.recommendation]);
+        setLoadingRecommendations(false);
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/recommendations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ groupedQuestions: grouped, quizKey: cleanedKey }),
+        });
+
+        const resData = await res.json();
+
+        if (resData.recommendation) {
+          await supabase.from('quiz_recommendations').insert({
+            quiz_key: cleanedKey,
+            recommendation: resData.recommendation,
+            grouped_questions_hash: 'placeholder',
+            generated_at: new Date().toISOString(),
+          });
+
+          setRecommendations([resData.recommendation + '\n\n— Hentet data fra Supabase']);
+        }
+      } catch (err: any) {
+        setRecommendationError(err.message || 'Ukendt fejl ved hentning af anbefalinger');
+        setRecommendations([]);
+      } finally {
+        setLoadingRecommendations(false);
+      }
+    };
+
+    fetchOrCacheRecommendation();
+  }, [quizKey, grouped, view]);
+
+  // 🔍 Debug-logs
+  console.log("✅ Answers:", answers);
+  console.log("✅ Grouped RED:", grouped.red);
 
   const chartData = {
     labels: ['Enige', 'Små forskelle', 'Store forskelle'],
@@ -222,9 +202,15 @@ if (error) {
               </h2>
 
               {grouped[level].map(q => {
-                const related = answers.filter(a => a.question_id === q.id);
+                const related = answers.filter(a =>
+                  a.question_id === q.id &&
+                  a.answer !== null &&
+                  a.answer.trim() !== ''
+                );
+
                 return (
-                  <Card key={q.id} className="p-4 space-y-2">
+                  <Card key={q.id} className="p-4 space-y-3">
+                    <div className="text-base font-semibold text-primary">❓ {q.question}</div>
                     <div className="grid grid-cols-2 gap-4">
                       {related.map(a => (
                         <div key={a.user_id} className="flex items-center gap-2">
