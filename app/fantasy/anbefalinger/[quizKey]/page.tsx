@@ -17,11 +17,11 @@ export default function QuizResultPage() {
   const quizKey = decodeURIComponent(rawKey as string);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [grouped, setGrouped] = useState<any>(null);
+  const [answers, setAnswers] = useState<any[]>([]);
   const [recommendation, setRecommendation] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"results" | "compare" | "recommendation">("results");
 
-  // Fallback: find sessionId fra URL eller localStorage
   useEffect(() => {
     const paramId = searchParams.get("session");
     if (paramId) {
@@ -47,7 +47,7 @@ export default function QuizResultPage() {
       .eq("quiz_key", quizKey)
       .order("order", { ascending: true });
 
-    const { data: answers } = await supabase
+    const { data: answersData } = await supabase
       .from("quiz_responses")
       .select("question_id, answer, user_id, session_id, status")
       .eq("quiz_key", quizKey)
@@ -66,11 +66,13 @@ export default function QuizResultPage() {
       setRecommendation(meta.recommendation);
     }
 
-    if (!questions || !answers) {
+    if (!questions || !answersData) {
       setGrouped(null);
       setLoading(false);
       return;
     }
+
+    setAnswers(answersData);
 
     const result = { green: [], yellow: [], red: [] } as {
       green: typeof questions;
@@ -79,7 +81,7 @@ export default function QuizResultPage() {
     };
 
     for (const q of questions) {
-      const related = answers.filter((a) => a.question_id === q.id);
+      const related = answersData.filter((a) => a.question_id === q.id);
       const uniqueUsers = [...new Set(related.map((a) => a.user_id))];
       if (uniqueUsers.length !== 2) continue;
 
@@ -100,7 +102,7 @@ export default function QuizResultPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         user_id: user?.id || "1",
-        for_partner: "stine", // du kan justere det her
+        for_partner: "stine",
         gatheredData: JSON.stringify(grouped),
         tone: "kærlig og ærlig",
         quiz_key: quizKey,
@@ -141,13 +143,13 @@ export default function QuizResultPage() {
       {!loading && grouped && (
         <>
           {activeTab === "results" && (
-            <QuizResultComponent grouped={grouped} sessionId={sessionId || undefined} />
+            <QuizResultComponent grouped={grouped} answers={answers} sessionId={sessionId || undefined} />
           )}
 
           {activeTab === "compare" && (
             <Card className="p-4 space-y-4">
               <p className="text-sm text-muted-foreground">Visualisering af enighed/uenighed</p>
-              <QuizResultComponent grouped={grouped} showGraphsOnly sessionId={sessionId || undefined} />
+              <QuizResultComponent grouped={grouped} answers={answers} showGraphsOnly sessionId={sessionId || undefined} />
             </Card>
           )}
 

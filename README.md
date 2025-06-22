@@ -2001,3 +2001,85 @@ XP-værdi skal kunne redigeres individuelt for begge brugere
  Begge skal se status “afventer partner” korrekt
 
  Nyt spørgsmål hentes korrekt efter gæt er givet
+
+✅ Opdatering 22/6 - 2025: Nyt spil – Tryk på min knap
+Der er nu implementeret et fuldt funktionelt spil til parforholdet, hvor den ene partner vælger et følelsesmæssigt svar på et spørgsmål, og den anden forsøger at gætte svaret. Systemet bygger videre på vores XP-gamification-struktur og benytter Supabase.
+
+Side: /spil/knob
+
+Funktionalitet
+Spillet foregår skiftevis mellem to faser: respond (vælg følelse) og guess (gæt partnerens svar).
+
+Mulige svar: Elsker, Usikker, Trigger
+
+Når begge har svaret, evalueres om svaret matcher:
+
+Korrekt gæt → XP til guesser (tages fra xp_settings)
+
+Forkert gæt → Ingen XP
+
+Visuel status vises på skærmen (“Korrekt gæt! Du har fået XP!” eller “Forkert gæt – men godt forsøgt!”)
+
+Når begge har svaret, starter en ny runde automatisk for den person, der var responder.
+
+Teknisk implementering
+State management: phase, sessionRole, question, status, hasAnswered, responderHasAnswered
+
+XP-håndtering:
+
+Henter XP fra xp_settings med action guess_knob_correct
+
+Logger point til xp_log med beskrivelse
+
+Realtime polling:
+
+checkGuessStatus() kører hvert 3. sekund i guess-fasen
+
+checkForNewSession() tjekker for nye sessioner i wait-fasen
+
+Fejlbeskyttelse:
+
+Dublet-svar forhindres
+
+Ventefase aktiveres korrekt hvis partner endnu ikke har svaret
+
+Session-flow:
+
+Nye sessions oprettes med Supabase RPC: create_knob_session
+
+Nye spørgsmål hentes via get_next_knob_question
+
+Databaseændringer
+Ny tabel: knob_game_sessions (session med user_id og question_id)
+
+Ny tabel: knob_game_answers (svar pr. session, rolle og bruger)
+
+XP-log føres i eksisterende xp_log tabel
+
+XP konfigureres via eksisterende xp_settings med:
+
+role: guesser
+
+action: guess_knob_correct
+
+effort: null
+
+Teststatus
+✅ Ny session oprettes korrekt
+
+✅ Begge brugere får samme spørgsmål
+
+✅ Kun responder kan svare først
+
+✅ Guesser får først mulighed når responder har svaret
+
+✅ Guesser får XP hvis svar matcher
+
+✅ Næste spørgsmål vises automatisk for responder
+
+✅ Guesser venter korrekt efter forkert gæt
+
+✅ XP bliver logget korrekt med beskrivelse
+
+✅ Debug og konsolvisning hjælper til fejlfinding
+

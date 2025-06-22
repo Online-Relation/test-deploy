@@ -8,7 +8,6 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Doughnut } from 'react-chartjs-2';
 import { useParams } from 'next/navigation';
-
 import {
   Chart as ChartJS,
   ArcElement,
@@ -48,17 +47,21 @@ interface Grouped {
 
 interface Props {
   grouped: Grouped;
+  answers: Answer[];
   showGraphsOnly?: boolean;
   sessionId?: string;
 }
 
-
-const QuizResultComponent: FC<Props> = ({ grouped, showGraphsOnly = false, sessionId }) => {
+const QuizResultComponent: FC<Props> = ({
+  grouped,
+  answers,
+  showGraphsOnly = false,
+  sessionId,
+}) => {
   const { quizKey: rawKey } = useParams();
   const quizKey = rawKey as string;
   const { user } = useUserContext();
 
-  const [answers, setAnswers] = useState<Answer[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [recommendations, setRecommendations] = useState<string[] | null>(null);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
@@ -66,113 +69,84 @@ const QuizResultComponent: FC<Props> = ({ grouped, showGraphsOnly = false, sessi
   const [view, setView] = useState<'results' | 'visual' | 'recommendations'>('results');
 
   useEffect(() => {
-    const fetchAnswersAndProfiles = async () => {
-      let query = supabase
-        .from('quiz_responses')
-        .select('question_id, answer, user_id')
-        .eq('quiz_key', quizKey);
-
-      if (sessionId) {
-        query = query.eq('session_id', sessionId);
-      }
-
-      const { data: aData } = await query;
-
-      const userIds = [...new Set(aData?.map(a => a.user_id) || [])];
+    const fetchProfiles = async () => {
+      const userIds = [...new Set(answers.map((a) => a.user_id))];
+      if (userIds.length === 0) return;
 
       const { data: pData } = await supabase
         .from('profiles')
         .select('id, display_name, avatar_url')
         .in('id', userIds);
 
-      if (aData) setAnswers(aData);
       if (pData) {
         const map: Record<string, Profile> = {};
-        pData.forEach(p => (map[p.id] = p));
+        pData.forEach((p) => (map[p.id] = p));
         setProfiles(map);
       }
     };
 
-    fetchAnswersAndProfiles();
-  }, [quizKey, sessionId]);
+    fetchProfiles();
+  }, [answers]);
 
+  useEffect(() => {
+    const cleanedKey = quizKey.replace(/\+/g, ' ');
+    const totalGrouped = grouped.green.length + grouped.yellow.length + grouped.red.length;
 
-useEffect(() => {
-  const cleanedKey = quizKey.replace(/\+/g, ' ');
-  const totalGrouped = grouped.green.length + grouped.yellow.length + grouped.red.length;
+    if (!cleanedKey || totalGrouped === 0 || view !== 'recommendations') return;
 
-  if (!cleanedKey || totalGrouped === 0 || view !== 'recommendations') return;
+    const fetchOrCacheRecommendation = async () => {
+      setLoadingRecommendations(true);
+      setRecommendationError(null);
 
-  const fetchOrCacheRecommendation = async () => {
-    setLoadingRecommendations(true);
-    setRecommendationError(null);
+      const { data: cached } = await supabase
+        .from('quiz_recommendations')
+        .select('recommendation')
+        .eq('quiz_key', cleanedKey)
+        .order('generated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    console.log("🔍 Henter anbefaling for quizKey:", cleanedKey);
-
-    const { data: cached } = await supabase
-      .from('quiz_recommendations')
-      .select('recommendation')
-      .eq('quiz_key', cleanedKey)
-      .order('generated_at', { ascending: false })
-
-      .limit(1)
-      .maybeSingle();
-
-    if (cached?.recommendation) {
-      setRecommendations([cached.recommendation]);
-      setLoadingRecommendations(false);
-      return;
-    }
-
-    try {
-      console.log("📡 Kalder /api/recommendations med:", {
-  groupedQuestions: grouped,
-  quizKey: cleanedKey
-});
-      const res = await fetch('/api/recommendations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groupedQuestions: grouped, quizKey: cleanedKey }),
-      });
-
-      const resData = await res.json();
-      console.log("📥 Fik anbefaling tilbage fra GPT:", resData.recommendation);
-
-      if (resData.recommendation) {
-        console.log("📝 Gemmer anbefaling for quizKey:", cleanedKey);
-
-const { error } = await supabase.from('quiz_recommendations').insert({
-  quiz_key: cleanedKey,
-  recommendation: resData.recommendation,
-  grouped_questions_hash: 'placeholder',
-  generated_at: new Date().toISOString(),
-});
-
-if (error) {
-  console.error("❌ Fejl ved insert til quiz_recommendations:", error.message);
-} else {
-  console.log("✅ Anbefaling gemt i quiz_recommendations");
-}
-
-
-
-
-        let rec = resData.recommendation;
-        rec += '\n\n— Hentet data fra Supabase';
-        setRecommendations([rec]);
+      if (cached?.recommendation) {
+        setRecommendations([cached.recommendation]);
+        setLoadingRecommendations(false);
+        return;
       }
-    } catch (err: any) {
-      setRecommendationError(err.message || 'Ukendt fejl ved hentning af anbefalinger');
-      setRecommendations([]);
-    } finally {
-      setLoadingRecommendations(false);
-    }
-  };
 
-  fetchOrCacheRecommendation();
-}, [quizKey, grouped, view]);
+      try {
+        const res = await fetch('/api/recommendations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ groupedQuestions: grouped, quizKey: cleanedKey }),
+        });
 
+        const resData = await res.json();
 
+        if (resData.recommendation) {
+          const { error } = await supabase.from('quiz_recommendations').insert({
+            quiz_key: cleanedKey,
+            recommendation: resData.recommendation,
+            grouped_questions_hash: 'placeholder',
+            generated_at: new Date().toISOString(),
+          });
+
+          if (error) {
+            console.error("❌ Fejl ved insert til quiz_recommendations:", error.message);
+          }
+
+          let rec = resData.recommendation;
+          rec += '\n\n— Hentet data fra Supabase';
+          setRecommendations([rec]);
+        }
+      } catch (err: any) {
+        setRecommendationError(err.message || 'Ukendt fejl ved hentning af anbefalinger');
+        setRecommendations([]);
+      } finally {
+        setLoadingRecommendations(false);
+      }
+    };
+
+    fetchOrCacheRecommendation();
+  }, [quizKey, grouped, view]);
 
   const chartData = {
     labels: ['Enige', 'Små forskelle', 'Store forskelle'],
@@ -212,7 +186,7 @@ if (error) {
 
       {view === 'results' && (
         <>
-          {(['green', 'yellow', 'red'] as const).map(level => (
+          {(['green', 'yellow', 'red'] as const).map((level) => (
             <div key={level} className="space-y-2">
               <h2 className="text-lg font-semibold mt-6">
                 {level === 'green' && '✅ Enige'}
@@ -220,41 +194,47 @@ if (error) {
                 {level === 'red' && '🔴 Store forskelle'}
               </h2>
 
+              {grouped[level].map((q) => {
+                const related = answers.filter((a) => a.question_id === q.id);
 
-              {grouped[level].map(q => {
-                const related = answers.filter(a => a.question_id === q.id);
                 return (
                   <Card key={q.id} className="p-4 space-y-4">
-                    {/* ✅ Tilføjet spørgsmålstekst */}
-                    <div className="text-sm font-semibold text-muted-foreground">
-                      {q.question}
-                    </div>
+                    <div className="text-sm font-semibold text-muted-foreground">{q.question}</div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      {related.map(a => (
-                        <div key={a.user_id} className="flex items-center gap-2">
-                          {profiles[a.user_id]?.avatar_url ? (
-                            <img
-                              src={profiles[a.user_id].avatar_url ?? ''}
-                              alt="avatar"
-                              className="w-6 h-6 rounded-full"
-                            />
-                          ) : (
-                            <div className="w-6 h-6 rounded-full bg-gray-300" />
-                          )}
-                          <div className="text-sm">
-                            <div className="font-medium">
-                              {profiles[a.user_id]?.display_name || 'Ukendt'}
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      {['mads', 'stine'].map((roleKey) => {
+                        const profileEntry = Object.values(profiles).find((p) =>
+                          p.display_name?.toLowerCase().includes(roleKey)
+                        );
+
+                        const answer = related.find(
+                          (a) =>
+                            a.user_id === profileEntry?.id &&
+                            a.question_id === q.id
+                        );
+
+                        return (
+                          <div key={roleKey} className="flex items-center gap-2">
+                            {profileEntry?.avatar_url ? (
+                              <img
+                                src={profileEntry.avatar_url}
+                                alt={`${roleKey} avatar`}
+                                className="w-8 h-8 rounded-full"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-gray-300" />
+                            )}
+                            <div>
+                              <div className="font-medium">{profileEntry?.display_name || roleKey}</div>
+                              <div>{answer?.answer || 'Intet svar'}</div>
                             </div>
-                            <div>{a.answer}</div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </Card>
                 );
               })}
-
 
               {grouped[level].length === 0 && (
                 <p className="text-sm italic text-muted-foreground">Ingen</p>

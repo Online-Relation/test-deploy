@@ -26,15 +26,12 @@ interface Answer {
 export default function GenerelAnbefalingPage() {
   const { quizKey: rawKey } = useParams();
   const quizKey = decodeURIComponent(rawKey as string);
-const searchParams = useSearchParams();
-let sessionId = searchParams.get('session');
+  const searchParams = useSearchParams();
+  let sessionId = searchParams.get('session');
 
-if (!sessionId && typeof window !== 'undefined') {
-  sessionId = localStorage.getItem(`quiz_session_${quizKey}`);
-}
-
-
-
+  if (!sessionId && typeof window !== 'undefined') {
+    sessionId = localStorage.getItem(`quiz_session_${quizKey}`);
+  }
 
   const [recommendation, setRecommendation] = useState<string | null>(null);
   const [grouped, setGrouped] = useState<{
@@ -42,7 +39,7 @@ if (!sessionId && typeof window !== 'undefined') {
     yellow: Question[];
     red: Question[];
   } | null>(null);
-
+  const [answers, setAnswers] = useState<Answer[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -52,22 +49,20 @@ if (!sessionId && typeof window !== 'undefined') {
       setLoading(true);
 
       const { data: questions } = await supabase
-  .from("quiz_questions")
-  .select("id, question, type, order")
-  .eq("quiz_key", quizKey)
-  .order("order", { ascending: true });
+        .from("quiz_questions")
+        .select("id, question, type, order")
+        .eq("quiz_key", quizKey)
+        .order("order", { ascending: true });
 
-const { data: answers } = await supabase
-  .from("quiz_responses")
-  .select("question_id, answer, user_id, session_id, status")
-  .eq("quiz_key", quizKey)
-  .eq("session_id", sessionId)
-  .eq("status", "submitted");
+      const { data: answersData } = await supabase
+        .from("quiz_responses")
+        .select("question_id, answer, user_id, session_id, status")
+        .eq("quiz_key", quizKey)
+        .eq("session_id", sessionId)
+        .eq("status", "submitted");
 
-console.log("🔍 QUESTIONS", JSON.stringify(questions, null, 2));
-console.log("🔍 ANSWERS", JSON.stringify(answers, null, 2));
-
-
+      console.log("🔍 QUESTIONS", JSON.stringify(questions, null, 2));
+      console.log("🔍 ANSWERS", JSON.stringify(answersData, null, 2));
 
       const { data: meta } = await supabase
         .from("overall_meta")
@@ -79,24 +74,25 @@ console.log("🔍 ANSWERS", JSON.stringify(answers, null, 2));
 
       if (meta?.recommendation) setRecommendation(meta.recommendation);
 
-      if (!questions || !answers) {
+      if (!questions || !answersData) {
         setLoading(false);
         return;
       }
 
-   const result: {
-  green: Question[];
-  yellow: Question[];
-  red: Question[];
-} = {
-  green: [],
-  yellow: [],
-  red: [],
-};
+      setAnswers(answersData);
 
+      const result: {
+        green: Question[];
+        yellow: Question[];
+        red: Question[];
+      } = {
+        green: [],
+        yellow: [],
+        red: [],
+      };
 
       for (const q of questions) {
-        const related = answers.filter((a) => a.question_id === q.id);
+        const related = answersData.filter((a) => a.question_id === q.id);
         const uniqueUsers = [...new Set(related.map((a) => a.user_id))];
         if (uniqueUsers.length !== 2) continue;
 
@@ -115,23 +111,31 @@ console.log("🔍 ANSWERS", JSON.stringify(answers, null, 2));
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
-      <h1 className="text-2xl font-bold">📋 Quizresultat</h1>
+      <h1 className="text-2xl font-bold mb-2">Quizresultat</h1>
 
       {loading ? (
         <p className="text-muted-foreground text-sm">Indlæser data...</p>
-      ) : grouped ? (
+      ) : grouped && sessionId ? (
         <>
-          <QuizResultComponent grouped={grouped} sessionId={sessionId || undefined} />
+          <QuizResultComponent
+            grouped={grouped}
+            answers={answers}
+            sessionId={sessionId}
+          />
 
           {recommendation && (
             <Card className="p-4 mt-6 space-y-2 bg-blue-50 border border-blue-200">
               <h2 className="font-semibold text-base">📚 Anbefaling fra GPT</h2>
-              <p className="text-sm whitespace-pre-wrap text-muted-foreground">{recommendation}</p>
+              <p className="text-sm whitespace-pre-wrap text-muted-foreground">
+                {recommendation}
+              </p>
             </Card>
           )}
         </>
       ) : (
-        <p className="italic text-muted-foreground text-sm">Ingen analyseret data fundet endnu for denne quiz.</p>
+        <p className="italic text-muted-foreground text-sm">
+          Ingen analyseret data fundet endnu for denne quiz.
+        </p>
       )}
     </div>
   );
