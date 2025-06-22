@@ -1,30 +1,29 @@
+// /app/settings/recommendation/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { useUserContext } from '@/context/UserContext';
 
-const widgetOptions = ['weekly_recommendation'];
+const widgetOptions = [
+  'weekly_recommendation',
+  'quiz_recommendation',
+  'checkin_recommendation',
+  'sexlife_recommendation',
+  'overall_recommendation'
+];
 
 export default function RecommendationSettingsPage() {
-  const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
-  const [selectedUser, setSelectedUser] = useState('');
+  const { user } = useUserContext();
   const [widgetKey, setWidgetKey] = useState('weekly_recommendation');
   const [tables, setTables] = useState<string[]>([]);
   const [selectedTables, setSelectedTables] = useState<string[]>([]);
-  const [otherSelectedTables, setOtherSelectedTables] = useState<string[]>([]);
   const [tone, setTone] = useState('');
   const [excludeWords, setExcludeWords] = useState('');
   const [status, setStatus] = useState('');
   const [hiddenTables, setHiddenTables] = useState<string[]>([]);
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      const { data, error } = await supabase.from('profiles').select('id, display_name');
-      if (error) return console.error('Fejl ved hentning af brugere:', error.message);
-      const formatted = data.map((u: any) => ({ id: u.id, name: u.display_name || 'Ukendt' }));
-      setUsers(formatted);
-    };
-
     const fetchTables = async () => {
       const { data, error } = await supabase.rpc('list_tables');
       if (error) return console.error('Fejl ved hentning af tabeller:', error.message);
@@ -33,49 +32,34 @@ export default function RecommendationSettingsPage() {
       setTables(data);
     };
 
-    fetchUsers();
     fetchTables();
   }, []);
 
   useEffect(() => {
-    if (!selectedUser || !widgetKey) return;
+    if (!user?.id || !widgetKey) return;
 
     const fetchConfig = async () => {
       const { data, error } = await supabase
         .from('widget_config')
-        .select('user_id, config')
-        .eq('widget_key', widgetKey);
+        .select('config')
+        .eq('user_id', user.id)
+        .eq('widget_key', widgetKey)
+        .maybeSingle();
 
-      if (error) {
-        console.error('Fejl ved hentning af config:', error.message);
-        return;
-      }
+      if (error || !data?.config) return;
 
-      const current = data.find((item: any) => item.user_id === selectedUser);
-      const other = data.find((item: any) => item.user_id !== selectedUser);
-
-      if (current?.config) {
-        setSelectedTables(current.config.tables || []);
-        setTone(current.config.tone || '');
-        setExcludeWords((current.config.excludeWords || []).join(', '));
-      }
-
-      if (other?.config) {
-        setOtherSelectedTables(other.config.tables || []);
-      } else {
-        setOtherSelectedTables([]);
-      }
+      setSelectedTables(data.config.tables || []);
+      setTone(data.config.tone || '');
+      setExcludeWords((data.config.excludeWords || []).join(', '));
     };
 
     fetchConfig();
-  }, [selectedUser, widgetKey]);
+  }, [user, widgetKey]);
 
   const handleSave = async () => {
-    if (!selectedUser || !widgetKey) return;
+    if (!user?.id || !widgetKey) return;
 
-    const forPartner = selectedUser === 'mads' ? 'stine' : 'mads';
     const config = {
-      for_partner: forPartner,
       tables: selectedTables,
       tone,
       excludeWords: excludeWords.split(',').map(w => w.trim()),
@@ -85,21 +69,15 @@ export default function RecommendationSettingsPage() {
       .from('widget_config')
       .upsert(
         {
-          user_id: selectedUser,
+          user_id: user.id,
           widget_key: widgetKey,
           config,
-          for_partner: forPartner,
           selected_tables: selectedTables,
         },
         { onConflict: 'user_id,widget_key' }
       );
 
-    if (error) {
-      console.error('Fejl ved gem:', error.message);
-      setStatus('❌ Kunne ikke gemme');
-    } else {
-      setStatus('✅ Gemt!');
-    }
+    setStatus(error ? '❌ Kunne ikke gemme' : '✅ Gemt!');
   };
 
   const handleTableToggle = (table: string) => {
@@ -127,20 +105,6 @@ export default function RecommendationSettingsPage() {
 
       <div className="space-y-4 bg-white shadow rounded-xl p-6">
         <div>
-          <label className="block mb-1 font-medium">Vælg bruger</label>
-          <select
-            value={selectedUser}
-            onChange={e => setSelectedUser(e.target.value)}
-            className="w-full border rounded px-3 py-2"
-          >
-            <option value="">-- Vælg --</option>
-            {users.map(user => (
-              <option key={user.id} value={user.id}>{user.name}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
           <label className="block mb-1 font-medium">Widget-type</label>
           <select
             value={widgetKey}
@@ -156,29 +120,24 @@ export default function RecommendationSettingsPage() {
         <div>
           <label className="block mb-1 font-medium">Inkluder tabeller</label>
           <div className="grid grid-cols-2 gap-2">
-            {visibleTables.map(table => {
-              const isCurrent = selectedTables.includes(table);
-              const isOther = otherSelectedTables.includes(table);
-              const isMatch = isCurrent && isOther;
-              const isMismatch = isCurrent !== isOther;
-
-              return (
-                <div
-                  key={table}
-                  className={`flex items-center justify-between text-sm rounded px-2 py-1 ${isMatch ? 'bg-green-100' : isMismatch ? 'bg-red-100' : ''}`}
-                >
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={isCurrent}
-                      onChange={() => handleTableToggle(table)}
-                    />
-                    {table}
-                  </label>
-                  <button onClick={() => handleHideTable(table)} className="text-red-500 text-xs">❌</button>
-                </div>
-              );
-            })}
+            {visibleTables.map(table => (
+              <div
+                key={table}
+                className={`flex items-center justify-between text-sm rounded px-2 py-1 ${
+                  selectedTables.includes(table) ? 'bg-green-100' : ''
+                }`}
+              >
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedTables.includes(table)}
+                    onChange={() => handleTableToggle(table)}
+                  />
+                  {table}
+                </label>
+                <button onClick={() => handleHideTable(table)} className="text-red-500 text-xs">❌</button>
+              </div>
+            ))}
           </div>
           {hiddenTables.length > 0 && (
             <button

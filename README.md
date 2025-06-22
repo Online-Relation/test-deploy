@@ -1896,4 +1896,108 @@ Vi har arbejdet massivt på at gøre GPT-anbefalinger mere effektive, gennemsigt
 
 ---
 
-Alt ovenstående er dokumenteret i denne README-opdatering. Næste GPT-session kan arbejde videre direkte herfra uden tab af kontekst.
+🗓 Opdatering – 21. juni 2025
+🎮 Nyt spil: "Tryk på min knap"
+Et spil hvor én partner svarer på et spørgsmål (Elsker / Usikker / Trigger), og den anden forsøger at gætte svaret. Kun den der gætter korrekt får XP.
+
+✅ Implementeret funktionalitet
+Ny side:
+
+/games/knob/page.tsx – fuld spiloplevelse (visning, roller, svar)
+
+Spillogik:
+
+To faser: respond og guess
+
+Rollen fastsættes ud fra Supabase-tabel knob_game_sessions
+
+Svar gemmes i knob_game_answers
+
+Automatisk tildeling af gætterrolle via RPC-funktion create_knob_guess_session
+
+checkGuessStatus() checker om begge har svaret, og sammenligner
+
+Rollevisning:
+
+Responders ser selve spørgsmålet og vælger svar
+
+Guessers ser “Gæt din partners svar”
+
+Når begge har svaret: viser om gæt var korrekt, og starter nyt spørgsmål
+
+🗃 Oprettet i Supabase
+📄 Tabeller:
+1. knob_game_questions
+
+id (uuid)
+
+question (text)
+
+2. knob_game_sessions
+
+id (uuid)
+
+user_id (uuid) → den der starter spørgsmålet (responder)
+
+question_id (uuid)
+
+role (text: 'responder' / 'guesser')
+
+created_at (timestamp)
+
+3. knob_game_answers
+
+id (uuid)
+
+user_id (uuid)
+
+question_id (uuid)
+
+value (text: 'love' / 'uncertain' / 'trigger')
+
+role (text: 'responder' / 'guesser')
+
+created_at (timestamp)
+
+⚙️ RPC-funktioner:
+1. get_next_knob_question(user_id)
+
+Returnerer et tilfældigt spørgsmål, som brugeren endnu ikke har svaret på.
+
+2. create_knob_guess_session(responder_id, question_id)
+
+Indsætter en ny knob_game_sessions-række med partnerens ID og rollen guesser.
+
+🎨 Frontend-funktioner
+Håndtering af responder vs guesser
+
+Automatisk polling hvert 3. sekund for guess-fasen
+
+Feedback: “🎉 Korrekt gæt”, “😅 Forkert gæt”
+
+Statusbesked: “✅ Svar gemt! Vent på din partner...”
+
+Bruger partner_id fra profiles til at finde hinanden
+
+🔜 Næste session – To Do
+📌 Funktionalitet:
+ XP-tildeling ved korrekt gæt (brug xp_log og xp_settings)
+
+Action: knob_guess_correct
+
+Skal understøtte både mads og stine i xp_settings
+
+ Tilføj til /settings/points:
+
+Ny sektion: Spil – Tryk på min knap
+
+Handling: knob_guess_correct
+
+XP-værdi skal kunne redigeres individuelt for begge brugere
+
+🧠 Spilflow:
+ Gætteren skal ikke se spørgsmålet før responder har svaret
+
+ Begge skal se status “afventer partner” korrekt
+
+ Nyt spørgsmål hentes korrekt efter gæt er givet

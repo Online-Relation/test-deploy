@@ -8,11 +8,56 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const user_id = body.user_id;
-    const for_partner = body.for_partner;
 
-    if (!user_id || !for_partner) {
-      console.error('⛔️ Mangler userId eller forPartner', body);
-      return NextResponse.json({ error: 'Mangler userId eller forPartner' }, { status: 400 });
+    if (!user_id) {
+      console.error('⛔️ Mangler userId', body);
+      return NextResponse.json({ error: 'Mangler userId' }, { status: 400 });
+    }
+
+    // 🎨 Hent farveprofil
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select(
+        'red, yellow, green, blue, primary_color, keyword_1, keyword_2, keyword_3, keyword_4, keyword_5, red_description, yellow_description, green_description, blue_description'
+      )
+      .eq('id', user_id)
+      .maybeSingle();
+
+    let farveProfilText = '';
+    if (profile) {
+      const rækkefølge = [profile.red, profile.yellow, profile.green, profile.blue].filter(Boolean);
+      const nøgleord = [
+        profile.keyword_1,
+        profile.keyword_2,
+        profile.keyword_3,
+        profile.keyword_4,
+        profile.keyword_5,
+      ].filter(Boolean);
+
+      const farveBeskrivelser: Record<string, string> = {
+        red: profile.red_description || 'handlekraftig og målrettet',
+        yellow: profile.yellow_description || 'kreativ, legende og idérig',
+        green: profile.green_description || 'omsorgsfuld og harmonisøgende',
+        blue: profile.blue_description || 'struktureret og analytisk',
+      };
+
+      const prioriteretListe = rækkefølge
+        .map((farve, index) => {
+          const beskrivelse = farveBeskrivelser[farve] || 'personlighedstræk';
+          return `${index + 1}. ${farve} – ${beskrivelse}`;
+        })
+        .join('\n');
+
+      farveProfilText = `
+🎨 Farveprofil:
+Brugerens personlighed er sammensat af 4 farver i prioriteret rækkefølge:
+
+${prioriteretListe}
+
+Nøgleord: ${nøgleord.join(', ')}
+
+Fokusér særligt på de øverste farver i din anbefaling.
+      `.trim();
     }
 
     const { data: widgetConfig } = await supabase
@@ -62,7 +107,9 @@ export async function POST(req: Request) {
     }
 
     const prompt = `
-Du skal generere en kærlig og ærlig anbefaling til ${for_partner} baseret på deres seneste aktivitet.
+Du skal generere en kærlig og ærlig anbefaling til et par baseret på deres seneste aktivitet.
+
+${farveProfilText ? farveProfilText + '\n\n' : ''}
 
 📊 Aktivitetsoversigt:
 ${summaryLines.join('\n')}
@@ -70,12 +117,21 @@ ${summaryLines.join('\n')}
 Tone: ${tone}
 Undgå følgende ord: ${excludeWords.join(', ')}
 
-Svar med en varm, personlig anbefaling.
+Svar med en varm, personlig anbefaling til parret.
     `.trim();
 
-    const text = await generateGptRecommendation(prompt, 'gpt-3.5-turbo');
+    const recommendation = await generateGptRecommendation(prompt, 'gpt-3.5-turbo');
 
-    return NextResponse.json({ text });
+    await supabase.from('gpt_logs').insert({
+      user_id,
+      widget: 'weekly_recommendation',
+      prompt: prompt.slice(0, 2000),
+      response: recommendation,
+      model: 'gpt-3.5-turbo',
+      token_count: getTokensForText(prompt),
+    });
+
+    return NextResponse.json({ recommendation });
 
   } catch (err: any) {
     console.error('FEJL I API:', err.message || err);

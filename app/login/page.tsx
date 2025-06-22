@@ -28,7 +28,7 @@ export default function LoginPage() {
         <div className="hidden md:flex flex-col justify-center items-center bg-gradient-to-br from-blue-300 to-indigo-400 text-white p-8">
           <h2 className="text-2xl font-semibold text-center">Velkommen tilbage!</h2>
           <p className="mt-4 text-center text-sm opacity-90">
-            Din rejse mod et sjovere og mere nærværende parforhold starter her.
+            Dinnnnn rejse mod et sjovere og mere nærværende parforhold starter her.
           </p>
           <Image
             src="/motivating-illustration.webp"

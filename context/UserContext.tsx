@@ -2,6 +2,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
 type AccessMap = Record<string, boolean>;
@@ -27,24 +28,34 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const pathname = usePathname();
+  const isAuthPage = pathname === '/login' || pathname === '/signup';
+
   useEffect(() => {
+    if (isAuthPage) return;
+
     const fetchUser = async () => {
       setLoading(true);
 
-      // 1) Hent auth bruger direkte
       const { data: { user: authUser }, error } = await supabase.auth.getUser();
-      if (error || !authUser) {
-        console.error('❌ Fejl ved hentning af bruger:', error?.message);
+
+      if (error) {
+        console.error('❌ Fejl ved hentning af bruger fra Supabase:', error.message);
+      }
+
+      if (!authUser) {
+        console.warn('⚠️ Ingen authUser fundet – bruger er ikke logget ind');
         setUser(null);
         setLoading(false);
         return;
       }
 
-      // 2) Hent profil‐data
+      const userId = authUser.id;
+
       const profileResult = await supabase
         .from('profiles')
         .select('id, display_name, avatar_url, role, partner_id')
-        .eq('id', authUser.id)
+        .eq('id', userId)
         .single();
 
       if (profileResult.error || !profileResult.data) {
@@ -56,19 +67,16 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
       const profileData = profileResult.data;
 
-      // 3) Hent adgangskontrol‐data
       const accessResult = await supabase
         .from('access_control')
         .select('menu_key, allowed')
-        .eq('user_id', authUser.id);
+        .eq('user_id', userId);
 
       if (accessResult.error) {
         console.error('❌ Fejl ved hentning af access_control:', accessResult.error.message);
       }
 
       const accessRows = accessResult.data || [];
-
-      // 4) Byg accessMap
       const accessMap: AccessMap = {};
       accessRows.forEach((row) => {
         if (row.menu_key) {
@@ -76,9 +84,8 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         }
       });
 
-      // 5) Sæt user‐state
       setUser({
-        id: authUser.id,
+        id: userId,
         email: authUser.email ?? null,
         role: profileData.role ?? null,
         display_name: profileData.display_name ?? null,
@@ -90,15 +97,14 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     };
 
-    fetchUser();
-
     const { data: listener } = supabase.auth.onAuthStateChange(() => {
       fetchUser();
     });
+
     return () => {
       listener.subscription.unsubscribe();
     };
-  }, []);
+  }, [isAuthPage]);
 
   return <UserContext.Provider value={{ user, loading }}>{children}</UserContext.Provider>;
 };

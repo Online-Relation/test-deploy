@@ -1,17 +1,12 @@
 // /app/quiz/resultater/[quizKey]/page.tsx
 
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
-import QuizResultComponent from "./result-component";
-
-interface Answer {
-  question_id: string;
-  answer: string;
-  user_id: string;
-}
+import { useEffect, useState } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
+import { Card } from '@/components/ui/card';
+import QuizResultComponent from '@/app/quiz/resultater/[quizKey]/result-component';
 
 interface Question {
   id: string;
@@ -20,36 +15,85 @@ interface Question {
   order: number;
 }
 
-export default function QuizResultPageWrapper() {
+interface Answer {
+  question_id: string;
+  answer: string;
+  user_id: string;
+  session_id: string;
+  status: string;
+}
+
+export default function GenerelAnbefalingPage() {
   const { quizKey: rawKey } = useParams();
   const quizKey = decodeURIComponent(rawKey as string);
+const searchParams = useSearchParams();
+let sessionId = searchParams.get('session');
 
+if (!sessionId && typeof window !== 'undefined') {
+  sessionId = localStorage.getItem(`quiz_session_${quizKey}`);
+}
+
+
+
+
+  const [recommendation, setRecommendation] = useState<string | null>(null);
   const [grouped, setGrouped] = useState<{
     green: Question[];
     yellow: Question[];
     red: Question[];
   } | null>(null);
 
+  const [loading, setLoading] = useState(false);
+
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchEverything = async () => {
+      if (!sessionId) return;
+
+      setLoading(true);
+
       const { data: questions } = await supabase
-        .from("quiz_questions")
-        .select("id, question, type, order")
+  .from("quiz_questions")
+  .select("id, question, type, order")
+  .eq("quiz_key", quizKey)
+  .order("order", { ascending: true });
+
+const { data: answers } = await supabase
+  .from("quiz_responses")
+  .select("question_id, answer, user_id, session_id, status")
+  .eq("quiz_key", quizKey)
+  .eq("session_id", sessionId)
+  .eq("status", "submitted");
+
+console.log("🔍 QUESTIONS", JSON.stringify(questions, null, 2));
+console.log("🔍 ANSWERS", JSON.stringify(answers, null, 2));
+
+
+
+      const { data: meta } = await supabase
+        .from("overall_meta")
+        .select("recommendation")
         .eq("quiz_key", quizKey)
-        .order("order", { ascending: true });
+        .order("generated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      const { data: answers } = await supabase
-        .from("quiz_responses")
-        .select("question_id, answer, user_id")
-        .eq("quiz_key", quizKey);
+      if (meta?.recommendation) setRecommendation(meta.recommendation);
 
-      if (!questions || !answers) return;
+      if (!questions || !answers) {
+        setLoading(false);
+        return;
+      }
 
-      const result = { green: [], yellow: [], red: [] } as {
-        green: Question[];
-        yellow: Question[];
-        red: Question[];
-      };
+   const result: {
+  green: Question[];
+  yellow: Question[];
+  red: Question[];
+} = {
+  green: [],
+  yellow: [],
+  red: [],
+};
+
 
       for (const q of questions) {
         const related = answers.filter((a) => a.question_id === q.id);
@@ -63,19 +107,32 @@ export default function QuizResultPageWrapper() {
       }
 
       setGrouped(result);
+      setLoading(false);
     };
 
-    fetchData();
-  }, [quizKey]);
-
-  if (!grouped) return <p className="p-4 text-muted-foreground text-sm">Indlæser spørgsmål og svar...</p>;
+    fetchEverything();
+  }, [quizKey, sessionId]);
 
   return (
-  <div className="flex justify-center px-4 py-6">
-    <div className="w-full max-w-3xl bg-white rounded-2xl shadow-md p-6">
-      <QuizResultComponent grouped={grouped} />
-    </div>
-  </div>
-);
+    <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
+      <h1 className="text-2xl font-bold">📋 Quizresultat</h1>
 
+      {loading ? (
+        <p className="text-muted-foreground text-sm">Indlæser data...</p>
+      ) : grouped ? (
+        <>
+          <QuizResultComponent grouped={grouped} sessionId={sessionId || undefined} />
+
+          {recommendation && (
+            <Card className="p-4 mt-6 space-y-2 bg-blue-50 border border-blue-200">
+              <h2 className="font-semibold text-base">📚 Anbefaling fra GPT</h2>
+              <p className="text-sm whitespace-pre-wrap text-muted-foreground">{recommendation}</p>
+            </Card>
+          )}
+        </>
+      ) : (
+        <p className="italic text-muted-foreground text-sm">Ingen analyseret data fundet endnu for denne quiz.</p>
+      )}
+    </div>
+  );
 }

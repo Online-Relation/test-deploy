@@ -17,7 +17,7 @@ export async function generateGptRecommendation(
     const text = response.choices[0]?.message?.content || "Ingen svar genereret.";
     const tokens = response.usage?.total_tokens || Math.ceil(prompt.length / 4);
 
-    await supabase.from("gpt_log").insert({
+    await supabase.from("gpt_logs").insert({
       prompt_preview: prompt.slice(0, 2000),
       tokens,
       model,

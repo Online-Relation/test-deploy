@@ -17,13 +17,13 @@ export default function DashboardPage() {
   const { user } = useUserContext();
   const [widgets, setWidgets] = useState<Widget[]>([]);
 
-const supportedWidgets = [
-  'xp_meter',
-  'reward_progress',
-  'task_summary',
-  'kompliment_reminder',
-  'weekly_recommendation', // 👈 tilføjet
-];
+  const supportedWidgets = [
+    'xp_meter',
+    'reward_progress',
+    'task_summary',
+    'kompliment_reminder',
+    'weekly_recommendation',
+  ];
 
   useEffect(() => {
     const fetchWidgets = async () => {
@@ -41,19 +41,18 @@ const supportedWidgets = [
     fetchWidgets();
   }, [user]);
 
-const layoutClass = (layout: string) => {
-  switch (layout) {
-    case 'small':
-      return 'col-span-12 sm:col-span-6 lg:col-span-4';
-    case 'medium':
-      return 'col-span-12 sm:col-span-8';
-    case 'large':
-      return 'col-span-12';
-    default:
-      return 'col-span-12';
-  }
-};
-
+  const layoutClass = (layout: string) => {
+    switch (layout) {
+      case 'small':
+        return 'col-span-12 sm:col-span-6 lg:col-span-4';
+      case 'medium':
+        return 'col-span-12 sm:col-span-8';
+      case 'large':
+        return 'col-span-12';
+      default:
+        return 'col-span-12';
+    }
+  };
 
   const heightClass = (height: string) => {
     switch (height) {
@@ -62,6 +61,8 @@ const layoutClass = (layout: string) => {
       default: return 'h-auto';
     }
   };
+
+  if (!user) return null;
 
   return (
     <div className="w-full sm:max-w-6xl sm:mx-auto px-2 sm:px-4 py-6 grid grid-cols-12 gap-4 sm:gap-6">
@@ -72,7 +73,7 @@ const layoutClass = (layout: string) => {
             key={widget.widget_key}
             className={`${layoutClass(widget.layout)} ${heightClass(widget.height)} w-full`}
           >
-           <WidgetRenderer widget={widget} />
+            <WidgetRenderer widget={widget} />
           </div>
         ))}
     </div>

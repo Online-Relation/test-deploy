@@ -1,4 +1,4 @@
-// /app/fantasy/anbefalinger/page.tsx
+// /app/fantasy/anbefalinger/[quizKey]/page.tsx
 
 "use client";
 
@@ -6,46 +6,109 @@ import { useSearchParams, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import QuizResultComponent from "@/app/quiz/resultater/[quizKey]/result-component";
-
+import { useUserContext } from "@/context/UserContext";
 
 export default function QuizResultPage() {
   const { quizKey: rawKey } = useParams();
   const searchParams = useSearchParams();
-  const sessionId = searchParams.get("session");
+  const { user } = useUserContext();
 
   const quizKey = decodeURIComponent(rawKey as string);
-
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [grouped, setGrouped] = useState<any>(null);
   const [recommendation, setRecommendation] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"results" | "compare" | "recommendation">("results");
 
-useEffect(() => {
+  // Fallback: find sessionId fra URL eller localStorage
+  useEffect(() => {
+    const paramId = searchParams.get("session");
+    if (paramId) {
+      setSessionId(paramId);
+    } else {
+      const stored = localStorage.getItem(`quiz_session_${quizKey}`);
+      if (stored) {
+        setSessionId(stored);
+      }
+    }
+  }, [quizKey, searchParams]);
+
+  useEffect(() => {
+    if (sessionId) fetchData();
+  }, [quizKey, sessionId]);
+
   const fetchData = async () => {
-    const { data, error } = await supabase
+    setLoading(true);
+
+    const { data: questions } = await supabase
+      .from("quiz_questions")
+      .select("id, question, type, order")
+      .eq("quiz_key", quizKey)
+      .order("order", { ascending: true });
+
+    const { data: answers } = await supabase
+      .from("quiz_responses")
+      .select("question_id, answer, user_id, session_id, status")
+      .eq("quiz_key", quizKey)
+      .eq("status", "submitted")
+      .eq("session_id", sessionId);
+
+    const { data: meta } = await supabase
       .from("overall_meta")
-      .select("recommendation, grouped")
+      .select("recommendation")
       .eq("quiz_key", quizKey)
       .order("generated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (error) {
-      console.error("Fejl ved hentning:", error.message);
-    } else {
-      setRecommendation(data?.recommendation ?? null);
-      setGrouped(data?.grouped ?? null); // 👈 tilføjet
+    if (meta?.recommendation) {
+      setRecommendation(meta.recommendation);
     }
 
+    if (!questions || !answers) {
+      setGrouped(null);
+      setLoading(false);
+      return;
+    }
+
+    const result = { green: [], yellow: [], red: [] } as {
+      green: typeof questions;
+      yellow: typeof questions;
+      red: typeof questions;
+    };
+
+    for (const q of questions) {
+      const related = answers.filter((a) => a.question_id === q.id);
+      const uniqueUsers = [...new Set(related.map((a) => a.user_id))];
+      if (uniqueUsers.length !== 2) continue;
+
+      const [a1, a2] = related.map((a) => a.answer.trim());
+      if (a1 === a2) result.green.push(q);
+      else if ((a1 === "Ja" && a2 === "Nej") || (a1 === "Nej" && a2 === "Ja")) result.red.push(q);
+      else result.yellow.push(q);
+    }
+
+    setGrouped(result);
     setLoading(false);
   };
 
-  fetchData();
-}, [quizKey]);
-
-
+  const handleGenerate = async () => {
+    setLoading(true);
+    await fetch("/api/overall-recommendation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: user?.id || "1",
+        for_partner: "stine", // du kan justere det her
+        gatheredData: JSON.stringify(grouped),
+        tone: "kærlig og ærlig",
+        quiz_key: quizKey,
+      }),
+    });
+    await fetchData();
+    setLoading(false);
+  };
 
   const tabs = [
     { key: "results", label: "Resultater" },
@@ -78,18 +141,27 @@ useEffect(() => {
       {!loading && grouped && (
         <>
           {activeTab === "results" && (
-            <QuizResultComponent grouped={grouped} />
+            <QuizResultComponent grouped={grouped} sessionId={sessionId || undefined} />
           )}
 
           {activeTab === "compare" && (
             <Card className="p-4 space-y-4">
               <p className="text-sm text-muted-foreground">Visualisering af enighed/uenighed</p>
-              <QuizResultComponent grouped={grouped} showGraphsOnly />
+              <QuizResultComponent grouped={grouped} showGraphsOnly sessionId={sessionId || undefined} />
             </Card>
           )}
 
           {activeTab === "recommendation" && (
             <Card className="p-4 space-y-4">
+              <div className="flex justify-end">
+                <button
+                  onClick={handleGenerate}
+                  disabled={loading}
+                  className="px-4 py-1 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
+                >
+                  {loading ? "Genererer..." : "Generér ny anbefaling"}
+                </button>
+              </div>
               <p className="text-sm text-muted-foreground">Anbefaling fra GPT</p>
               <p className="whitespace-pre-line text-sm">{recommendation}</p>
             </Card>

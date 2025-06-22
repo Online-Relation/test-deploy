@@ -86,6 +86,7 @@ const accessHierarchy: AccessEntry[] = [
       { key: 'spil/sellerk', label: 'S eller K', href: '/spil/sellerk', children: [] },
       { key: 'spil/memorygaver', label: 'Memory', href: '/spil/memorygaver', children: [] },
       { key: 'spil/quiz', label: 'Quiz', href: '/spil/quizzen', children: [] },
+      { key: '/spil/knob', label: 'Min knap', href: '/spil/knob', children: [] },
     ],
   },
   {

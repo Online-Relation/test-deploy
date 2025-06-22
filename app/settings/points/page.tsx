@@ -382,6 +382,38 @@ export default function PointsPage() {
               ))}
           </tbody>
         </table>
+        {/* Tryk på min knap – korrekt gæt */}
+<h3 className="font-semibold mb-2">Spil – Tryk på min knap</h3>
+<table className="w-full border text-sm mb-6">
+  <thead className="bg-gray-100">
+    <tr>
+      <th className="border px-4 py-2 text-left">Handling</th>
+      <th className="border px-4 py-2 text-left">Effort</th>
+      <th className="border px-4 py-2 text-left">XP</th>
+    </tr>
+  </thead>
+  <tbody>
+    {roleSettings
+      .filter((s) => s.action === 'guess_knob_correct')
+      .map((setting) => (
+        <tr key={setting.id}>
+          <td className="border px-4 py-2">{setting.action}</td>
+          <td className="border px-4 py-2">{setting.effort || '-'}</td>
+          <td className="border px-4 py-2">
+            <input
+              type="number"
+              value={setting.xp}
+              onChange={(e) =>
+                updateXP(setting.id, parseInt(e.target.value))
+              }
+              className="w-20 border px-2 py-1 text-right"
+            />
+          </td>
+        </tr>
+      ))}
+  </tbody>
+</table>
+
       </div>
     );
   };

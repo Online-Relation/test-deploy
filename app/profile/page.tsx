@@ -19,16 +19,18 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'sizes' | 'wishes' | 'preferences' | 'energy' | 'meals' | 'personality'>('sizes');
   const [colorOrder, setColorOrder] = useState(['red', 'yellow', 'green', 'blue']);
 
-  const [sizes, setSizes] = useState({
-    bh: '', trusser: '', sko: '', jeans: '', kjoler: '', nederdele: '', tshirts: '', toppe: '', buksedragt: '',
-    love_language_1: '', love_language_2: '', love_language_3: '', love_language_4: '', love_language_5: '',
-    surprise_ideas: '',
-    meal_1: '', meal_2: '', meal_3: '', meal_4: '', meal_5: '',
-    cake_1: '', cake_2: '', cake_3: '', cake_4: '', cake_5: '',
-    drink_1: '', drink_2: '', drink_3: '', drink_4: '', drink_5: '',
-    personality_description: '', keyword_1: '', keyword_2: '', keyword_3: '', keyword_4: '', keyword_5: '',
-    red: '', yellow: '', green: '', blue: ''
-  });
+const [sizes, setSizes] = useState({
+  bh: '', trusser: '', sko: '', jeans: '', kjoler: '', nederdele: '', tshirts: '', toppe: '', buksedragt: '',
+  love_language_1: '', love_language_2: '', love_language_3: '', love_language_4: '', love_language_5: '',
+  surprise_ideas: '',
+  meal_1: '', meal_2: '', meal_3: '', meal_4: '', meal_5: '',
+  cake_1: '', cake_2: '', cake_3: '', cake_4: '', cake_5: '',
+  drink_1: '', drink_2: '', drink_3: '', drink_4: '', drink_5: '',
+  personality_description: '', keyword_1: '', keyword_2: '', keyword_3: '', keyword_4: '', keyword_5: '',
+  red: '', yellow: '', green: '', blue: '',
+  red_description: '', yellow_description: '', green_description: '', blue_description: ''
+});
+
 
   const [dopaminList, setDopaminList] = useState<string[]>([]);
   const [wishes, setWishes] = useState<Wish[]>([]);
@@ -38,23 +40,38 @@ export default function ProfilePage() {
     if (user?.avatar_url) setFileUrl(user.avatar_url);
     const fetchProfile = async () => {
       if (!user) return;
-      const { data: prof } = await supabase
-        .from('profiles')
-        .select(`bh,trusser,sko,jeans,kjoler,nederdele,tshirts,toppe,buksedragt,
-          love_language_1,love_language_2,love_language_3,love_language_4,love_language_5,
-          dopamine_triggers,surprise_ideas,
-          meal_1,meal_2,meal_3,meal_4,meal_5,
-          cake_1,cake_2,cake_3,cake_4,cake_5,
-          drink_1,drink_2,drink_3,drink_4,drink_5,
-          personality_description, keyword_1, keyword_2, keyword_3, keyword_4, keyword_5,
-          red, yellow, green, blue`)
+    const { data: prof } = await supabase
+  .from('profiles')
+ .select(`bh,trusser,sko,jeans,kjoler,nederdele,tshirts,toppe,buksedragt,
+  love_language_1,love_language_2,love_language_3,love_language_4,love_language_5,
+  dopamine_triggers,surprise_ideas,
+  meal_1,meal_2,meal_3,meal_4,meal_5,
+  cake_1,cake_2,cake_3,cake_4,cake_5,
+  drink_1,drink_2,drink_3,drink_4,drink_5,
+  personality_description, keyword_1, keyword_2, keyword_3, keyword_4, keyword_5,
+  red, yellow, green, blue,
+  red_description, yellow_description, green_description, blue_description`)
+
         .eq('id', user.id)
         .maybeSingle();
-      if (prof) {
-        setSizes(prev => ({ ...prev, ...prof, dopamine_triggers: undefined }));
-        const parsedList = prof.dopamine_triggers ? JSON.parse(prof.dopamine_triggers) : [];
-        setDopaminList(parsedList);
-      }
+     if (prof) {
+  setSizes(prev => ({ ...prev, ...prof }));
+
+  const order = Object.entries({
+    red: prof.red,
+    yellow: prof.yellow,
+    green: prof.green,
+    blue: prof.blue
+  })
+    .sort((a, b) => Number(a[1]) - Number(b[1]))
+    .map(([color]) => color);
+
+  if (order.length === 4) setColorOrder(order);
+
+  const parsedList = prof.dopamine_triggers ? JSON.parse(prof.dopamine_triggers) : [];
+  setDopaminList(parsedList);
+}
+
 
       const { data: ws } = await supabase
         .from('wishes')
@@ -199,6 +216,31 @@ export default function ProfilePage() {
                   </li>
                 ))}
               </ul>
+              <div className="mt-6 space-y-4">
+  <h3 className="text-lg font-semibold">🖍️ Beskrivelse af hver farve</h3>
+  <p className="text-sm text-gray-500">Forklar hvordan hver farve passer på dig</p>
+
+  {['red', 'yellow', 'green', 'blue'].map((color) => (
+    <div key={color}>
+      <label className="block text-sm font-medium mb-1">
+        {getColorLabel(color)}
+      </label>
+      <textarea
+        className="w-full border rounded px-3 py-2"
+        rows={2}
+        placeholder={`Hvordan viser ${color} sig i dig?`}
+        value={sizes[`${color}_description` as keyof typeof sizes] || ''}
+        onChange={(e) =>
+          setSizes((prev) => ({
+            ...prev,
+            [`${color}_description`]: e.target.value,
+          }))
+        }
+      />
+    </div>
+  ))}
+</div>
+
 
               <div className="mt-6">
                 <h3 className="text-lg font-semibold">✍️ Om mig</h3>
