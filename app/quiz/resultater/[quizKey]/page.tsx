@@ -1,5 +1,3 @@
-// /app/quiz/resultater/[quizKey]/page.tsx
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -49,26 +47,26 @@ export default function GenerelAnbefalingPage() {
       setLoading(true);
 
       const { data: questions } = await supabase
-        .from("quiz_questions")
-        .select("id, question, type, order")
-        .eq("quiz_key", quizKey)
-        .order("order", { ascending: true });
+        .from('quiz_questions')
+        .select('id, question, type, order')
+        .eq('quiz_key', quizKey)
+        .order('order', { ascending: true });
 
       const { data: answersData } = await supabase
-        .from("quiz_responses")
-        .select("question_id, answer, user_id, session_id, status")
-        .eq("quiz_key", quizKey)
-        .eq("session_id", sessionId)
-        .eq("status", "submitted");
+        .from('quiz_responses')
+        .select('question_id, answer, user_id, session_id, status')
+        .eq('quiz_key', quizKey)
+        .eq('session_id', sessionId)
+        .eq('status', 'submitted');
 
-      console.log("🔍 QUESTIONS", JSON.stringify(questions, null, 2));
-      console.log("🔍 ANSWERS", JSON.stringify(answersData, null, 2));
+      console.log('🔍 QUESTIONS', JSON.stringify(questions, null, 2));
+      console.log('🔍 ANSWERS', JSON.stringify(answersData, null, 2));
 
       const { data: meta } = await supabase
-        .from("overall_meta")
-        .select("recommendation")
-        .eq("quiz_key", quizKey)
-        .order("generated_at", { ascending: false })
+        .from('overall_meta')
+        .select('recommendation')
+        .eq('quiz_key', quizKey)
+        .order('generated_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
@@ -80,6 +78,13 @@ export default function GenerelAnbefalingPage() {
       }
 
       setAnswers(answersData);
+
+      const importanceScale = [
+        'ikke vigtigt',
+        'mindre vigtigt',
+        'vigtigt',
+        'meget vigtigt',
+      ];
 
       const result: {
         green: Question[];
@@ -96,10 +101,37 @@ export default function GenerelAnbefalingPage() {
         const uniqueUsers = [...new Set(related.map((a) => a.user_id))];
         if (uniqueUsers.length !== 2) continue;
 
-        const [a1, a2] = related.map((a) => a.answer.trim());
-        if (a1 === a2) result.green.push(q);
-        else if ((a1 === "Ja" && a2 === "Nej") || (a1 === "Nej" && a2 === "Ja")) result.red.push(q);
-        else result.yellow.push(q);
+        const [a1, a2] = related.map((a) => a.answer.trim().toLowerCase());
+
+        // Hvis helt ens
+        if (a1 === a2) {
+          result.green.push(q);
+          continue;
+        }
+
+        // Hvis det er ja/nej
+        if (
+          (a1 === 'ja' && a2 === 'nej') ||
+          (a1 === 'nej' && a2 === 'ja')
+        ) {
+          result.red.push(q);
+          continue;
+        }
+
+        // Hvis det er skala: meget vigtigt → ikke vigtigt
+        const i1 = importanceScale.indexOf(a1);
+        const i2 = importanceScale.indexOf(a2);
+
+        if (i1 !== -1 && i2 !== -1) {
+          const diff = Math.abs(i1 - i2);
+          if (diff === 0) result.green.push(q);
+          else if (diff >= 2) result.red.push(q);
+          else result.yellow.push(q);
+          continue;
+        }
+
+        // Alt andet: gul
+        result.yellow.push(q);
       }
 
       setGrouped(result);

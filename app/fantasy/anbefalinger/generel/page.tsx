@@ -53,8 +53,9 @@ export default function GenerelAnbefalingPage() {
       body: JSON.stringify({
         user_id: user.id,
         for_partner: forPartner,
-        gatheredData: "", // ← opdater senere med rigtig data
+        gatheredData: "", // opdater senere
         tone: "kærlig og ærlig",
+        force: true, // 🔁 Tving ny anbefaling
       }),
     });
 

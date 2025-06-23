@@ -6,14 +6,14 @@ import { supabase } from '@/lib/supabaseClient';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { user_id, gatheredData, tone, quiz_key } = body;
+    const { user_id, tone = 'kærlig og ærlig', for_partner } = body;
 
-    if (!user_id || !gatheredData) {
+    if (!user_id) {
       return NextResponse.json({ error: 'Manglende data' }, { status: 400 });
     }
 
-    // Hent farveprofil
-    const { data: profile, error: profileError } = await supabase
+    // Hent brugerens farveprofil
+    const { data: profile } = await supabase
       .from('profiles')
       .select(
         'red, yellow, green, blue, primary_color, keyword_1, keyword_2, keyword_3, keyword_4, keyword_5'
@@ -31,12 +31,30 @@ export async function POST(req: Request) {
         profile.keyword_4,
         profile.keyword_5,
       ].filter(Boolean);
-      farveProfilText = `
-🎨 Farveprofil:
-Primærfarve: ${profile.primary_color}
-Rækkefølge: ${rækkefølge.join(', ')}
-Nøgleord: ${nøgleord.join(', ')}
-      `.trim();
+      farveProfilText = `🎨 Farveprofil:\nPrimærfarve: ${profile.primary_color}\nRækkefølge: ${rækkefølge.join(', ')}\nNøgleord: ${nøgleord.join(', ')}`;
+    }
+
+    // Hent aktiverede tabeller fra recommendation_sources
+    const { data: sources } = await supabase
+      .from('recommendation_sources')
+      .select('table_name, description')
+      .eq('enabled', true)
+      .order('priority', { ascending: true });
+
+    let gatheredData = '';
+    let totalRows = 0;
+    const usedTables: string[] = [];
+
+    if (sources) {
+      for (const source of sources) {
+        const { data: rows } = await supabase.from(source.table_name).select('*').limit(50);
+        if (!rows || rows.length === 0) continue;
+
+        usedTables.push(source.table_name);
+        totalRows += rows.length;
+
+        gatheredData += `\n\n📊 Tabel: ${source.table_name}\nBeskrivelse: ${source.description || 'Ingen'}\nData (maks 50 rækker):\n${JSON.stringify(rows, null, 2)}`;
+      }
     }
 
     const prompt = `
@@ -45,39 +63,37 @@ ${farveProfilText ? farveProfilText + '\n\n' : ''}
 Data:
 ${gatheredData}
 
-Tone: ${tone || 'kærlig og ærlig'}.
+Tone: ${tone}.
 Svar med kun anbefalingen – ingen forklaring.
     `.trim();
 
     const tokens = getTokensForText(prompt);
-
     const recommendation = await generateGptRecommendation(prompt, 'gpt-4');
 
-    // Log til gpt_logs
     await supabase.from('gpt_logs').insert({
       user_id,
       route: 'overall-recommendation',
-      quiz_key: quiz_key || null,
+      quiz_key: null,
       prompt,
       response: recommendation,
       model: 'gpt-4',
       total_tokens: tokens,
-      tables_used: null,
+      tables_used: usedTables,
     });
 
-    // Gem anbefaling i overall_meta
     await supabase.from('overall_meta').insert({
       user_id,
-      quiz_key: quiz_key || null,
+      quiz_key: null,
       recommendation,
       generated_at: new Date().toISOString(),
-      table_count: 0,
-      row_count: 0,
+      table_count: usedTables.length,
+      row_count: totalRows,
     });
 
     return NextResponse.json({ recommendation });
   } catch (err: any) {
-    console.error('❌ Fejl i overall-recommendation:', err.message || err);
+console.error('Full error:', err);
+
     return NextResponse.json({ error: err.message || 'Ukendt fejl' }, { status: 500 });
   }
 }

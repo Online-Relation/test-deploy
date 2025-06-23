@@ -1,0 +1,55 @@
+// /types/profile.ts
+export type Sizes = {
+  bh: string;
+  trusser: string;
+  sko: string;
+  jeans: string;
+  kjoler: string;
+  nederdele: string;
+  tshirts: string;
+  toppe: string;
+  buksedragt: string;
+  love_language_1: string;
+  love_language_2: string;
+  love_language_3: string;
+  love_language_4: string;
+  love_language_5: string;
+  surprise_ideas: string;
+  meal_1: string;
+  meal_2: string;
+  meal_3: string;
+  meal_4: string;
+  meal_5: string;
+  cake_1: string;
+  cake_2: string;
+  cake_3: string;
+  cake_4: string;
+  cake_5: string;
+  drink_1: string;
+  drink_2: string;
+  drink_3: string;
+  drink_4: string;
+  drink_5: string;
+  personality_description: string;
+  keyword_1: string;
+  keyword_2: string;
+  keyword_3: string;
+  keyword_4: string;
+  keyword_5: string;
+  red: string;
+  yellow: string;
+  green: string;
+  blue: string;
+  red_description: string;
+  yellow_description: string;
+  green_description: string;
+  blue_description: string;
+  relationship_value_1: string;
+  relationship_value_2: string;
+  relationship_value_3: string;
+  relationship_value_4: string;
+  relationship_value_5: string;
+  relationship_role: string;
+  relationship_roles_order: string[]; // ← tilføj denne linje
+  
+};

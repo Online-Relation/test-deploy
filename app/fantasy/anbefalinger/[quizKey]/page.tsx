@@ -20,7 +20,6 @@ export default function QuizResultPage() {
   const [answers, setAnswers] = useState<any[]>([]);
   const [recommendation, setRecommendation] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"results" | "compare" | "recommendation">("results");
 
   useEffect(() => {
     const paramId = searchParams.get("session");
@@ -112,62 +111,33 @@ export default function QuizResultPage() {
     setLoading(false);
   };
 
-  const tabs = [
-    { key: "results", label: "Resultater" },
-    { key: "compare", label: "Sammenligning" },
-    { key: "recommendation", label: "Anbefaling" },
-  ];
-
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
       <h1 className="text-2xl font-bold">📋 Quizresultat</h1>
-
-      <div className="flex gap-4 border-b pb-2 text-sm">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            className={`font-semibold ${
-              activeTab === tab.key
-                ? "text-primary border-b-2 border-primary"
-                : "text-muted-foreground"
-            }`}
-            onClick={() => setActiveTab(tab.key as any)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
 
       {loading && <p className="text-muted-foreground text-sm">Indlæser data...</p>}
 
       {!loading && grouped && (
         <>
-          {activeTab === "results" && (
-            <QuizResultComponent grouped={grouped} answers={answers} sessionId={sessionId || undefined} />
-          )}
+          <QuizResultComponent
+            grouped={grouped}
+            answers={answers}
+            sessionId={sessionId || undefined}
+          />
 
-          {activeTab === "compare" && (
-            <Card className="p-4 space-y-4">
-              <p className="text-sm text-muted-foreground">Visualisering af enighed/uenighed</p>
-              <QuizResultComponent grouped={grouped} answers={answers} showGraphsOnly sessionId={sessionId || undefined} />
-            </Card>
-          )}
-
-          {activeTab === "recommendation" && (
-            <Card className="p-4 space-y-4">
-              <div className="flex justify-end">
-                <button
-                  onClick={handleGenerate}
-                  disabled={loading}
-                  className="px-4 py-1 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
-                >
-                  {loading ? "Genererer..." : "Generér ny anbefaling"}
-                </button>
-              </div>
-              <p className="text-sm text-muted-foreground">Anbefaling fra GPT</p>
-              <p className="whitespace-pre-line text-sm">{recommendation}</p>
-            </Card>
-          )}
+          <Card className="p-4 space-y-4">
+            <div className="flex justify-end">
+              <button
+                onClick={handleGenerate}
+                disabled={loading}
+                className="px-4 py-1 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                {loading ? "Genererer..." : "Generér ny anbefaling"}
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground">Anbefaling fra GPT</p>
+            <p className="whitespace-pre-line text-sm">{recommendation}</p>
+          </Card>
         </>
       )}
 
