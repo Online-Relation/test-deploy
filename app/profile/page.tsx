@@ -15,6 +15,7 @@ import { PreferencesSection } from '@/components/profile/PreferencesSection';
 import { EnergySection } from '@/components/profile/EnergySection';
 import { MealsSection } from '@/components/profile/MealsSection';
 import { RelationshipValuesSection } from '@/components/profile/RelationshipValuesSection';
+import { FutureSection } from '@/components/profile/FutureSection';
 
 interface Wish {
   id?: string;
@@ -25,11 +26,18 @@ export default function ProfilePage() {
   const { user } = useUserContext();
   const [uploading, setUploading] = useState(false);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'sizes' | 'wishes' | 'preferences' | 'energy' | 'meals' | 'personality' | 'relationship'>('sizes');
+  type TabKey = 'sizes' | 'wishes' | 'preferences' | 'energy' | 'meals' | 'personality' | 'relationship' | 'future';
+  const [activeTab, setActiveTab] = useState<TabKey>('sizes');
+
   const [colorOrder, setColorOrder] = useState(['red', 'yellow', 'green', 'blue']);
   const [dopaminList, setDopaminList] = useState<string[]>([]);
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [savingWishes, setSavingWishes] = useState(false);
+
+  const [isViewingPartner, setIsViewingPartner] = useState(false);
+  const [partnerSizes, setPartnerSizes] = useState<Sizes | null>(null);
+  const [partnerDopaminList, setPartnerDopaminList] = useState<string[]>([]);
+  const [partnerId, setPartnerId] = useState<string>('');
 
   const [sizes, setSizes] = useState<Sizes>({
     bh: '', trusser: '', sko: '', jeans: '', kjoler: '', nederdele: '', tshirts: '', toppe: '', buksedragt: '',
@@ -54,19 +62,7 @@ export default function ProfilePage() {
 
       const { data: prof } = await supabase
         .from('profiles')
-        .select(`
-          bh, trusser, sko, jeans, kjoler, nederdele, tshirts, toppe, buksedragt,
-          love_language_1, love_language_2, love_language_3, love_language_4, love_language_5,
-          dopamine_triggers, surprise_ideas,
-          meal_1, meal_2, meal_3, meal_4, meal_5,
-          cake_1, cake_2, cake_3, cake_4, cake_5,
-          drink_1, drink_2, drink_3, drink_4, drink_5,
-          personality_description, keyword_1, keyword_2, keyword_3, keyword_4, keyword_5,
-          red, yellow, green, blue,
-          red_description, yellow_description, green_description, blue_description,
-          relationship_value_1, relationship_value_2, relationship_value_3, relationship_value_4, relationship_value_5,
-          relationship_role, relationship_roles_order
-        `)
+        .select(`*, dopamine_triggers`)
         .eq('id', user.id)
         .maybeSingle();
 
@@ -105,6 +101,28 @@ export default function ProfilePage() {
     fetchProfile();
   }, [user]);
 
+  useEffect(() => {
+    const fetchPartner = async () => {
+      if (!user) return;
+      const partnerRole = user.role === 'mads' ? 'stine' : 'mads';
+
+      const { data: partner } = await supabase
+        .from('profiles')
+        .select(`*, dopamine_triggers`)
+        .eq('role', partnerRole)
+        .maybeSingle();
+
+      if (partner) {
+        const parsed = partner.dopamine_triggers ? JSON.parse(partner.dopamine_triggers) : [];
+        setPartnerSizes(partner);
+        setPartnerDopaminList(parsed);
+        setPartnerId(partner.id);
+      }
+    };
+
+    fetchPartner();
+  }, [user]);
+
   const handleUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
@@ -128,22 +146,20 @@ export default function ProfilePage() {
     setUploading(false);
   };
 
-const handleSaveSizes = async () => {
-  if (!user) return;
-  const dataToSave = {
-    ...sizes,
-    dopamine_triggers: JSON.stringify(dopaminList),
-    red: (colorOrder.indexOf('red') + 1).toString(),
-    yellow: (colorOrder.indexOf('yellow') + 1).toString(),
-    green: (colorOrder.indexOf('green') + 1).toString(),
-    blue: (colorOrder.indexOf('blue') + 1).toString(),
-    relationship_roles_order: sizes.relationship_roles_order, // ← som array, ikke stringified
+  const handleSaveSizes = async () => {
+    if (!user) return;
+    const dataToSave = {
+      ...sizes,
+      dopamine_triggers: JSON.stringify(dopaminList),
+      red: (colorOrder.indexOf('red') + 1).toString(),
+      yellow: (colorOrder.indexOf('yellow') + 1).toString(),
+      green: (colorOrder.indexOf('green') + 1).toString(),
+      blue: (colorOrder.indexOf('blue') + 1).toString(),
+      relationship_roles_order: sizes.relationship_roles_order,
+    };
+    const { error } = await supabase.from('profiles').update(dataToSave).eq('id', user.id);
+    alert(error ? 'Fejl ved opdatering af profil' : 'Profil gemt ✅');
   };
-  const { error } = await supabase.from('profiles').update(dataToSave).eq('id', user.id);
-  alert(error ? 'Fejl ved opdatering af profil' : 'Profil gemt ✅');
-};
-
-
 
   const addWishField = () => setWishes(prev => [...prev, { description: '' }]);
   const updateWish = (idx: number, desc: string) => {
@@ -156,6 +172,7 @@ const handleSaveSizes = async () => {
     }
     setWishes(prev => prev.filter((_, i) => i !== idx));
   };
+
   const handleSaveWishes = async () => {
     if (!user) return;
     setSavingWishes(true);
@@ -188,6 +205,9 @@ const handleSaveSizes = async () => {
     setColorOrder(newOrder);
   };
 
+  const currentSizes = isViewingPartner ? partnerSizes : sizes;
+  const currentDopamin = isViewingPartner ? partnerDopaminList : dopaminList;
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
       <div className="flex flex-col items-center text-center space-y-3">
@@ -197,10 +217,18 @@ const handleSaveSizes = async () => {
           <div className="w-28 h-28 bg-gray-300 rounded-full shadow" />
         )}
         <input type="file" accept="image/*" onChange={handleUpload} disabled={uploading} className="text-sm" />
-        <h1 className="text-3xl font-bold mt-2">Min Profil</h1>
+        <div className="flex items-center gap-4 mt-2">
+          <h1 className="text-3xl font-bold">{isViewingPartner ? 'Partner Profil' : 'Min Profil'}</h1>
+          <button
+            onClick={() => setIsViewingPartner(!isViewingPartner)}
+            className="text-sm px-3 py-1 bg-gray-100 border rounded hover:bg-gray-200"
+          >
+            {isViewingPartner ? 'Skift til min profil' : 'Se partner profil'}
+          </button>
+        </div>
       </div>
 
-      <ProfileTabs activeTab={activeTab} setActiveTab={setActiveTab} />
+      {!isViewingPartner && <ProfileTabs activeTab={activeTab} setActiveTab={setActiveTab} />}
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -212,14 +240,50 @@ const handleSaveSizes = async () => {
           className="bg-white rounded-2xl shadow-lg p-6 space-y-4"
         >
           {activeTab === 'personality' && (
-            <PersonalitySection sizes={sizes} setSizes={setSizes} colorOrder={colorOrder} moveColor={moveColor} handleSaveSizes={handleSaveSizes} />
+            <PersonalitySection
+              sizes={currentSizes || {} as Sizes}
+              setSizes={isViewingPartner ? () => {} : setSizes}
+              colorOrder={colorOrder}
+              moveColor={moveColor}
+              handleSaveSizes={handleSaveSizes}
+            />
           )}
-          {activeTab === 'meals' && <MealsSection sizes={sizes} setSizes={setSizes} handleSaveSizes={handleSaveSizes} />}
-          {activeTab === 'energy' && <EnergySection dopaminList={dopaminList} setDopaminList={setDopaminList} handleSaveSizes={handleSaveSizes} />}
-          {activeTab === 'preferences' && <PreferencesSection sizes={sizes} setSizes={setSizes} handleSaveSizes={handleSaveSizes} />}
-          {activeTab === 'relationship' && <RelationshipValuesSection sizes={sizes} setSizes={setSizes} handleSaveSizes={handleSaveSizes} />}
-          {user?.role === 'stine' && activeTab === 'sizes' && <SizeSection sizes={sizes} setSizes={setSizes} handleSaveSizes={handleSaveSizes} />}
-          {user?.role === 'stine' && activeTab === 'wishes' && (
+          {activeTab === 'meals' && (
+            <MealsSection
+              sizes={currentSizes || {} as Sizes}
+              setSizes={isViewingPartner ? () => {} : setSizes}
+              handleSaveSizes={handleSaveSizes}
+            />
+          )}
+          {activeTab === 'energy' && (
+            <EnergySection
+              dopaminList={currentDopamin}
+              setDopaminList={isViewingPartner ? () => {} : setDopaminList}
+              handleSaveSizes={handleSaveSizes}
+            />
+          )}
+          {activeTab === 'preferences' && (
+            <PreferencesSection
+              sizes={currentSizes || {} as Sizes}
+              setSizes={isViewingPartner ? () => {} : setSizes}
+              handleSaveSizes={handleSaveSizes}
+            />
+          )}
+          {activeTab === 'relationship' && (
+            <RelationshipValuesSection
+              sizes={currentSizes || {} as Sizes}
+              setSizes={isViewingPartner ? () => {} : setSizes}
+              handleSaveSizes={handleSaveSizes}
+            />
+          )}
+          {activeTab === 'sizes' && user?.role === 'stine' && !isViewingPartner && (
+            <SizeSection
+              sizes={sizes}
+              setSizes={setSizes}
+              handleSaveSizes={handleSaveSizes}
+            />
+          )}
+          {activeTab === 'wishes' && user?.role === 'stine' && !isViewingPartner && (
             <WishSection
               wishes={wishes}
               savingWishes={savingWishes}
@@ -227,6 +291,13 @@ const handleSaveSizes = async () => {
               updateWish={updateWish}
               removeWish={removeWish}
               handleSaveWishes={handleSaveWishes}
+            />
+          )}
+          {activeTab === 'future' && (
+            <FutureSection
+              isViewingPartner={isViewingPartner}
+              userId={user?.id || ''}
+              partnerId={partnerId}
             />
           )}
         </motion.div>

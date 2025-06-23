@@ -1,36 +1,46 @@
 // /components/profile/ProfileTabs.tsx
+'use client';
+
 import React from 'react';
 
-type TabKey = 'sizes' | 'wishes' | 'preferences' | 'energy' | 'meals' | 'personality' | 'relationship';
+type TabKey =
+  | 'sizes'
+  | 'wishes'
+  | 'preferences'
+  | 'energy'
+  | 'meals'
+  | 'personality'
+  | 'relationship'
+  | 'future';
 
 interface Props {
   activeTab: TabKey;
   setActiveTab: (tab: TabKey) => void;
 }
 
-const tabs: { key: TabKey; label: string }[] = [
-  { key: 'sizes', label: 'Tøjstørrelser' },
-  { key: 'wishes', label: 'Ønskeliste' },
-  { key: 'preferences', label: 'Kærlighed' },
-  { key: 'energy', label: 'Energi' },
-  { key: 'meals', label: 'Drinks og Mad' },
-  { key: 'personality', label: 'Personlighed' },
-  { key: 'relationship', label: 'Parforhold' },
-];
-
 export function ProfileTabs({ activeTab, setActiveTab }: Props) {
-  const tabClass = (value: TabKey) =>
-    `px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-      activeTab === value ? 'bg-primary text-white shadow' : 'bg-muted text-muted-foreground hover:bg-muted/70'
-    }`;
+  const tabs: { key: TabKey; label: string }[] = [
+    { key: 'sizes', label: 'Størrelser' },
+    { key: 'wishes', label: 'Ønskeliste' },
+    { key: 'preferences', label: 'Præferencer' },
+    { key: 'energy', label: 'Energi & Dopamin' },
+    { key: 'meals', label: 'Mad' },
+    { key: 'personality', label: 'Personlighed' },
+    { key: 'relationship', label: 'Parforhold' },
+    { key: 'future', label: 'Fremtid' },
+  ];
 
   return (
-    <div className="flex justify-center gap-2 flex-wrap">
+    <div className="flex flex-wrap justify-center gap-2 mb-4">
       {tabs.map((tab) => (
         <button
           key={tab.key}
           onClick={() => setActiveTab(tab.key)}
-          className={tabClass(tab.key)}
+          className={`px-3 py-1 rounded-full text-sm border shadow-sm transition-all ${
+            activeTab === tab.key
+              ? 'bg-pink-600 text-white'
+              : 'bg-white text-gray-700'
+          }`}
         >
           {tab.label}
         </button>
