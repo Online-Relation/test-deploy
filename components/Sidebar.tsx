@@ -9,6 +9,7 @@ import { useXp } from '@/context/XpContext';
 import { useHasMounted } from '@/hooks/useHasMounted';
 import { useUserContext } from '@/context/UserContext';
 import { supabase } from '@/lib/supabaseClient';
+import { DatabaseZap } from 'lucide-react';
 import {
   LayoutDashboard,
   ListTodo,
@@ -64,6 +65,7 @@ const accessHierarchy: AccessEntry[] = [
     children: [
       { key: 'indtjekning/sex', label: 'Sex', href: '/indtjekning/sex', children: [] },
       { key: 'indtjekning/kompliment', label: 'Kompliment', href: '/indtjekning/kompliment', children: [] },
+      { key: 'indtjekning/hverdag', label: 'Hverdag', href: '/indtjekning/hverdag', children: [] },
     ],
   },
   { key: 'bucketlist-couple', label: 'Bucketlist', href: '/bucketlist-couple', children: [] },
@@ -106,6 +108,14 @@ const accessHierarchy: AccessEntry[] = [
       { key: 'personlighed/manifestation', label: 'Manifestation', href: '/personlighed/manifestation', children: [] },
       { key: 'personlighed/career', label: 'Karriere', href: '/personlighed/career', children: [] },
       { key: 'personlighed/tanker', label: 'Tanker', href: '/personlighed/tanker', children: [] },
+    ],
+  },
+  {
+    key: 'data', 
+    label: 'Data', 
+    href: '/data', 
+    children: [
+      { key: 'data/sex', label: 'Sex', href: '/data/sex', children: [] },
     ],
   },
   { key: 'profile', label: 'Profil', href: '/profile', children: [] },
@@ -154,6 +164,8 @@ const iconMap: Record<string, ReactNode> = {
   settings: <Settings size={20} />,
   kommunikation: <Sparkles size={20} />,
   spil: <ListTodo size={20} />,
+  data: <DatabaseZap size={20} />,
+  'data/sex': <Heart size={20} />,
 };
 
 export default function Sidebar() {
@@ -166,24 +178,16 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  const openMap = {
-    fantasy: useState(false),
-    checkin: useState(false),
-    settings: useState(false),
-    'settings/gpt': useState(false),
-    spil: useState(false),
-    kommunikation: useState(false),
-    'online-relation': useState(false),
-    personlighed: useState(false),
-    indtjekning: useState(false),
-  };
-
+  // Dynamisk openMap så alle med children kan foldes ud
+  const [openState, setOpenState] = useState<Record<string, boolean>>({});
   useEffect(() => {
-    for (const key in openMap) {
-      if (pathname.startsWith(`/${key}`)) {
-        openMap[key as keyof typeof openMap][1](true);
+    const newOpenState: Record<string, boolean> = {};
+    accessHierarchy.forEach(entry => {
+      if (pathname.startsWith(entry.href)) {
+        newOpenState[entry.key] = true;
       }
-    }
+    });
+    setOpenState(os => ({ ...os, ...newOpenState }));
   }, [pathname]);
 
   if (!hasMounted || loading || !user) return null;
@@ -212,24 +216,38 @@ export default function Sidebar() {
 
   const navContent = accessHierarchy.map(entry => {
     if (!hasAccessTo(entry.key)) return null;
-    const isOpen = (entry.key in openMap) ? openMap[entry.key as keyof typeof openMap][0] : false;
-
-
+    const isOpen = openState[entry.key] || false;
 
     if (entry.children.length) {
       return (
         <div key={entry.key}>
-          <button
-            onClick={() => (entry.key in openMap) && openMap[entry.key as keyof typeof openMap][1](o => !o)}
-
-            className={`w-full flex items-center justify-between px-4 py-2 rounded hover:bg-gray-800 transition ${pathname.startsWith(entry.href) ? 'bg-gray-700 font-semibold' : ''}`}
-          >
-            <span className="flex items-center gap-2">
+          <div className="w-full flex items-center justify-between px-4 py-2 rounded hover:bg-gray-800 transition group relative">
+            {/* Klik på label/ikon navigerer til hovedsiden */}
+            <Link
+              href={entry.href}
+              onClick={() => setMobileOpen(false)}
+              className={`flex items-center gap-2 flex-1 min-w-0
+                ${pathname.startsWith(entry.href) ? 'font-semibold text-white' : ''}
+                `}
+              style={{ zIndex: 2 }}
+            >
               {iconMap[entry.key]}
               {entry.label}
-            </span>
-            {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-          </button>
+            </Link>
+            {/* Klik på pil åbner/lukker dropdown */}
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation();
+                setOpenState(os => ({ ...os, [entry.key]: !isOpen }));
+              }}
+              className="flex items-center px-2 py-1 ml-2 rounded hover:bg-gray-700 transition"
+              aria-label={isOpen ? 'Luk' : 'Åbn'}
+              tabIndex={0}
+            >
+              {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </button>
+          </div>
           {isOpen && (
             <div className="ml-6 mt-1 space-y-1">
               {entry.children.map(child => hasAccessTo(child.key) && (
@@ -249,6 +267,7 @@ export default function Sidebar() {
       );
     }
 
+    // Ingen children: normalt link
     return (
       <Link
         key={entry.key}

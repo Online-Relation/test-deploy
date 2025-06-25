@@ -1,4 +1,3 @@
-// /app/fantasy/anbefalinger/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -15,6 +14,8 @@ export default function AnbefalingerOverview() {
   const [loading, setLoading] = useState(false);
   const [tableCount, setTableCount] = useState<number | null>(null);
   const [rowCount, setRowCount] = useState<number | null>(null);
+  const [weeklyMessage, setWeeklyMessage] = useState<string | null>(null);
+  const [weeklyLoading, setWeeklyLoading] = useState(false);
 
   const { user } = useUserContext();
 
@@ -50,13 +51,34 @@ export default function AnbefalingerOverview() {
       body: JSON.stringify({}),
     });
     const json = await res.json();
-    console.log("🔍 API-svar:", json);
 
     setOverallRecommendation(json.recommendation || "Kunne ikke hente anbefaling.");
     setLastGenerated(new Date().toLocaleString("da-DK"));
     setTableCount(json.used_tables?.length ?? null);
     setRowCount(json.total_rows ?? null);
     setLoading(false);
+  };
+
+  const handleWeeklyGenerate = async () => {
+    if (!user) return;
+    setWeeklyMessage(null);
+    setWeeklyLoading(true);
+
+    const res = await fetch("/api/weekly-recommendation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: user.id }),
+    });
+
+    const result = await res.json();
+
+    if (result.recommendation) {
+      setWeeklyMessage("✅ Ugentlig anbefaling er genereret og gemt.");
+    } else {
+      setWeeklyMessage("❌ Fejl ved generering.");
+    }
+
+    setWeeklyLoading(false);
   };
 
   return (
@@ -68,19 +90,18 @@ export default function AnbefalingerOverview() {
 
       {/* 🔶 Overordnet anbefaling */}
       <Card className="p-4 space-y-2">
-       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
-  <div className="font-semibold text-lg">🧠 Overordnet anbefaling</div>
-  <div className="flex flex-col sm:flex-row gap-2">
-    <Button onClick={fetchOverall} disabled={loading}>
-      {loading ? "Henter..." : overallRecommendation ? "Klar" : "Generér ny"}
-    </Button>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
+          <div className="font-semibold text-lg">🧠 Overordnet anbefaling</div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button onClick={fetchOverall} disabled={loading}>
+              {loading ? "Henter..." : overallRecommendation ? "Klar" : "Generér ny"}
+            </Button>
 
-    <Link href="/fantasy/anbefalinger/generel">
-      <Button variant="secondary">Gå til anbefaling</Button>
-    </Link>
-  </div>
-</div>
-
+            <Link href="/fantasy/anbefalinger/generel">
+              <Button variant="secondary">Gå til anbefaling</Button>
+            </Link>
+          </div>
+        </div>
 
         {lastGenerated && (
           <p className="text-xs text-muted-foreground">
@@ -92,6 +113,26 @@ export default function AnbefalingerOverview() {
           <p className="text-xs text-muted-foreground">
             Anbefalingen er baseret på {tableCount} tabeller og {rowCount} datapunkter.
           </p>
+        )}
+      </Card>
+
+      {/* 📅 Ugentlig anbefaling */}
+      <Card className="p-4 space-y-2">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
+          <div className="font-semibold text-lg">📅 Ugentlig anbefaling</div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button onClick={handleWeeklyGenerate} disabled={weeklyLoading}>
+              {weeklyLoading ? "Genererer..." : "Generér ny"}
+            </Button>
+
+            <Link href="/dashboard">
+              <Button variant="secondary">Se på dashboard</Button>
+            </Link>
+          </div>
+        </div>
+
+        {weeklyMessage && (
+          <p className="text-xs text-muted-foreground">{weeklyMessage}</p>
         )}
       </Card>
 

@@ -26,7 +26,7 @@ export default function WeeklyRecommendation() {
   useEffect(() => {
     if (!user) return;
     if (!user.partner_id) {
-      console.error('Fejl ved hentning af partner_id: partner_id mangler på profilen');
+      console.error('Fejl: partner_id mangler på profilen');
       return;
     }
 
@@ -36,12 +36,16 @@ export default function WeeklyRecommendation() {
       const weekNumber = now.isoWeek();
       const year = now.year();
 
+      console.log('👤 Bruger-ID (modtager):', user.id);
+      console.log('💌 Partner-ID (afsender):', user.partner_id);
+      console.log('🗓️ Uge:', weekNumber, 'År:', year);
+
       const [{ data: recData, error: recError }, { data: xpData }] = await Promise.all([
         supabase
           .from('weekly_recommendations')
-          .select('text, fulfilled')
-          .eq('user_id', user.id)
-          .eq('for_partner', user.partner_id)
+          .select('*')
+          .eq('user_id', user.id) // modtager
+          .eq('for_partner', user.partner_id) // afsender
           .eq('week_number', weekNumber)
           .eq('year', year)
           .maybeSingle(),
@@ -54,13 +58,19 @@ export default function WeeklyRecommendation() {
           .maybeSingle(),
       ]);
 
+      console.log('📦 Data fra Supabase:', recData);
+      console.log('⚠️ Fejl fra Supabase:', recError);
+      console.log('🎯 XP-data:', xpData);
+
       if (recError) {
-        console.error('Fejl ved hentning af anbefaling:', recError.message);
+        console.error('❌ Fejl ved anbefaling:', recError.message);
         setRecommendation('Kunne ikke hente anbefaling.');
       } else if (recData) {
+        console.log('✅ Anbefaling fundet:', recData);
         setRecommendation(recData.text);
         if (recData.fulfilled) setCompleted(true);
       } else {
+        console.warn('⚠️ Ingen anbefaling fundet.');
         setRecommendation('Ingen anbefaling tilgængelig endnu.');
       }
 

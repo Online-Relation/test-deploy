@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { Card } from '@/components/ui/card';
 import QuizResultComponent from '@/app/quiz/resultater/[quizKey]/result-component';
+import levenshtein from 'fast-levenshtein';
 
 interface Question {
   id: string;
@@ -97,42 +98,47 @@ export default function GenerelAnbefalingPage() {
       };
 
       for (const q of questions) {
-        const related = answersData.filter((a) => a.question_id === q.id);
-        const uniqueUsers = [...new Set(related.map((a) => a.user_id))];
-        if (uniqueUsers.length !== 2) continue;
+  const related = answersData.filter((a) => a.question_id === q.id);
+  const uniqueUsers = [...new Set(related.map((a) => a.user_id))];
+  if (uniqueUsers.length !== 2) continue;
 
-        const [a1, a2] = related.map((a) => a.answer.trim().toLowerCase());
+  let [a1, a2] = related.map((a) =>
+    a.answer.trim().toLowerCase().replace(/[.,!?]/g, '')
+  );
 
-        // Hvis helt ens
-        if (a1 === a2) {
-          result.green.push(q);
-          continue;
-        }
+  // Helt ens
+  if (a1 === a2) {
+    result.green.push(q);
+    continue;
+  }
 
-        // Hvis det er ja/nej
-        if (
-          (a1 === 'ja' && a2 === 'nej') ||
-          (a1 === 'nej' && a2 === 'ja')
-        ) {
-          result.red.push(q);
-          continue;
-        }
+  // Ja/nej/måske logik
+  const yn = ['ja', 'nej', 'måske'];
+  if (yn.includes(a1) && yn.includes(a2)) {
+    if (a1 === a2) result.green.push(q);
+    else if (a1 === 'måske' || a2 === 'måske') result.yellow.push(q);
+    else result.red.push(q);
+    continue;
+  }
 
-        // Hvis det er skala: meget vigtigt → ikke vigtigt
-        const i1 = importanceScale.indexOf(a1);
-        const i2 = importanceScale.indexOf(a2);
+  // Skala-svar
+  const i1 = importanceScale.indexOf(a1);
+  const i2 = importanceScale.indexOf(a2);
+  if (i1 !== -1 && i2 !== -1) {
+    const diff = Math.abs(i1 - i2);
+    if (diff === 0) result.green.push(q);
+    else if (diff <= 2) result.yellow.push(q); // <= 2 = gul
+    else result.red.push(q); // først ved 3 forskel = rød
+    continue;
+  }
 
-        if (i1 !== -1 && i2 !== -1) {
-          const diff = Math.abs(i1 - i2);
-          if (diff === 0) result.green.push(q);
-          else if (diff >= 2) result.red.push(q);
-          else result.yellow.push(q);
-          continue;
-        }
+  // Fallback: brug tekst-afstand
+  const dist = levenshtein.get(a1, a2);
+  if (dist <= 2) result.green.push(q);
+  else if (dist <= 5) result.yellow.push(q);
+  else result.red.push(q);
+}
 
-        // Alt andet: gul
-        result.yellow.push(q);
-      }
 
       setGrouped(result);
       setLoading(false);

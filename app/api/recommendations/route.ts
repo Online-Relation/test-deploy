@@ -1,5 +1,3 @@
-// /app/api/recommendations/route.ts
-
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import { generateGptRecommendation, getTokensForText } from '@/lib/gptHelper';
@@ -25,50 +23,44 @@ export async function POST(req: Request) {
   if (testMode) return NextResponse.json({ ok: true });
 
   try {
-    // Hent farveprofil
-    let farveProfilText = '';
+    // Hent valgt GPT-model
+    const { data: modelSetting } = await supabase
+      .from('gpt_settings')
+      .select('value')
+      .eq('key', 'default_model')
+      .maybeSingle();
 
+    const selectedModel = modelSetting?.value || 'gpt-3.5-turbo';
+
+    // Hent hele profilen (dynamisk)
+    let dynamicProfileText = '';
     if (user_id) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('red, yellow, green, blue, primary_color, keyword_1, keyword_2, keyword_3, keyword_4, keyword_5, red_description, yellow_description, green_description, blue_description')
+        .select('*')
         .eq('id', user_id)
         .maybeSingle();
 
       if (profile) {
-        const rækkefølge = [profile.red, profile.yellow, profile.green, profile.blue].filter(Boolean);
-        const nøgleord = [
-          profile.keyword_1,
-          profile.keyword_2,
-          profile.keyword_3,
-          profile.keyword_4,
-          profile.keyword_5,
-        ].filter(Boolean);
+        const profileFieldsToIgnore = [
+          "id", "partner_id", "created_at", "updated_at", "user_id", "avatar_url", "display_name"
+        ];
+        const profileLines = Object.entries(profile)
+          .filter(([key, value]) =>
+            value !== null &&
+            value !== "" &&
+            !profileFieldsToIgnore.includes(key)
+          )
+          .map(([key, value]) => {
+            const label = key
+              .replace(/_/g, " ")
+              .replace(/\b\w/g, c => c.toUpperCase());
+            return `${label}: ${value}`;
+          });
 
-        const farveBeskrivelser: Record<string, string> = {
-          red: profile.red_description || 'handlekraftig og målrettet',
-          yellow: profile.yellow_description || 'kreativ, legende og idérig',
-          green: profile.green_description || 'omsorgsfuld og harmonisøgende',
-          blue: profile.blue_description || 'struktureret og analytisk',
-        };
-
-        const prioriteretListe = rækkefølge
-          .map((farve, index) => {
-            const beskrivelse = farveBeskrivelser[farve] || 'personlighedstræk';
-            return `${index + 1}. ${farve} – ${beskrivelse}`;
-          })
-          .join('\n');
-
-        farveProfilText = `
-🎨 Farveprofil for parret:
-Personligheden er sammensat af 4 farver i prioriteret rækkefølge:
-
-${prioriteretListe}
-
-Nøgleord: ${nøgleord.join(', ')}
-
-Fokusér særligt på de øverste farver i din anbefaling.
-        `.trim();
+        if (profileLines.length > 0) {
+          dynamicProfileText = `Profiloplysninger:\n${profileLines.join('\n')}`;
+        }
       }
     }
 
@@ -109,13 +101,14 @@ Fokusér særligt på de øverste farver i din anbefaling.
 
     const promptHeader = `Du er parterapeut og skal give en personlig anbefaling til et par baseret på deres data.`;
     const promptGrouped = groupedText ? `\n\n📋 Deres besvarelser:\n${groupedText}` : '';
+    const promptProfile = dynamicProfileText ? `\n\n${dynamicProfileText}` : '';
     const promptData = `\n\n📊 Data:\n${tableData.join('\n\n')}`;
     const promptFooter = `\n\nGiv nu en personlig, ærlig og omsorgsfuld anbefaling. Brug dataene aktivt i analysen.`;
 
-    const fullPrompt = `${promptHeader}${farveProfilText ? '\n\n' + farveProfilText : ''}${promptGrouped}${promptData}${promptFooter}`;
+    const fullPrompt = `${promptHeader}${promptProfile}${promptGrouped}${promptData}${promptFooter}`;
     const promptTokens = getTokensForText(fullPrompt);
 
-    const recommendation = await generateGptRecommendation(fullPrompt, 'gpt-3.5-turbo');
+    const recommendation = await generateGptRecommendation(fullPrompt, selectedModel);
 
     await supabase.from('overall_meta').insert({
       quiz_key: quizKey,
@@ -128,6 +121,15 @@ Fokusér særligt på de øverste farver i din anbefaling.
       user_id,
       grouped_questions_hash: null,
       token_count: promptTokens,
+    });
+
+    await supabase.from('gpt_logs').insert({
+      user_id,
+      widget: 'quiz_recommendation',
+      prompt: fullPrompt,
+      response: recommendation,
+      model: selectedModel,
+      total_tokens: promptTokens,
     });
 
     return NextResponse.json({

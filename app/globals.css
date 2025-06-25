@@ -225,5 +225,11 @@ input, textarea, select {
   animation: pingOnce 0.6s ease-in-out;
 }
 
+/* Tving style på registrerede dage */
+.rdp-day_registered {
+  background-color: #DDD6FE !important;
+  color: #5B21B6 !important;
+  border-radius: 9999px !important;
+}
   
 }

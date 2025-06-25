@@ -13,55 +13,49 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Manglende data' }, { status: 400 });
     }
 
-    // Hent farveprofil
-    const { data: profile, error: profileError } = await supabase
+    // Hent GPT-model fra gpt_settings
+    const { data: modelSetting } = await supabase
+      .from('gpt_settings')
+      .select('value')
+      .eq('key', 'default_model')
+      .maybeSingle();
+
+    const selectedModel = modelSetting?.value || 'gpt-3.5-turbo';
+
+    // Hent hele profilen dynamisk
+    const { data: profile } = await supabase
       .from('profiles')
-      .select(
-        'red, yellow, green, blue, primary_color, keyword_1, keyword_2, keyword_3, keyword_4, keyword_5, red_description, yellow_description, green_description, blue_description'
-      )
+      .select('*')
       .eq('id', user_id)
       .maybeSingle();
 
-    let farveProfilText = '';
+    let dynamicProfileText = '';
     if (profile) {
-      const rækkefølge = [profile.red, profile.yellow, profile.green, profile.blue].filter(Boolean);
-      const nøgleord = [
-        profile.keyword_1,
-        profile.keyword_2,
-        profile.keyword_3,
-        profile.keyword_4,
-        profile.keyword_5,
-      ].filter(Boolean);
+      const profileFieldsToIgnore = [
+        "id", "partner_id", "created_at", "updated_at", "user_id", "avatar_url", "display_name"
+      ];
+      const profileLines = Object.entries(profile)
+        .filter(([key, value]) =>
+          value !== null &&
+          value !== "" &&
+          !profileFieldsToIgnore.includes(key)
+        )
+        .map(([key, value]) => {
+          const label = key
+            .replace(/_/g, " ")
+            .replace(/\b\w/g, c => c.toUpperCase());
+          return `${label}: ${value}`;
+        });
 
-      const farveBeskrivelser: Record<string, string> = {
-        red: profile.red_description || 'handlekraftig og målrettet',
-        yellow: profile.yellow_description || 'kreativ, legende og idérig',
-        green: profile.green_description || 'omsorgsfuld og harmonisøgende',
-        blue: profile.blue_description || 'struktureret og analytisk',
-      };
-
-      const prioriteretListe = rækkefølge
-        .map((farve, index) => {
-          const beskrivelse = farveBeskrivelser[farve] || 'personlighedstræk';
-          return `${index + 1}. ${farve} – ${beskrivelse}`;
-        })
-        .join('\n');
-
-      farveProfilText = `
-🎨 Farveprofil for parret:
-Personligheden er sammensat af 4 farver i prioriteret rækkefølge:
-
-${prioriteretListe}
-
-Nøgleord: ${nøgleord.join(', ')}
-
-Fokusér særligt på de øverste farver i din anbefaling.
-      `.trim();
+      if (profileLines.length > 0) {
+        dynamicProfileText = `Profiloplysninger:\n${profileLines.join('\n')}`;
+      }
     }
 
     const prompt = `
 Du er parterapeut og skal lave én specifik anbefaling til et par baseret på deres quizbesvarelser.
-${farveProfilText ? farveProfilText + '\n\n' : ''}
+
+${dynamicProfileText ? dynamicProfileText + '\n\n' : ''}
 Information:
 Baggrund:
 ${background || 'Ingen'}
@@ -74,7 +68,7 @@ Svar med kun anbefalingen. Ikke noget andet.
 
     const tokens = getTokensForText(prompt);
 
-    const recommendation = await generateGptRecommendation(prompt, 'gpt-4');
+    const recommendation = await generateGptRecommendation(prompt, selectedModel);
 
     // Log til gpt_logs
     await supabase.from('gpt_logs').insert({
@@ -82,7 +76,7 @@ Svar med kun anbefalingen. Ikke noget andet.
       widget: 'quiz_recommendation',
       prompt,
       response: recommendation,
-      model: 'gpt-4',
+      model: selectedModel,
       total_tokens: tokens,
     });
 

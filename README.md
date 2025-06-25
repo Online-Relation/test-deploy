@@ -2083,3 +2083,139 @@ Teststatus
 
 ✅ Debug og konsolvisning hjælper til fejlfinding
 
+2025-06-25 – Dynamisk profilopslag i anbefalingssystemet
+Opdateringer:
+
+Alle API-endpoints til anbefalinger bruger nu dynamisk profilopslag fra Supabase.
+
+Felter i tabellen profiles bruges automatisk i prompten til GPT, så nye felter (fx kærlighedssprog, værdier mv.) bliver medtaget uden kodeændringer.
+
+Gælder /api/weekly-recommendation/route.ts, /api/overall-recommendation/route.ts, /api/recommendations/route.ts, /api/generate-recommendation/route.ts, og /api/quiz-recommendation/route.ts.
+
+Modelvalg for GPT (gpt-3.5-turbo eller gpt-4) er stadig dynamisk og hentes fra tabellen gpt_settings (key = default_model).
+
+Tone, tabeller og ekskluderede ord kan nu styres dynamisk fra Supabase via widget_config (på f.eks. /settings/recommendation).
+
+Tidligere hardcodede farvefelter, keywords mv. er fjernet til fordel for automatisk generering af profiloplysninger i prompten.
+
+Endpoints til at generere anbefalinger, både ugentlig og overordnet, opretter nu data til korrekt modtager/afsender, så modtageren får anbefalingen vist på dashboard.
+
+Status-endpoint /api/gpt-status/route.ts er uændret.
+
+Ingen ændringer til tabellerne – kun kode, så evt. nye kolonner på profilen bruges automatisk.
+
+Seneste flow:
+
+Tilføj felter til profiles-tabellen → de bruges i anbefalinger uden kodeændring.
+
+Skift GPT-model og parametre via indstillingsside.
+
+Generering, visning og opdatering af anbefalinger fungerer nu uden hardcoding af feltnavne.
+
+Udviklingslog d. 25/6 - 2025
+Nyt modul: Indtjekning – Hverdag
+Oprettet ny side /indtjekning/hverdag til daglig indtjekning.
+
+Felter: Dato (med kalendervælger), "Var I sammen i dag?", "Var der konflikt?", stemningsbarometer (Frost, Kølig, Neutral, Lun, Hed).
+
+Data gemmes i Supabase-tabel daily_checkin med felter: user_id, checkin_date, was_together, conflict, mood.
+
+Seneste 5 registreringer vises under formularen, inkl. dato, stemning, "Sammen"/"Ikke sammen" og "Konflikt".
+
+Kalenderfeltet bruger react-day-picker til at vælge dato. (Vi har forsøgt at markere registrerede dage i kalenderen, men dette virker ikke stabilt pt. – funktionen er sat på pause.)
+
+Formularen er responsiv og bruger eksisterende layout- og btn-klasser.
+
+Brugeren skal være logget ind for at indsende og se egne registreringer.
+
+Validering: Alle felter skal udfyldes for at kunne gemme.
+
+Alt data hentes/synkroniseres fra Supabase ved render og submit.
+
+Teknisk
+Ny tabel daily_checkin oprettet med felter:
+
+id uuid PRIMARY KEY
+
+user_id uuid (foreign key)
+
+checkin_date date
+
+was_together boolean
+
+conflict boolean
+
+mood smallint
+
+created_at timestamp
+
+Frontend bruger @supabase/auth-helpers-react til user-auth og dataadgang.
+
+Kalender: react-day-picker er implementeret, men markering af eksisterende registreringer i kalenderen udestår.
+
+Opdatering – 25. juni 2025
+Nye funktioner
+Der er nu oprettet en komplet indtjekningsside for sexlivsregistrering, hvor man kan logge dato, tidspunkt, initiativ, type, stillinger, placering, sted og tags.
+
+Alle valg kan tilføjes, vælges, slettes og genbruges som chips med farver.
+
+Database-struktur
+Følgende tabeller er oprettet/tilpasset i Supabase til brug for sexlivslogning:
+
+sexlife_logs
+Indeholder selve hovedloggen for hver registrering:
+
+id (uuid)
+
+log_datetime (timestamp)
+
+log_date (date)
+
+log_time (text eller time)
+
+had_sex (bool)
+
+initiator (text)
+
+sex_type (text)
+
+sex_positions
+Liste over mulige stillinger, der kan vælges og tilføjes af brugeren.
+
+sexlife_log_positions
+Relationstabel der forbinder logs og stillinger (mange-til-mange):
+
+log_id (uuid, FK til sexlife_logs)
+
+position_id (uuid, FK til sex_positions)
+
+sex_locations
+Liste over mulige placeringer.
+
+sexlife_log_locations
+Relationstabel for placeringer pr. log (mange-til-mange).
+
+sex_places
+Liste over steder ("huller" eller lokationer, f.eks. oralt, analt, vaginalt).
+
+sexlife_log_places
+Relationstabel for steder pr. log (mange-til-mange).
+
+sex_tags
+Liste over tags som kan bruges frit – fx "bj", "hurtig", "langsom", "udenfor".
+
+sexlife_log_tags
+Relationstabel for tags pr. log (mange-til-mange).
+
+Alle relationstabeller er opsat til mange-til-mange (log_id, [type]_id), og bruger uuid som primær nøgle.
+
+Frontend
+Chips vises farvet og med “slet”-kryds i alle sektioner.
+
+Der tages højde for at brugeren ikke kan vælge eller gemme tags der er blevet slettet i databasen.
+
+Alle relationer bliver ryddet efter en registrering, så næste indtastning starter frisk.
+
+Næste skridt
+Visualisering: Næste trin bliver at vise data grafisk, f.eks. fordeling af initiativ, typer, mest brugte tags, udvikling over tid osv.
+Dette vil ske på en ny side, hvor der vises grafer for alle de dimensioner, vi har oprettet (f.eks. via Chart.js eller lignende).

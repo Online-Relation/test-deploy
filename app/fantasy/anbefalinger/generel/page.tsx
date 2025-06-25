@@ -108,6 +108,7 @@ export default function GenerelAnbefalingPage() {
             — Hentet data fra Supabase
           </p>
         </Card>
+        
       )}
 
       {!latest && (

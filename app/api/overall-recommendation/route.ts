@@ -1,4 +1,3 @@
-// /app/api/overall-recommendation/route.ts
 import { NextResponse } from 'next/server';
 import { generateGptRecommendation, getTokensForText } from '@/lib/gptHelper';
 import { supabase } from '@/lib/supabaseClient';
@@ -12,26 +11,43 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Manglende data' }, { status: 400 });
     }
 
-    // Hent brugerens farveprofil
+    // Hent valgt GPT-model
+    const { data: modelSetting } = await supabase
+      .from('gpt_settings')
+      .select('value')
+      .eq('key', 'default_model')
+      .maybeSingle();
+
+    const selectedModel = modelSetting?.value || 'gpt-3.5-turbo';
+
+    // Hent hele profilen dynamisk
     const { data: profile } = await supabase
       .from('profiles')
-      .select(
-        'red, yellow, green, blue, primary_color, keyword_1, keyword_2, keyword_3, keyword_4, keyword_5'
-      )
+      .select('*')
       .eq('id', user_id)
       .maybeSingle();
 
-    let farveProfilText = '';
+    // Byg dynamisk profiltekst
+    let dynamicProfileText = '';
     if (profile) {
-      const rækkefølge = [profile.red, profile.yellow, profile.green, profile.blue].filter(Boolean);
-      const nøgleord = [
-        profile.keyword_1,
-        profile.keyword_2,
-        profile.keyword_3,
-        profile.keyword_4,
-        profile.keyword_5,
-      ].filter(Boolean);
-      farveProfilText = `🎨 Farveprofil:\nPrimærfarve: ${profile.primary_color}\nRækkefølge: ${rækkefølge.join(', ')}\nNøgleord: ${nøgleord.join(', ')}`;
+      const profileFieldsToIgnore = [
+        "id", "partner_id", "created_at", "updated_at", "user_id", "avatar_url", "display_name"
+      ];
+      const profileLines = Object.entries(profile)
+        .filter(([key, value]) =>
+          value !== null &&
+          value !== "" &&
+          !profileFieldsToIgnore.includes(key)
+        )
+        .map(([key, value]) => {
+          const label = key
+            .replace(/_/g, " ")
+            .replace(/\b\w/g, c => c.toUpperCase());
+          return `${label}: ${value}`;
+        });
+      if (profileLines.length > 0) {
+        dynamicProfileText = `Profiloplysninger:\n${profileLines.join('\n')}`;
+      }
     }
 
     // Hent aktiverede tabeller fra recommendation_sources
@@ -59,7 +75,8 @@ export async function POST(req: Request) {
 
     const prompt = `
 Du skal generere én personlig anbefaling til et par baseret på deres data.
-${farveProfilText ? farveProfilText + '\n\n' : ''}
+
+${dynamicProfileText ? dynamicProfileText + '\n\n' : ''}
 Data:
 ${gatheredData}
 
@@ -68,7 +85,7 @@ Svar med kun anbefalingen – ingen forklaring.
     `.trim();
 
     const tokens = getTokensForText(prompt);
-    const recommendation = await generateGptRecommendation(prompt, 'gpt-4');
+    const recommendation = await generateGptRecommendation(prompt, selectedModel);
 
     await supabase.from('gpt_logs').insert({
       user_id,
@@ -76,7 +93,7 @@ Svar med kun anbefalingen – ingen forklaring.
       quiz_key: null,
       prompt,
       response: recommendation,
-      model: 'gpt-4',
+      model: selectedModel,
       total_tokens: tokens,
       tables_used: usedTables,
     });
@@ -92,8 +109,7 @@ Svar med kun anbefalingen – ingen forklaring.
 
     return NextResponse.json({ recommendation });
   } catch (err: any) {
-console.error('Full error:', err);
-
+    console.error('Full error:', err);
     return NextResponse.json({ error: err.message || 'Ukendt fejl' }, { status: 500 });
   }
 }
