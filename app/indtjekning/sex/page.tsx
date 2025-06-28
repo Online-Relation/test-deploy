@@ -34,21 +34,25 @@ export default function SexRegisterPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [places, setPlaces] = useState<{ id: string; name: string }[]>([]);
-const [selectedPlaces, setSelectedPlaces] = useState<Set<string>>(new Set());
-const [newPlace, setNewPlace] = useState<string>('');
-const [tags, setTags] = useState<{ id: string; name: string }[]>([]);
-const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
-const [newTag, setNewTag] = useState<string>('');
+  const [selectedPlaces, setSelectedPlaces] = useState<Set<string>>(new Set());
+  const [newPlace, setNewPlace] = useState<string>('');
+  const [tags, setTags] = useState<{ id: string; name: string }[]>([]);
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const [newTag, setNewTag] = useState<string>('');
+  const [triedSomethingNew, setTriedSomethingNew] = useState(false);
+const [triedSomethingNewText, setTriedSomethingNewText] = useState('');
 
 
-// Hent huller
-useEffect(() => {
-  async function loadPlaces() {
-    const { data, error } = await supabase.from('sex_places').select('id, name').order('name');
-    if (!error && data) setPlaces(data);
-  }
-  loadPlaces();
-}, []);
+
+  // Hent huller
+  useEffect(() => {
+    async function loadPlaces() {
+      const { data, error } = await supabase.from('sex_places').select('id, name').order('name');
+      if (!error && data) setPlaces(data);
+    }
+    loadPlaces();
+  }, []);
+
   // Hent stillinger
   useEffect(() => {
     async function loadPositions() {
@@ -67,6 +71,15 @@ useEffect(() => {
     loadLocations();
   }, []);
 
+  // Hent tags
+  useEffect(() => {
+    async function loadTags() {
+      const { data, error } = await supabase.from('sex_tags').select('id, name').order('name');
+      if (!error && data) setTags(data);
+    }
+    loadTags();
+  }, []);
+
   // Stillings-chips
   const handleTogglePosition = (id: string) => {
     setSelectedPositions(prev => {
@@ -76,14 +89,6 @@ useEffect(() => {
       return newSet;
     });
   };
-
-  useEffect(() => {
-  async function loadTags() {
-    const { data, error } = await supabase.from('sex_tags').select('id, name').order('name');
-    if (!error && data) setTags(data);
-  }
-  loadTags();
-}, []);
 
   const handleAddPosition = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,140 +133,166 @@ useEffect(() => {
   };
 
   const handleTogglePlace = (id: string) => {
-  setSelectedPlaces(prev => {
-    const newSet = new Set(prev);
-    if (newSet.has(id)) newSet.delete(id);
-    else newSet.add(id);
-    return newSet;
-  });
-};
+    setSelectedPlaces(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      return newSet;
+    });
+  };
 
-const handleAddPlace = async (e: React.FormEvent) => {
-  e.preventDefault();
-  const name = newPlace.trim();
-  if (!name) return;
-  const { data, error } = await supabase
-    .from('sex_places')
-    .insert([{ name }])
-    .select('id, name')
-    .maybeSingle();
-  if (!error && data) {
-    setPlaces(p => [...p, data]);
-    setSelectedPlaces(s => new Set(s).add(data.id));
-    setNewPlace('');
-  }
-};
+  const handleAddPlace = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newPlace.trim();
+    if (!name) return;
+    const { data, error } = await supabase
+      .from('sex_places')
+      .insert([{ name }])
+      .select('id, name')
+      .maybeSingle();
+    if (!error && data) {
+      setPlaces(p => [...p, data]);
+      setSelectedPlaces(s => new Set(s).add(data.id));
+      setNewPlace('');
+    }
+  };
 
-const handleToggleTag = (id: string) => {
-  setSelectedTags(prev => {
-    const newSet = new Set(prev);
-    if (newSet.has(id)) newSet.delete(id);
-    else newSet.add(id);
-    return newSet;
-  });
-};
+  const handleToggleTag = (id: string) => {
+    setSelectedTags(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      return newSet;
+    });
+  };
 
-const handleAddTag = async (e: React.FormEvent) => {
-  e.preventDefault();
-  const name = newTag.trim();
-  if (!name) return;
-  const { data, error } = await supabase
-    .from('sex_tags')
-    .insert([{ name }])
-    .select('id, name')
-    .maybeSingle();
-  if (!error && data) {
-    setTags(p => [...p, data]);
-    setSelectedTags(s => new Set(s).add(data.id));
-    setNewTag('');
-  }
-};
+  const handleAddTag = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newTag.trim();
+    if (!name) return;
+    const { data, error } = await supabase
+      .from('sex_tags')
+      .insert([{ name }])
+      .select('id, name')
+      .maybeSingle();
+    if (!error && data) {
+      setTags(p => [...p, data]);
+      setSelectedTags(s => new Set(s).add(data.id));
+      setNewTag('');
+    }
+  };
+
+  const handleRegister = async () => {
+    setSaving(true);
+    setMessage('');
+
+    // Generér dato/tid-formater
+    const logDatetime = new Date(`${date}T${time}`);
+    const isoDatetime = logDatetime.toISOString();
+    const logDate = isoDatetime.split('T')[0]; // YYYY-MM-DD
+
+    // Opret selve loggen - bemær alle felter!
+    const { data: logData, error: logError } = await supabase
+  .from('sexlife_logs')
+  .insert([{
+    log_datetime: isoDatetime,
+    log_date: logDate,
+    log_time: time,
+    had_sex: true,
+    initiator,
+    sex_type: sexType,
+    tried_something_new: triedSomethingNew,
+    tried_something_new_text: triedSomethingNew ? triedSomethingNewText : null,
+  }])
+  .select('id')
+  .maybeSingle();
 
 
-const handleRegister = async () => {
-  setSaving(true);
-  setMessage('');
+    if (logError || !logData?.id) {
+      setMessage('Kunne ikke gemme registrering.');
+      setSaving(false);
+      return;
+    }
 
-  // Generér dato/tid-formater
-  const logDatetime = new Date(`${date}T${time}`);
-  const isoDatetime = logDatetime.toISOString();
-  const logDate = isoDatetime.split('T')[0]; // YYYY-MM-DD
+    // Gem stillinger
+    if (selectedPositions.size > 0) {
+      const inserts = Array.from(selectedPositions).map(position_id => ({
+        log_id: logData.id,
+        position_id
+      }));
+      await supabase.from('sexlife_log_positions').insert(inserts);
+    }
 
-  // Opret selve loggen - bemær alle felter!
-  const { data: logData, error: logError } = await supabase
-    .from('sexlife_logs')
-    .insert([{
-      log_datetime: isoDatetime,
-      log_date: logDate,
-      log_time: time,
-      had_sex: true,
-      initiator,
-      sex_type: sexType
-    }])
-    .select('id')
-    .maybeSingle();
+    // Gem placeringer
+    if (selectedLocations.size > 0) {
+      const inserts = Array.from(selectedLocations).map(location_id => ({
+        log_id: logData.id,
+        location_id
+      }));
+      await supabase.from('sexlife_log_locations').insert(inserts);
+    }
 
-  if (logError || !logData?.id) {
-    setMessage('Kunne ikke gemme registrering.');
-    setSaving(false);
-    return;
-  }
+    // Gem steder
+    if (selectedPlaces.size > 0) {
+      const inserts = Array.from(selectedPlaces).map(place_id => ({
+        log_id: logData.id,
+        place_id
+      }));
+      await supabase.from('sexlife_log_places').insert(inserts);
+    }
 
-  // Gem stillinger
-  if (selectedPositions.size > 0) {
-    const inserts = Array.from(selectedPositions).map(position_id => ({
-      log_id: logData.id,
-      position_id
-    }));
-    await supabase.from('sexlife_log_positions').insert(inserts);
-  }
+// GEM TAGS - fejlsøgningsblok
+if (selectedTags.size > 0) {
+  const existingTagIds = new Set(tags.map(tag => String(tag.id)));
+  const validSelectedTags = Array.from(selectedTags).filter(tag_id => existingTagIds.has(String(tag_id)));
 
-  // Gem placeringer
-  if (selectedLocations.size > 0) {
-    const inserts = Array.from(selectedLocations).map(location_id => ({
-      log_id: logData.id,
-      location_id
-    }));
-    await supabase.from('sexlife_log_locations').insert(inserts);
-  }
+  if (validSelectedTags.length > 0) {
+    // Hent eksisterende rækker for log_id
+    const { data: existingRows } = await supabase
+      .from('sexlife_log_tags')
+      .select('tag_id')
+      .eq('log_id', logData.id);
 
-  // Gem steder
-  if (selectedPlaces.size > 0) {
-    const inserts = Array.from(selectedPlaces).map(place_id => ({
-      log_id: logData.id,
-      place_id
-    }));
-    await supabase.from('sexlife_log_places').insert(inserts);
-  }
+    // DEBUGGING LOGS
+    console.log('selectedTags:', selectedTags);
+    console.log('validSelectedTags:', validSelectedTags);
+    console.log('existingRows:', existingRows);
+    console.log('logData.id:', logData.id);
 
-  // GEM TAGS - filtrer kun til eksisterende tags
-  if (selectedTags.size > 0) {
-    const existingTagIds = new Set(tags.map(tag => tag.id));
-    const validSelectedTags = Array.from(selectedTags).filter(tag_id => existingTagIds.has(tag_id));
-    if (validSelectedTags.length > 0) {
-      const inserts = validSelectedTags.map(tag_id => ({
+    const existingTagForLog = new Set((existingRows ?? []).map(row => String(row.tag_id)));
+    const inserts = validSelectedTags
+      .filter(tag_id => !existingTagForLog.has(String(tag_id)))
+      .map(tag_id => ({
         log_id: logData.id,
         tag_id
       }));
+
+    console.log('tags to insert:', inserts);
+
+    if (inserts.length > 0) {
       const { error } = await supabase.from('sexlife_log_tags').insert(inserts);
-      if (error && error.code !== '23505') {
+      if (error) {
+        console.error('TAG INSERT ERROR:', error);
         setMessage('Der opstod en fejl ved gem af tags.');
         setSaving(false);
         return;
       }
     }
   }
+}
 
-  // Reset alle valg (så du starter “clean” ved næste registrering)
-  setSelectedTags(new Set());
-  setSelectedPositions(new Set());
-  setSelectedLocations(new Set());
-  setSelectedPlaces(new Set());
 
-  setMessage('Registrering gemt!');
-  setSaving(false);
-  setTimeout(() => router.push('/'), 1000);
-};
+
+    // Reset alle valg (så du starter “clean” ved næste registrering)
+    setSelectedTags(new Set());
+    setSelectedPositions(new Set());
+    setSelectedLocations(new Set());
+    setSelectedPlaces(new Set());
+
+    setMessage('Registrering gemt!');
+    setSaving(false);
+    setTimeout(() => router.push('/'), 1000);
+  };
 
 
   return (
@@ -336,6 +367,30 @@ const handleRegister = async () => {
           ))}
         </div>
       </div>
+      
+          <div className="mb-6">
+  <label className="inline-flex items-center">
+    <input
+      type="checkbox"
+      checked={triedSomethingNew}
+      onChange={e => setTriedSomethingNew(e.target.checked)}
+      className="form-checkbox h-5 w-5 text-indigo-600"
+      disabled={saving}
+    />
+    <span className="ml-2">Vi prøvede noget nyt</span>
+  </label>
+  {triedSomethingNew && (
+    <textarea
+      value={triedSomethingNewText}
+      onChange={e => setTriedSomethingNewText(e.target.value)}
+      placeholder="Hvad prøvede I?"
+      className="w-full mt-2 p-2 border rounded"
+      disabled={saving}
+      rows={2}
+      maxLength={100}
+    />
+  )}
+</div>
 
       {/* Stillinger */}
       <div className="mb-6">
@@ -458,127 +513,126 @@ const handleRegister = async () => {
           ))}
         </div>
       </div>
-       {/* Huller */}
+      {/* Huller */}
       <div className="mb-6">
-  <h2 className="text-lg font-semibold mb-2">Sted</h2>
-  <form onSubmit={handleAddPlace} className="flex gap-2 mb-2">
-    <input
-      type="text"
-      value={newPlace}
-      onChange={e => setNewPlace(e.target.value)}
-      placeholder="Tilføj nyt sted"
-      className="flex-1 px-3 py-2 border rounded"
-      disabled={saving}
-    />
-    <button
-      type="submit"
-      disabled={saving || !newPlace.trim()}
-      className="px-3 py-2 rounded bg-green-600 text-white font-semibold"
-    >
-      Tilføj
-    </button>
-  </form>
-  <div className="flex flex-wrap gap-2">
-    {places.map(place => (
-      <div key={place.id} className="flex items-center">
-        <button
-          type="button"
-          onClick={() => handleTogglePlace(place.id)}
-          disabled={saving}
-          className={
-            "px-4 py-2 rounded-full border font-medium mr-1 " +
-            (selectedPlaces.has(place.id)
-              ? "bg-indigo-600 text-white border-indigo-600"
-              : "bg-gray-100 text-gray-700 border-gray-200")
-          }
-        >
-          {place.name}
-        </button>
-        <button
-          type="button"
-          onClick={async () => {
-            if (confirm(`Vil du slette stedet "${place.name}"?`)) {
-              await supabase.from('sex_places').delete().eq('id', place.id);
-              setPlaces(p => p.filter(x => x.id !== place.id));
-              setSelectedPlaces(s => {
-                const n = new Set(s);
-                n.delete(place.id);
-                return n;
-              });
-            }
-          }}
-          disabled={saving}
-          className="text-red-600 text-xl font-bold hover:bg-red-100 rounded-full w-6 h-6 flex items-center justify-center"
-          aria-label="Slet"
-          title="Slet sted"
-        >
-          ×
-        </button>
+        <h2 className="text-lg font-semibold mb-2">Sted</h2>
+        <form onSubmit={handleAddPlace} className="flex gap-2 mb-2">
+          <input
+            type="text"
+            value={newPlace}
+            onChange={e => setNewPlace(e.target.value)}
+            placeholder="Tilføj nyt sted"
+            className="flex-1 px-3 py-2 border rounded"
+            disabled={saving}
+          />
+          <button
+            type="submit"
+            disabled={saving || !newPlace.trim()}
+            className="px-3 py-2 rounded bg-green-600 text-white font-semibold"
+          >
+            Tilføj
+          </button>
+        </form>
+        <div className="flex flex-wrap gap-2">
+          {places.map(place => (
+            <div key={place.id} className="flex items-center">
+              <button
+                type="button"
+                onClick={() => handleTogglePlace(place.id)}
+                disabled={saving}
+                className={
+                  "px-4 py-2 rounded-full border font-medium mr-1 " +
+                  (selectedPlaces.has(place.id)
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-gray-100 text-gray-700 border-gray-200")
+                }
+              >
+                {place.name}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (confirm(`Vil du slette stedet "${place.name}"?`)) {
+                    await supabase.from('sex_places').delete().eq('id', place.id);
+                    setPlaces(p => p.filter(x => x.id !== place.id));
+                    setSelectedPlaces(s => {
+                      const n = new Set(s);
+                      n.delete(place.id);
+                      return n;
+                    });
+                  }
+                }}
+                disabled={saving}
+                className="text-red-600 text-xl font-bold hover:bg-red-100 rounded-full w-6 h-6 flex items-center justify-center"
+                aria-label="Slet"
+                title="Slet sted"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
-    ))}
-  </div>
-</div>
-<div className="mb-6">
-  <h2 className="text-lg font-semibold mb-2">Tags</h2>
-  <form onSubmit={handleAddTag} className="flex gap-2 mb-2">
-    <input
-      type="text"
-      value={newTag}
-      onChange={e => setNewTag(e.target.value)}
-      placeholder="Tilføj nyt tag"
-      className="flex-1 px-3 py-2 border rounded"
-      disabled={saving}
-    />
-    <button
-      type="submit"
-      disabled={saving || !newTag.trim()}
-      className="px-3 py-2 rounded bg-green-600 text-white font-semibold"
-    >
-      Tilføj
-    </button>
-  </form>
-  <div className="flex flex-wrap gap-2">
-    {tags.map(tag => (
-      <div key={tag.id} className="flex items-center">
-        <button
-          type="button"
-          onClick={() => handleToggleTag(tag.id)}
-          disabled={saving}
-          className={
-            "px-4 py-2 rounded-full border font-medium mr-1 " +
-            (selectedTags.has(tag.id)
-              ? "bg-indigo-600 text-white border-indigo-600"
-              : "bg-gray-100 text-gray-700 border-gray-200")
-          }
-        >
-          {tag.name}
-        </button>
-        <button
-          type="button"
-          onClick={async () => {
-            if (confirm(`Vil du slette tagget "${tag.name}"?`)) {
-              await supabase.from('sex_tags').delete().eq('id', tag.id);
-              setTags(p => p.filter(x => x.id !== tag.id));
-              setSelectedTags(s => {
-                const n = new Set(s);
-                n.delete(tag.id);
-                return n;
-              });
-            }
-          }}
-          disabled={saving}
-          className="text-red-600 text-xl font-bold hover:bg-red-100 rounded-full w-6 h-6 flex items-center justify-center"
-          aria-label="Slet"
-          title="Slet tag"
-        >
-          ×
-        </button>
+      {/* Tags */}
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold mb-2">Tags</h2>
+        <form onSubmit={handleAddTag} className="flex gap-2 mb-2">
+          <input
+            type="text"
+            value={newTag}
+            onChange={e => setNewTag(e.target.value)}
+            placeholder="Tilføj nyt tag"
+            className="flex-1 px-3 py-2 border rounded"
+            disabled={saving}
+          />
+          <button
+            type="submit"
+            disabled={saving || !newTag.trim()}
+            className="px-3 py-2 rounded bg-green-600 text-white font-semibold"
+          >
+            Tilføj
+          </button>
+        </form>
+        <div className="flex flex-wrap gap-2">
+          {tags.map(tag => (
+            <div key={tag.id} className="flex items-center">
+              <button
+                type="button"
+                onClick={() => handleToggleTag(tag.id)}
+                disabled={saving}
+                className={
+                  "px-4 py-2 rounded-full border font-medium mr-1 " +
+                  (selectedTags.has(tag.id)
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-gray-100 text-gray-700 border-gray-200")
+                }
+              >
+                {tag.name}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (confirm(`Vil du slette tagget "${tag.name}"?`)) {
+                    await supabase.from('sex_tags').delete().eq('id', tag.id);
+                    setTags(p => p.filter(x => x.id !== tag.id));
+                    setSelectedTags(s => {
+                      const n = new Set(s);
+                      n.delete(tag.id);
+                      return n;
+                    });
+                  }
+                }}
+                disabled={saving}
+                className="text-red-600 text-xl font-bold hover:bg-red-100 rounded-full w-6 h-6 flex items-center justify-center"
+                aria-label="Slet"
+                title="Slet tag"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
-    ))}
-  </div>
-</div>
-
-
 
       <button
         onClick={handleRegister}
