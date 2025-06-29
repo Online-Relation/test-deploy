@@ -1,4 +1,3 @@
-// /components/widgets/WeeklyRecommendation.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -22,30 +21,60 @@ export default function WeeklyRecommendation() {
   const [loading, setLoading] = useState(true);
   const [completed, setCompleted] = useState(false);
   const [xpEarned, setXpEarned] = useState<number | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [partnerName, setPartnerName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
     if (!user.partner_id) {
-      console.error('Fejl: partner_id mangler på profilen');
+      console.error('[WeeklyRec] Fejl: partner_id mangler på profilen');
       return;
     }
 
+    // Hent eget navn
+    const fetchUserName = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (!error && data) {
+        setUserName(data.display_name);
+      } else {
+        setUserName(null);
+      }
+    };
+
+    // Hent partnernavn (kun brugt til heading/label)
+    const fetchPartnerName = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('id', user.partner_id)
+        .maybeSingle();
+      if (!error && data) {
+        setPartnerName(data.display_name);
+      } else {
+        setPartnerName(null);
+      }
+    };
+
+    fetchUserName();
+    fetchPartnerName();
+
+    // Hent anbefaling og xp
     const fetchData = async () => {
       setLoading(true);
       const now = dayjs();
       const weekNumber = now.isoWeek();
       const year = now.year();
 
-      console.log('👤 Bruger-ID (modtager):', user.id);
-      console.log('💌 Partner-ID (afsender):', user.partner_id);
-      console.log('🗓️ Uge:', weekNumber, 'År:', year);
-
       const [{ data: recData, error: recError }, { data: xpData }] = await Promise.all([
         supabase
           .from('weekly_recommendations')
           .select('*')
-          .eq('user_id', user.id) // modtager
-          .eq('for_partner', user.partner_id) // afsender
+          .eq('user_id', user.id)
+          .eq('for_partner', user.partner_id)
           .eq('week_number', weekNumber)
           .eq('year', year)
           .maybeSingle(),
@@ -58,19 +87,12 @@ export default function WeeklyRecommendation() {
           .maybeSingle(),
       ]);
 
-      console.log('📦 Data fra Supabase:', recData);
-      console.log('⚠️ Fejl fra Supabase:', recError);
-      console.log('🎯 XP-data:', xpData);
-
       if (recError) {
-        console.error('❌ Fejl ved anbefaling:', recError.message);
         setRecommendation('Kunne ikke hente anbefaling.');
       } else if (recData) {
-        console.log('✅ Anbefaling fundet:', recData);
         setRecommendation(recData.text);
         if (recData.fulfilled) setCompleted(true);
       } else {
-        console.warn('⚠️ Ingen anbefaling fundet.');
         setRecommendation('Ingen anbefaling tilgængelig endnu.');
       }
 
@@ -83,7 +105,6 @@ export default function WeeklyRecommendation() {
 
   const handleComplete = async () => {
     if (!user || !user.partner_id) return;
-
     const now = dayjs();
     const weekNumber = now.isoWeek();
     const year = now.year();
@@ -121,8 +142,21 @@ export default function WeeklyRecommendation() {
 
   const heading =
     user.role === 'mads'
-      ? '❤️ Ugens parforholds-anbefaling til Stine'
-      : '❤️ Ugens parforholds-anbefaling til Mads';
+      ? `❤️ Ugens parforholds-anbefaling til ${partnerName || 'din partner'}`
+      : `❤️ Ugens parforholds-anbefaling til ${partnerName || 'din partner'}`;
+
+  // Indsæt brugerens eget navn i anbefalingsteksten
+  function getPersonalizedRecommendation() {
+    if (!recommendation) return '';
+    if (!userName) return recommendation;
+    if (recommendation.includes('{{partner_name}}')) {
+      return recommendation.replace(/{{partner_name}}/g, userName);
+    }
+    return recommendation.replace(
+      /(Kære )([a-zA-Z0-9-]+)(,)/,
+      `$1${userName}$3`
+    );
+  }
 
   return (
     <div className="bg-white rounded-2xl shadow p-4 space-y-3">
@@ -135,7 +169,7 @@ export default function WeeklyRecommendation() {
         Et kærligt forslag baseret på jeres relation og partnerens behov:
       </p>
       <div className="bg-muted rounded p-3 text-sm min-h-[80px] flex items-center">
-        {loading ? 'Henter anbefaling...' : recommendation}
+        {loading ? 'Henter anbefaling...' : getPersonalizedRecommendation()}
       </div>
 
       {!loading && !completed && (

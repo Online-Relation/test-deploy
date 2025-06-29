@@ -116,6 +116,7 @@ const accessHierarchy: AccessEntry[] = [
     href: '/data', 
     children: [
       { key: 'data/sex', label: 'Sex', href: '/data/sex', children: [] },
+      { key: 'data/hverdag', label: 'Hverdag', href: '/data/hverdag', children: [] },
     ],
   },
   { key: 'profile', label: 'Profil', href: '/profile', children: [] },
@@ -165,7 +166,6 @@ const iconMap: Record<string, ReactNode> = {
   kommunikation: <Sparkles size={20} />,
   spil: <ListTodo size={20} />,
   data: <DatabaseZap size={20} />,
-  'data/sex': <Heart size={20} />,
 };
 
 export default function Sidebar() {

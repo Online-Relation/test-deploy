@@ -2219,3 +2219,43 @@ Alle relationer bliver ryddet efter en registrering, så næste indtastning star
 Næste skridt
 Visualisering: Næste trin bliver at vise data grafisk, f.eks. fordeling af initiativ, typer, mest brugte tags, udvikling over tid osv.
 Dette vil ske på en ny side, hvor der vises grafer for alle de dimensioner, vi har oprettet (f.eks. via Chart.js eller lignende).
+
+## README-opdatering – 2025-06-28 ##
+
+
+Sex-data visualisering (/app/data/sex/page.tsx)
+Implementeret omfattende dashboard til visning af sexlogs og statistik.
+
+Tilføjet “Sexlivs-temperatur”-kasse i toppen, der måler antal dage siden sidste sex.
+Farve, emoji og tekst skifter dynamisk baseret på antal dage.
+
+“Tendens måned for måned” er nu ændret til “Tendens pr. 14. dag” for mere nuanceret overblik.
+
+Seksuelle handlinger pr. måned og sex-type vises via Bar og Doughnut charts.
+
+Oralsex-sektion tilpasset, så den virker med to forskellige tags (“Oralsex til Mads” og “Oralsex til Stine”).
+
+Statistik på oralsex for både Mads og Stine vises for de seneste 3 måneder og samlet for året.
+
+Implementeret sammenligning mellem almindelig sex og anal sex pr. måned med procentvis fordeling.
+
+Nederst tre responsive statistik-kasser:
+
+Placeringer: Visning af mest brugte placeringer, sorteret med den mest brugte øverst.
+
+Stillinger: Visning af de mest anvendte sexstillinger, sorteret med flest hits øverst.
+
+Prøvede noget nyt: Viser seneste gang “prøvede noget nyt” var afkrydset og teksten herfra.
+
+Kasse for “Sidste fantasi” opdateret med farve, emoji og besked, der tilpasses hvor længe siden en fantasi er opfyldt.
+
+Al logik er lavet så det kan udvides til andre analyser fremadrettet.
+
+Databasen:
+
+Tilføjet felterne tried_something_new (boolean) og tried_something_new_text (text) til tabellen sexlife_logs.
+
+Ingen ændringer i øvrige tabeller i dag.
+
+Status:
+Siden giver nu komplet og visuelt overblik over jeres sexliv og udvikling, med flere motiverende og sjove features.
