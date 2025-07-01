@@ -1,5 +1,3 @@
-// /app/fantasy/anbefalinger/[quizKey]/page.tsx
-
 "use client";
 
 import { useSearchParams, useParams } from "next/navigation";
@@ -8,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { Card } from "@/components/ui/card";
 import QuizResultComponent from "@/app/quiz/resultater/[quizKey]/result-component";
 import { useUserContext } from "@/context/UserContext";
+import { addSignature } from "@/lib/signature"; // <- IMPORTÉR DENNE
 
 export default function QuizResultPage() {
   const { quizKey: rawKey } = useParams();
@@ -35,6 +34,7 @@ export default function QuizResultPage() {
 
   useEffect(() => {
     if (sessionId) fetchData();
+    // eslint-disable-next-line
   }, [quizKey, sessionId]);
 
   const fetchData = async () => {
@@ -136,7 +136,9 @@ export default function QuizResultPage() {
               </button>
             </div>
             <p className="text-sm text-muted-foreground">Anbefaling fra GPT</p>
-            <p className="whitespace-pre-line text-sm">{recommendation}</p>
+            <p className="whitespace-pre-line text-sm">
+              {recommendation ? addSignature(recommendation) : ""}
+            </p>
           </Card>
         </>
       )}

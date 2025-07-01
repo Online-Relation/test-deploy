@@ -32,7 +32,7 @@ type BucketContextType = {
     description: string,
     category: string,
     deadline?: string,
-    imageFile?: File
+    imageUrl?: string
   ) => Promise<void>;
   updateBucket: (
     id: string,
@@ -40,7 +40,7 @@ type BucketContextType = {
     description: string,
     category: string,
     deadline?: string,
-    imageFile?: File
+    imageUrl?: string
   ) => Promise<void>;
   addSubgoal: (
     bucketId: string,
@@ -84,48 +84,22 @@ export const BucketProvider = ({ children }: { children: React.ReactNode }) => {
     fetchBuckets();
   }, []);
 
-  const uploadBucketImage = async (file: File): Promise<string | undefined> => {
-    const ext = file.name.split('.').pop();
-    const fileName = `bucket-${Date.now()}.${ext}`;
-    const { error: uploadError } = await supabase.storage
-      .from('bucketlist-couple')
-      .upload(`bucket-images/${fileName}`, file, { upsert: true });
-
-    if (uploadError) {
-      console.error('Fejl ved upload af bucket-billede:', uploadError.message);
-      return undefined;
-    }
-
-    const { data: publicData } = supabase.storage
-      .from('bucketlist-couple')
-      .getPublicUrl(`bucket-images/${fileName}`);
-
-    return publicData?.publicUrl;
-  };
-
   const addBucket = async (
     title: string,
     description: string,
     category: string,
     deadline?: string,
-    imageFile?: File
+    imageUrl?: string
   ) => {
-    let image_url: string | undefined;
-
-    if (imageFile) {
-      image_url = await uploadBucketImage(imageFile);
-    }
-
     const { error } = await supabase.from('bucketlist_couple').insert([
       {
         title,
         description,
         category,
         deadline,
-        image_url,
+        image_url: imageUrl || null,
       },
     ]);
-
     if (!error) {
       fetchBuckets();
     } else {
@@ -139,20 +113,16 @@ export const BucketProvider = ({ children }: { children: React.ReactNode }) => {
     description: string,
     category: string,
     deadline?: string,
-    imageFile?: File
+    imageUrl?: string
   ) => {
     let updates: Partial<Bucket> = { title, description, category, deadline };
-
-    if (imageFile) {
-      const image_url = await uploadBucketImage(imageFile);
-      updates.image_url = image_url;
+    if (imageUrl) {
+      updates.image_url = imageUrl;
     }
-
     const { error } = await supabase
       .from('bucketlist_couple')
       .update(updates)
       .eq('id', id);
-
     if (!error) {
       fetchBuckets();
     } else {

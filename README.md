@@ -2259,3 +2259,55 @@ Ingen ændringer i øvrige tabeller i dag.
 
 Status:
 Siden giver nu komplet og visuelt overblik over jeres sexliv og udvikling, med flere motiverende og sjove features.
+
+## Opdatering 29-06-2025 ##
+
+
+Fokus:
+
+Indtjekning Hverdag (daglig stemningsregistrering, tags, følelser/tanker, konfliktbeskrivelser)
+
+Visualisering af data på /data/hverdag
+
+Widget til ugentlig anbefaling (/components/widgets/WeeklyRecommendation.tsx)
+
+Indtjekning Hverdag
+Ny version af indtjekningsside (med stemningsbarometer, konfliktbeskrivelse og kategoriserede følelses/tanke-tags)
+
+Mulighed for at tilføje egne følelser/tanker med kategori
+
+Fejlhåndtering og loading states forbedret
+
+Konflikt-beskrivelse vises kun ved valg af “ja” til konflikt
+
+Tags gemmes korrekt som array i Supabase
+
+Data-visualisering /data/hverdag
+Doughnut chart for stemningsfordeling (mood)
+
+Bar chart for de hyppigste følelser/tanker (tags)
+
+Line chart med udvikling i positive vs negative tags pr. måned (med mulighed for at vælge antal måneder)
+
+Alle grafer er responsive og der er tilføjet ekstra padding/mellemrum mellem sektioner
+
+Ugentlig anbefalings-widget
+Widgeten henter anbefaling fra Supabase og viser den til korrekt bruger (profil)
+
+Både brugerens og partnerens navn hentes live fra Supabase (display_name)
+
+Anbefalingstekst kan nu indeholde enten {{partner_name}}-placeholder eller UUID, der automatisk udskiftes til brugernavn
+
+XP kan optjenes ved at markere anbefaling som fuldført (opdaterer xp_log og sætter fulfilled i Supabase)
+
+Fejlhåndtering og debug-logs tilføjet, så fejl fra Supabase og evt. manglende felter logges tydeligt
+
+Tekniske ændringer
+Alle user-id afhængigheder på indtjekning fjernet (for at kunne bruges “privat”/solo)
+
+Koden konsolideret, så samme feltnavne bruges på tværs af database og frontend (fx display_name)
+
+CSV for profiles gennemgået – kolonnenavn til navn er nu display_name
+
+Alle queries opdateret til at matche dette
+

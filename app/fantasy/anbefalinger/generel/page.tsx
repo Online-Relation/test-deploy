@@ -1,11 +1,10 @@
-// /app/fantasy/anbefalinger/generel/page.tsx
-
 "use client";
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Card } from "@/components/ui/card";
 import { useUserContext } from "@/context/UserContext";
+import { addSignature } from "@/lib/signature"; // ← IMPORT HER
 
 type Recommendation = {
   recommendation: string;
@@ -53,9 +52,9 @@ export default function GenerelAnbefalingPage() {
       body: JSON.stringify({
         user_id: user.id,
         for_partner: forPartner,
-        gatheredData: "", // opdater senere
+        gatheredData: "",
         tone: "kærlig og ærlig",
-        force: true, // 🔁 Tving ny anbefaling
+        force: true,
       }),
     });
 
@@ -102,13 +101,12 @@ export default function GenerelAnbefalingPage() {
             Genereret: {new Date(latest.generated_at).toLocaleString("da-DK")}
           </p>
           <p className="whitespace-pre-line text-sm text-muted-foreground">
-            {latest.recommendation}
+            {addSignature(latest.recommendation)}
           </p>
           <p className="text-xs text-muted-foreground italic text-right">
             — Hentet data fra Supabase
           </p>
         </Card>
-        
       )}
 
       {!latest && (

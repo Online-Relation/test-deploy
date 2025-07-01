@@ -6,6 +6,7 @@ import { useUserContext } from '@/context/UserContext';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import XpBadge from '@/components/ui/XpBadge';
+import { addSignature } from '@/lib/signature';
 
 dayjs.extend(isoWeek);
 
@@ -142,21 +143,33 @@ export default function WeeklyRecommendation() {
 
   const heading =
     user.role === 'mads'
-      ? `❤️ Ugens parforholds-anbefaling til ${partnerName || 'din partner'}`
-      : `❤️ Ugens parforholds-anbefaling til ${partnerName || 'din partner'}`;
+      ? `❤️ Ugens parforholds-anbefaling til din partner ${partnerName || 'din partner'}`
+      : `❤️ Ugens parforholds-anbefaling til din partner ${partnerName || 'din partner'}`;
 
   // Indsæt brugerens eget navn i anbefalingsteksten
-  function getPersonalizedRecommendation() {
-    if (!recommendation) return '';
-    if (!userName) return recommendation;
-    if (recommendation.includes('{{partner_name}}')) {
-      return recommendation.replace(/{{partner_name}}/g, userName);
-    }
-    return recommendation.replace(
-      /(Kære )([a-zA-Z0-9-]+)(,)/,
-      `$1${userName}$3`
-    );
+function getPersonalizedRecommendation() {
+  if (!recommendation) return '';
+  if (!userName) return recommendation;
+
+  // Brug placeholder hvis den findes
+  if (recommendation.includes('{{partner_name}}')) {
+    return recommendation.replace(/{{partner_name}}/g, userName);
   }
+
+  // Hvis det allerede er personaliseret ("Kære Mads,"), gør intet
+  const alreadyPersonalized = new RegExp(`Kære\\s+${userName}\\s*,`, 'i');
+  if (alreadyPersonalized.test(recommendation)) {
+    return recommendation;
+  }
+
+  // Erstat kun hvis der står et ID (evt. med "[ID: ]" eller "[...]")
+  return recommendation.replace(
+    /(Kære\s*(?:\[ID:\s*)?)([a-f0-9-]{36})(\]?)\,/i,
+    `Kære ${userName},`
+  );
+}
+
+
 
   return (
     <div className="bg-white rounded-2xl shadow p-4 space-y-3">
@@ -168,9 +181,11 @@ export default function WeeklyRecommendation() {
       <p className="text-sm text-muted-foreground">
         Et kærligt forslag baseret på jeres relation og partnerens behov:
       </p>
-      <div className="bg-muted rounded p-3 text-sm min-h-[80px] flex items-center">
-        {loading ? 'Henter anbefaling...' : getPersonalizedRecommendation()}
-      </div>
+    <div
+  className="bg-muted rounded p-3 text-sm min-h-[80px] flex items-center whitespace-pre-line"
+>
+  {loading ? 'Henter anbefaling...' : addSignature(getPersonalizedRecommendation())}
+</div>
 
       {!loading && !completed && (
         <button
