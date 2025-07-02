@@ -69,6 +69,9 @@ export default function IndtjekningHverdag() {
   const [conflictText, setConflictText] = useState("");
   const [mood, setMood] = useState(3);
 
+  // Felt: Hvem sagde "jeg elsker dig"?
+  const [ilyWho, setIlyWho] = useState(""); // '' | 'mig' | 'partner' | 'begge'
+
   // Kategorier og egne/tilføjede
   const [chipCategories, setChipCategories] = useState(CHIP_CATEGORIES_INIT);
   const [customTags, setCustomTags] = useState<string[]>([]);
@@ -188,6 +191,7 @@ export default function IndtjekningHverdag() {
       conflict_text: conflict === "ja" ? conflictText : null,
       mood,
       tags: selectedTags,
+      ily_who: ilyWho || null, // NYT FELT
     });
 
     setLoading(false);
@@ -195,6 +199,7 @@ export default function IndtjekningHverdag() {
       setDone(true);
       setConflictText("");
       setSelectedTags([]);
+      setIlyWho("");
     } else {
       alert("Der opstod en fejl! Prøv igen.");
     }
@@ -288,6 +293,21 @@ export default function IndtjekningHverdag() {
               />
             </div>
           )}
+
+          {/* NYT FELT: Sagde nogen "jeg elsker dig"? */}
+          <div className="mb-4">
+            <label className="block font-medium mb-1">Hvem sagde "jeg elsker dig" i dag?</label>
+            <select
+              value={ilyWho}
+              onChange={(e) => setIlyWho(e.target.value)}
+              className="border rounded-xl px-3 py-2 w-full"
+            >
+              <option value="">Ingen</option>
+              <option value="mig">Kun mig</option>
+              <option value="partner">Kun min kæreste</option>
+              <option value="begge">Begge</option>
+            </select>
+          </div>
 
           {/* Stemning barometer */}
           <div className="mb-4">
@@ -450,6 +470,13 @@ function LatestRegistrations({ latest, fetching, errorMsg }: { latest: any[], fe
                 </span>
                 <span className="text-xs">
                   {item.conflict ? "Konflikt" : ""}
+                </span>
+                {/* VIS DET NYE FELT I LISTEN */}
+                <span className="text-xs">
+                  {item.ily_who === "mig" && "Jeg sagde det"}
+                  {item.ily_who === "partner" && "Min kæreste sagde det"}
+                  {item.ily_who === "begge" && "Begge sagde det"}
+                  {!item.ily_who && ""}
                 </span>
               </li>
             );
