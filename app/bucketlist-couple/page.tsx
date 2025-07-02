@@ -1,5 +1,4 @@
-// /context/BucketContext.tsx
-
+"use client";
 import React, { createContext, useContext, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
