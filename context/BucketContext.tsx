@@ -65,6 +65,7 @@ export const BucketProvider = ({ children }: { children: React.ReactNode }) => {
   const [buckets, setBuckets] = useState<Bucket[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Henter alle buckets fra Supabase
   const fetchBuckets = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -72,10 +73,7 @@ export const BucketProvider = ({ children }: { children: React.ReactNode }) => {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (!error && data) {
-      setBuckets(data as Bucket[]);
-    }
-
+    if (!error && data) setBuckets(data as Bucket[]);
     setLoading(false);
   };
 
@@ -83,6 +81,7 @@ export const BucketProvider = ({ children }: { children: React.ReactNode }) => {
     fetchBuckets();
   }, []);
 
+  // Opretter bucket (imageUrl kan være null eller undefined)
   const addBucket = async (
     title: string,
     description: string,
@@ -99,13 +98,11 @@ export const BucketProvider = ({ children }: { children: React.ReactNode }) => {
         image_url: imageUrl || null,
       },
     ]);
-    if (!error) {
-      fetchBuckets();
-    } else {
-      console.error('Fejl ved oprettelse af bucket:', error.message);
-    }
+    if (!error) fetchBuckets();
+    else console.error('Fejl ved oprettelse af bucket:', error.message);
   };
 
+  // Opdaterer bucket (imageUrl kan være null eller undefined)
   const updateBucket = async (
     id: string,
     title: string,
@@ -115,20 +112,18 @@ export const BucketProvider = ({ children }: { children: React.ReactNode }) => {
     imageUrl?: string
   ) => {
     let updates: Partial<Bucket> = { title, description, category, deadline };
-    if (imageUrl) {
-      updates.image_url = imageUrl;
-    }
+    if (imageUrl) updates.image_url = imageUrl;
+
     const { error } = await supabase
       .from('bucketlist_couple')
       .update(updates)
       .eq('id', id);
-    if (!error) {
-      fetchBuckets();
-    } else {
-      console.error('Fejl ved opdatering:', error.message);
-    }
+
+    if (!error) fetchBuckets();
+    else console.error('Fejl ved opdatering:', error.message);
   };
 
+  // Tilføjer subgoal til et bucket
   const addSubgoal = async (
     bucketId: string,
     title: string,
@@ -154,13 +149,11 @@ export const BucketProvider = ({ children }: { children: React.ReactNode }) => {
       .update({ goals: updatedGoals })
       .eq('id', bucketId);
 
-    if (!error) {
-      fetchBuckets();
-    } else {
-      console.error('Fejl ved tilføjelse af delmål:', error.message);
-    }
+    if (!error) fetchBuckets();
+    else console.error('Fejl ved tilføjelse af delmål:', error.message);
   };
 
+  // Skifter done på subgoal og logger XP hvis det er færdigt
   const toggleSubgoalDone = async (
     bucketId: string,
     subgoalId: string,
@@ -189,6 +182,7 @@ export const BucketProvider = ({ children }: { children: React.ReactNode }) => {
       )
     );
 
+    // XP-logik (hvis færdiggjort)
     if (done) {
       const ownerId = target.goals.find(g => g.id === subgoalId)?.owner;
       if (!ownerId) return;
@@ -222,6 +216,7 @@ export const BucketProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // Upload billede til et subgoal
   const uploadSubgoalImage = async (
     bucketId: string,
     subgoalId: string,

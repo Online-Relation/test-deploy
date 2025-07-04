@@ -2311,3 +2311,36 @@ CSV for profiles gennemgået – kolonnenavn til navn er nu display_name
 
 Alle queries opdateret til at matche dette
 
+## Opdatering 2. juli 2025 ##
+
+Bucketlist-couple:
+Projektet har fået opdateret arkitekturen omkring bucket-funktionalitet, så Next.js-kompatibilitet sikres, og alle React/context-fejl fjernes.
+
+Overblik over ændringer:
+
+Opdeling af context og side:
+
+Context-provider (BucketProvider + useBucket) ligger nu i /context/BucketContext.tsx med "use client" i toppen.
+
+/app/bucketlist-couple/page.tsx indeholder kun rendering/visning og bruger altid export default function ....
+
+Ingen context eller createContext i page.tsx – alle Next.js “default export is not a React Component”-fejl løst.
+
+Tilføjelser og rettelser:
+
+Al bucket CRUD håndteres via addBucket, updateBucket, mm., med imageUrl som URL-streng (ikke filobjekt).
+
+Brug af Supabase opdateret til at arbejde mod tabellen bucketlist_couple.
+
+Underkomponenter (BucketlistCoupleContent) anbefales til visning og formularer.
+
+Koden er nu robust over for Next.js 13/14/15 app-router regler.
+
+Fejl omkring “createContext” og hooks løst via tydelig “use client”-adskillelse.
+
+Fejlhåndtering og debug:
+
+Alle typiske build-fejl og import/eksport-problemer beskrevet og håndteret.
+
+Der er indført stricte regler for, hvordan context importeres/bruges i projektet.
+
