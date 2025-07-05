@@ -9,12 +9,14 @@ interface UserProfile {
   display_name: string;
 }
 
+// --- Tilføj Deadline Reminder her! ---
 const allWidgets = [
   { key: 'kompliment_reminder', label: 'Kompliment' },
   { key: 'xp_meter', label: 'XP-meter' },
   { key: 'reward_progress', label: 'Næste gave' },
   { key: 'task_summary', label: 'Opgaver klar' },
   { key: 'weekly_recommendation', label: 'Ugens anbefaling' },
+  { key: 'reminder_widget', label: 'Deadline Reminder' }, // <--- NY!
 ];
 
 const heightOptions = ['auto', 'medium', 'large'];
@@ -116,7 +118,7 @@ export default function WidgetAccessPage() {
           user_id: userId,
           widget_key: widgetKey,
           enabled: accessMap[userId][widgetKey].enabled,
-          layout: 'medium', // Du kan evt. gøre dette dynamisk senere
+          layout: 'medium',
           order: accessMap[userId][widgetKey].order,
           height: accessMap[userId][widgetKey].height,
         };

@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useUserContext } from '@/context/UserContext';
 import WidgetRenderer from '@/components/widgets/WidgetRenderer';
-import ReminderWidget from '@/components/widgets/ReminderWidget';
-import { BucketProvider } from '@/context/BucketContext'; // <-- Tilføj denne!
+import { BucketProvider } from '@/context/BucketContext';
 
 interface Widget {
   widget_key: string;
@@ -19,7 +18,8 @@ export default function DashboardPage() {
   const [widgets, setWidgets] = useState<Widget[]>([]);
 
   // --- DEBUG START ---
-  console.log('ReminderWidget type:', typeof ReminderWidget);
+  // Kan slettes, kun til fejlsøgning
+  // console.log('ReminderWidget type:', typeof ReminderWidget);
   if (user) {
     console.log('currentUserId:', user.id);
   }
@@ -31,6 +31,7 @@ export default function DashboardPage() {
     'task_summary',
     'kompliment_reminder',
     'weekly_recommendation',
+    'reminder_widget',    // <-- TILFØJ denne!
   ];
 
   useEffect(() => {
@@ -75,11 +76,6 @@ export default function DashboardPage() {
   return (
     <BucketProvider>
       <div className="w-full sm:max-w-6xl sm:mx-auto px-2 sm:px-4 py-6 grid grid-cols-12 gap-4 sm:gap-6">
-        {/* Fast reminder widget øverst - kun for ansvarlig bruger */}
-        <div className="col-span-12">
-          <ReminderWidget currentUserId={user.id} />
-        </div>
-        {/* Brugerens konfigurerede widgets */}
         {widgets
           .sort((a, b) => a.order - b.order)
           .map(widget => (

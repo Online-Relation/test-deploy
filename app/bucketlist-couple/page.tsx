@@ -17,7 +17,7 @@ async function uploadImageToStorage(file: File): Promise<string | null> {
   const fileName = `${Date.now()}.${fileExt}`;
   const { error } = await supabase
     .storage
-    .from('bucketlist-images') // Skift til dit bucket-navn hvis nødvendigt
+    .from('bucketlist-couple') // ← PRÆCIS DIT STORAGE BUCKET NAVN
     .upload(fileName, file, { upsert: true });
   if (error) {
     console.error("Billedupload fejlede:", error.message);
@@ -26,10 +26,11 @@ async function uploadImageToStorage(file: File): Promise<string | null> {
   // Hent public URL
   const { publicUrl } = supabase
     .storage
-    .from('bucketlist-images')
+    .from('bucketlist-couple')
     .getPublicUrl(fileName).data;
   return publicUrl;
 }
+
 
 function BucketGrid() {
   const {
@@ -173,70 +174,71 @@ function BucketGrid() {
       </div>
 
       <Dialog open={open} onClose={() => setOpen(false)} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-        <Dialog.Panel className="bg-white rounded-lg p-6 w-full max-w-lg mx-auto space-y-6">
-          {editMode ? (
-            <>
-              <h2 className="text-xl font-bold">{activeBucketId ? 'Redigér mål' : 'Opret nyt mål'}</h2>
-              <div className="grid grid-cols-1 gap-4">
-                <input
-                  type="text"
-                  className="w-full border rounded px-3 py-2"
-                  placeholder="Titel"
-                  value={newBucketTitle}
-                  onChange={e => setNewBucketTitle(e.target.value)}
-                />
-                <input
-                  type="date"
-                  className="w-full border rounded px-3 py-2"
-                  value={newBucketDeadline}
-                  onChange={e => setNewBucketDeadline(e.target.value)}
-                />
-                <select
-                  className="w-full border rounded px-3 py-2"
-                  value={newBucketCat}
-                  onChange={e => setNewBucketCat(e.target.value)}
-                >
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
-                <textarea
-                  className="w-full border rounded px-3 py-2 h-24"
-                  placeholder="Beskrivelse"
-                  value={newBucketDesc}
-                  onChange={e => setNewBucketDesc(e.target.value)}
-                />
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={e => setNewImageFile(e.target.files?.[0] || null)}
-                  className="w-full border rounded px-3 py-2"
-                />
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={activeBucketId ? handleUpdateBucket : handleAddBucket}
-                    className="btn btn-primary"
-                  >
-                    Gem
-                  </button>
-                  <button onClick={() => setOpen(false)} className="btn btn-outline">Luk</button>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <h2 className="text-xl font-bold">{newBucketTitle}</h2>
-              {imageUrl && <img src={imageUrl} alt="Bucket" className="w-full rounded-lg" />}
-              <p className="text-muted-foreground whitespace-pre-wrap">{newBucketDesc}</p>
-              <p className="text-sm text-muted-foreground">Kategori: {categories.find(c => c.id === newBucketCat)?.name || 'Ukendt'}</p>
-              <p className="text-sm text-muted-foreground">Deadline: {newBucketDeadline || 'Ingen'}</p>
-              <div className="flex justify-end">
-                <button onClick={() => setEditMode(true)} className="btn btn-outline">Rediger</button>
-              </div>
-            </>
-          )}
-        </Dialog.Panel>
-      </Dialog>
+  <Dialog.Panel className="bg-white rounded-lg p-6 w-full max-w-lg mx-auto space-y-6 max-h-[80vh] overflow-y-auto">
+    {editMode ? (
+      <>
+        <h2 className="text-xl font-bold">{activeBucketId ? 'Redigér mål' : 'Opret nyt mål'}</h2>
+        <div className="grid grid-cols-1 gap-4">
+          <input
+            type="text"
+            className="w-full border rounded px-3 py-2"
+            placeholder="Titel"
+            value={newBucketTitle}
+            onChange={e => setNewBucketTitle(e.target.value)}
+          />
+          <input
+            type="date"
+            className="w-full border rounded px-3 py-2"
+            value={newBucketDeadline}
+            onChange={e => setNewBucketDeadline(e.target.value)}
+          />
+          <select
+            className="w-full border rounded px-3 py-2"
+            value={newBucketCat}
+            onChange={e => setNewBucketCat(e.target.value)}
+          >
+            {categories.map(cat => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
+          </select>
+          <textarea
+            className="w-full border rounded px-3 py-2 h-24"
+            placeholder="Beskrivelse"
+            value={newBucketDesc}
+            onChange={e => setNewBucketDesc(e.target.value)}
+          />
+          <input
+            type="file"
+            accept="image/*"
+            onChange={e => setNewImageFile(e.target.files?.[0] || null)}
+            className="w-full border rounded px-3 py-2"
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={activeBucketId ? handleUpdateBucket : handleAddBucket}
+              className="btn btn-primary"
+            >
+              Gem
+            </button>
+            <button onClick={() => setOpen(false)} className="btn btn-outline">Luk</button>
+          </div>
+        </div>
+      </>
+    ) : (
+      <>
+        <h2 className="text-xl font-bold">{newBucketTitle}</h2>
+        {imageUrl && <img src={imageUrl} alt="Bucket" className="w-full rounded-lg" />}
+        <p className="text-muted-foreground whitespace-pre-wrap">{newBucketDesc}</p>
+        <p className="text-sm text-muted-foreground">Kategori: {categories.find(c => c.id === newBucketCat)?.name || 'Ukendt'}</p>
+        <p className="text-sm text-muted-foreground">Deadline: {newBucketDeadline || 'Ingen'}</p>
+        <div className="flex justify-end">
+          <button onClick={() => setEditMode(true)} className="btn btn-outline">Rediger</button>
+        </div>
+      </>
+    )}
+  </Dialog.Panel>
+</Dialog>
+
     </div>
   );
 }
