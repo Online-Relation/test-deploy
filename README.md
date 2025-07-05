@@ -2344,3 +2344,39 @@ Alle typiske build-fejl og import/eksport-problemer beskrevet og håndteret.
 
 Der er indført stricte regler for, hvordan context importeres/bruges i projektet.
 
+## Opdatering 2025-07-04 ##
+
+Bucketlist – Redigering og sletning af delmål (timeline)
+Nyt:
+Det er nu muligt at redigere og slette delmål (subgoals) direkte i timeline-visningen på Bucketlist for Par.
+
+Hver delmål har nu to knapper:
+
+Rediger: Mulighed for at rette titel, deadline og ansvarlig direkte inline på listen. Ændringer gemmes til Supabase.
+
+Slet: Giver bekræftelse før sletning. Sletning opdaterer også Supabase og UI.
+
+Teknisk
+BucketContext er udvidet med updateSubgoal og deleteSubgoal metoder.
+
+BucketTimeline.tsx bruger disse metoder til at håndtere redigering/sletning, med tilstandsstyring for aktiv redigering/sletning per subgoal.
+
+Mulighed for at annullere ændringer eller fortryde sletning.
+
+UI/UX
+Knappen “Rediger” åbner inputfelter direkte på delmålet.
+
+Slet-knappen viser bekræftelsesfelt inden endelig handling.
+
+Intet af den eksisterende kode til tilføjelse/check af delmål er ændret.
+
+Alt er mobilvenligt og følger det eksisterende card-design.
+
+Øvrige forbedringer
+Badge-designet på BucketCard bruger nu global Badge-komponent fra /components/ui/badge.tsx til både kategori, ansvarlig og deadline.
+
+Progressbar og spacing på kort er tilpasset for et mere rent og moderne look.
+
+Database
+
+Ingen ændringer i tabelstruktur – alle ændringer sker på data i feltet goals i bucketlist_couple.

@@ -57,6 +57,15 @@ type BucketContextType = {
     subgoalId: string,
     file: File
   ) => Promise<void>;
+  updateSubgoal: (
+    bucketId: string,
+    subgoalId: string,
+    updatedFields: { title?: string; dueDate?: string; owner?: string }
+  ) => Promise<void>;
+  deleteSubgoal: (
+    bucketId: string,
+    subgoalId: string
+  ) => Promise<void>;
 };
 
 const BucketContext = createContext<BucketContextType | undefined>(undefined);
@@ -252,6 +261,36 @@ export const BucketProvider = ({ children }: { children: React.ReactNode }) => {
     setBuckets(updatedBuckets);
   };
 
+  // --- NYT: Opdater delmål ---
+  const updateSubgoal = async (
+    bucketId: string,
+    subgoalId: string,
+    updatedFields: { title?: string; dueDate?: string; owner?: string }
+  ) => {
+    const bucket = buckets.find(b => b.id === bucketId);
+    if (!bucket) return;
+    const updatedGoals = bucket.goals.map(sg =>
+      sg.id === subgoalId ? { ...sg, ...updatedFields } : sg
+    );
+    await supabase
+      .from('bucketlist_couple')
+      .update({ goals: updatedGoals })
+      .eq('id', bucketId);
+    await fetchBuckets();
+  };
+
+  // --- NYT: Slet delmål ---
+  const deleteSubgoal = async (bucketId: string, subgoalId: string) => {
+    const bucket = buckets.find(b => b.id === bucketId);
+    if (!bucket) return;
+    const updatedGoals = bucket.goals.filter(sg => sg.id !== subgoalId);
+    await supabase
+      .from('bucketlist_couple')
+      .update({ goals: updatedGoals })
+      .eq('id', bucketId);
+    await fetchBuckets();
+  };
+
   return (
     <BucketContext.Provider
       value={{
@@ -262,6 +301,8 @@ export const BucketProvider = ({ children }: { children: React.ReactNode }) => {
         addSubgoal,
         toggleSubgoalDone,
         uploadSubgoalImage,
+        updateSubgoal, // <-- NYT
+        deleteSubgoal, // <-- NYT
       }}
     >
       {children}

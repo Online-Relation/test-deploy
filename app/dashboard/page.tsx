@@ -1,10 +1,11 @@
-// /app/dashboard/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useUserContext } from '@/context/UserContext';
 import WidgetRenderer from '@/components/widgets/WidgetRenderer';
+import ReminderWidget from '@/components/widgets/ReminderWidget';
+import { BucketProvider } from '@/context/BucketContext'; // <-- Tilføj denne!
 
 interface Widget {
   widget_key: string;
@@ -16,6 +17,13 @@ interface Widget {
 export default function DashboardPage() {
   const { user } = useUserContext();
   const [widgets, setWidgets] = useState<Widget[]>([]);
+
+  // --- DEBUG START ---
+  console.log('ReminderWidget type:', typeof ReminderWidget);
+  if (user) {
+    console.log('currentUserId:', user.id);
+  }
+  // --- DEBUG SLUT ---
 
   const supportedWidgets = [
     'xp_meter',
@@ -65,17 +73,24 @@ export default function DashboardPage() {
   if (!user) return null;
 
   return (
-    <div className="w-full sm:max-w-6xl sm:mx-auto px-2 sm:px-4 py-6 grid grid-cols-12 gap-4 sm:gap-6">
-      {widgets
-        .sort((a, b) => a.order - b.order)
-        .map(widget => (
-          <div
-            key={widget.widget_key}
-            className={`${layoutClass(widget.layout)} ${heightClass(widget.height)} w-full`}
-          >
-            <WidgetRenderer widget={widget} />
-          </div>
-        ))}
-    </div>
+    <BucketProvider>
+      <div className="w-full sm:max-w-6xl sm:mx-auto px-2 sm:px-4 py-6 grid grid-cols-12 gap-4 sm:gap-6">
+        {/* Fast reminder widget øverst - kun for ansvarlig bruger */}
+        <div className="col-span-12">
+          <ReminderWidget currentUserId={user.id} />
+        </div>
+        {/* Brugerens konfigurerede widgets */}
+        {widgets
+          .sort((a, b) => a.order - b.order)
+          .map(widget => (
+            <div
+              key={widget.widget_key}
+              className={`${layoutClass(widget.layout)} ${heightClass(widget.height)} w-full`}
+            >
+              <WidgetRenderer widget={widget} />
+            </div>
+          ))}
+      </div>
+    </BucketProvider>
   );
 }

@@ -1,4 +1,3 @@
-// /components/Bcukettimeline.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -11,6 +10,8 @@ export default function BucketTimeline() {
     loading,
     addSubgoal,
     toggleSubgoalDone,
+    updateSubgoal,
+    deleteSubgoal,
   } = useBucket();
 
   const [users, setUsers] = useState<
@@ -24,6 +25,10 @@ export default function BucketTimeline() {
       owner: string;
     };
   }>({});
+
+  const [editing, setEditing] = useState<{ [goalId: string]: boolean }>({});
+  const [editValues, setEditValues] = useState<{ [goalId: string]: { title: string; dueDate: string; owner: string } }>({});
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
@@ -57,7 +62,6 @@ export default function BucketTimeline() {
 
   return (
     <div className="container mx-auto px-2 sm:px-4 py-6 overflow-x-hidden">
-
       <div className="relative">
         {buckets.map(bucket => {
           const doneCount = bucket.goals.filter(s => s.done).length;
@@ -105,32 +109,152 @@ export default function BucketTimeline() {
                         className="h-4 w-4 text-purple-600 mt-1"
                       />
                       <div className="flex-1">
-                        <div className="flex justify-between items-center">
-                          <span className={sg.done ? 'line-through text-gray-400' : ''}>
-                            {sg.title}
-                          </span>
-                          {sg.dueDate && (
-                            <span className="text-xs text-gray-500">
-                              {new Date(sg.dueDate).toLocaleDateString()}
-                            </span>
-                          )}
-                        </div>
-                        {sg.owner && (
-                          <div className="mt-1 flex items-center gap-2 text-xs">
-                            <img
-                              src={
-                                users.find(u => u.id === sg.owner)?.avatar_url ||
-                                '/default-avatar.png'
+                        {editing[sg.id] ? (
+                          <div className="flex flex-col sm:flex-row gap-2 items-center">
+                            <input
+                              type="text"
+                              value={editValues[sg.id]?.title ?? sg.title}
+                              onChange={e =>
+                                setEditValues(ev => ({
+                                  ...ev,
+                                  [sg.id]: {
+                                    ...ev[sg.id],
+                                    title: e.target.value,
+                                  },
+                                }))
                               }
-                              alt={
-                                users.find(u => u.id === sg.owner)?.display_name || 'Profil'
-                              }
-                              className="w-6 h-6 rounded-full object-cover"
+                              className="border rounded px-2 py-1 w-32"
                             />
-                            <span>
-                              Ansvarlig:{' '}
-                              {users.find(u => u.id === sg.owner)?.display_name || sg.owner}
-                            </span>
+                            <input
+                              type="date"
+                              value={editValues[sg.id]?.dueDate ?? sg.dueDate ?? ''}
+                              onChange={e =>
+                                setEditValues(ev => ({
+                                  ...ev,
+                                  [sg.id]: {
+                                    ...ev[sg.id],
+                                    dueDate: e.target.value,
+                                  },
+                                }))
+                              }
+                              className="border rounded px-2 py-1 w-36"
+                            />
+                            <select
+                              value={editValues[sg.id]?.owner ?? sg.owner ?? users[0]?.id ?? ''}
+                              onChange={e =>
+                                setEditValues(ev => ({
+                                  ...ev,
+                                  [sg.id]: {
+                                    ...ev[sg.id],
+                                    owner: e.target.value,
+                                  },
+                                }))
+                              }
+                              className="border rounded px-2 py-1 w-36"
+                            >
+                              {users.map(u => (
+                                <option key={u.id} value={u.id}>
+                                  {u.display_name}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={async () => {
+                                await updateSubgoal(bucket.id, sg.id, {
+                                  title: editValues[sg.id]?.title ?? sg.title,
+                                  dueDate: editValues[sg.id]?.dueDate ?? sg.dueDate,
+                                  owner: editValues[sg.id]?.owner ?? sg.owner,
+                                });
+                                setEditing(e => ({ ...e, [sg.id]: false }));
+                              }}
+                              className="btn btn-primary"
+                            >
+                              Gem
+                            </button>
+                            <button
+                              onClick={() => setEditing(e => ({ ...e, [sg.id]: false }))}
+                              className="btn btn-outline"
+                            >
+                              Annullér
+                            </button>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="flex justify-between items-center">
+                              <span className={sg.done ? 'line-through text-gray-400' : ''}>
+                                {sg.title}
+                              </span>
+                              {sg.dueDate && (
+                                <span className="text-xs text-gray-500">
+                                  {new Date(sg.dueDate).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                            {sg.owner && (
+                              <div className="mt-1 flex items-center gap-2 text-xs">
+                                <img
+                                  src={
+                                    users.find(u => u.id === sg.owner)?.avatar_url ||
+                                    '/default-avatar.png'
+                                  }
+                                  alt={
+                                    users.find(u => u.id === sg.owner)?.display_name || 'Profil'
+                                  }
+                                  className="w-6 h-6 rounded-full object-cover"
+                                />
+                                <span>
+                                  Ansvarlig:{' '}
+                                  {users.find(u => u.id === sg.owner)?.display_name || sg.owner}
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex gap-2 mt-1">
+                              <button
+                                onClick={() => {
+                                  setEditing(e => ({
+                                    ...e,
+                                    [sg.id]: true
+                                  }));
+                                  setEditValues(ev => ({
+                                    ...ev,
+                                    [sg.id]: {
+                                      title: sg.title,
+                                      dueDate: sg.dueDate ?? '',
+                                      owner: sg.owner ?? users[0]?.id ?? '',
+                                    }
+                                  }));
+                                }}
+                                className="btn btn-xs btn-outline"
+                              >
+                                Rediger
+                              </button>
+                              <button
+                                onClick={() => setDeleting(sg.id)}
+                                className="btn btn-xs btn-destructive"
+                              >
+                                Slet
+                              </button>
+                            </div>
+                            {deleting === sg.id && (
+                              <div className="mt-1 bg-gray-100 p-2 rounded flex gap-2 items-center">
+                                <span>Er du sikker på at du vil slette?</span>
+                                <button
+                                  onClick={async () => {
+                                    await deleteSubgoal(bucket.id, sg.id);
+                                    setDeleting(null);
+                                  }}
+                                  className="btn btn-xs btn-destructive"
+                                >
+                                  Ja, slet
+                                </button>
+                                <button
+                                  onClick={() => setDeleting(null)}
+                                  className="btn btn-xs btn-outline"
+                                >
+                                  Annullér
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
