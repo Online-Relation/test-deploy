@@ -56,6 +56,7 @@ const accessHierarchy: AccessEntry[] = [
       { key: 'fantasy/parquiz', label: 'Parquiz', href: '/quiz/parquiz', children: [] },
       { key: 'fantasy/anbefalinger', label: 'Anbefalinger', href: '/fantasy/anbefalinger', children: [] },
       { key: 'dates', label: 'Date Ideas', href: '/dates', children: [] },
+      { key: '/sex/positions', label: 'Sex inspiration', href: '/sex/positions', children: [] },
     ],
   },
   {

@@ -1,5 +1,4 @@
-// /app/data/sex/page.tsx
-
+// /app/indtjekning/sex/page.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -25,7 +24,7 @@ export default function SexRegisterPage() {
   const [time, setTime] = useState<string>('12:00');
   const [initiator, setInitiator] = useState<string>('');
   const [sexType, setSexType] = useState<string>('');
-  const [positions, setPositions] = useState<{ id: string; name: string }[]>([]);
+  const [positions, setPositions] = useState<{ id: string; name: string; image_url?: string; rejected?: boolean; tried_count?: number }[]>([]);
   const [selectedPositions, setSelectedPositions] = useState<Set<string>>(new Set());
   const [newPosition, setNewPosition] = useState<string>('');
   const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
@@ -40,24 +39,16 @@ export default function SexRegisterPage() {
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [newTag, setNewTag] = useState<string>('');
   const [triedSomethingNew, setTriedSomethingNew] = useState(false);
-const [triedSomethingNewText, setTriedSomethingNewText] = useState('');
+  const [triedSomethingNewText, setTriedSomethingNewText] = useState('');
 
-
-
-  // Hent huller
-  useEffect(() => {
-    async function loadPlaces() {
-      const { data, error } = await supabase.from('sex_places').select('id, name').order('name');
-      if (!error && data) setPlaces(data);
-    }
-    loadPlaces();
-  }, []);
-
-  // Hent stillinger
+  // Hent stillinger med billede, tried_count osv.
   useEffect(() => {
     async function loadPositions() {
-      const { data, error } = await supabase.from('sex_positions').select('id, name').order('name');
-      if (!error && data) setPositions(data);
+      const { data, error } = await supabase
+        .from('sex_positions')
+        .select('id, name, image_url, rejected, tried_count')
+        .order('name');
+      if (!error && data) setPositions(data.filter(pos => !pos.rejected));
     }
     loadPositions();
   }, []);
@@ -71,6 +62,15 @@ const [triedSomethingNewText, setTriedSomethingNewText] = useState('');
     loadLocations();
   }, []);
 
+  // Hent steder
+  useEffect(() => {
+    async function loadPlaces() {
+      const { data, error } = await supabase.from('sex_places').select('id, name').order('name');
+      if (!error && data) setPlaces(data);
+    }
+    loadPlaces();
+  }, []);
+
   // Hent tags
   useEffect(() => {
     async function loadTags() {
@@ -80,7 +80,7 @@ const [triedSomethingNewText, setTriedSomethingNewText] = useState('');
     loadTags();
   }, []);
 
-  // Stillings-chips
+  // Toggle position
   const handleTogglePosition = (id: string) => {
     setSelectedPositions(prev => {
       const newSet = new Set(prev);
@@ -90,6 +90,7 @@ const [triedSomethingNewText, setTriedSomethingNewText] = useState('');
     });
   };
 
+  // Tilføj ny stilling
   const handleAddPosition = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = newPosition.trim();
@@ -106,7 +107,7 @@ const [triedSomethingNewText, setTriedSomethingNewText] = useState('');
     }
   };
 
-  // Placering-chips
+  // Toggle location
   const handleToggleLocation = (id: string) => {
     setSelectedLocations(prev => {
       const newSet = new Set(prev);
@@ -116,6 +117,7 @@ const [triedSomethingNewText, setTriedSomethingNewText] = useState('');
     });
   };
 
+  // Tilføj ny location
   const handleAddLocation = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = newLocation.trim();
@@ -132,6 +134,7 @@ const [triedSomethingNewText, setTriedSomethingNewText] = useState('');
     }
   };
 
+  // Toggle place
   const handleTogglePlace = (id: string) => {
     setSelectedPlaces(prev => {
       const newSet = new Set(prev);
@@ -141,6 +144,7 @@ const [triedSomethingNewText, setTriedSomethingNewText] = useState('');
     });
   };
 
+  // Tilføj nyt sted
   const handleAddPlace = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = newPlace.trim();
@@ -157,6 +161,7 @@ const [triedSomethingNewText, setTriedSomethingNewText] = useState('');
     }
   };
 
+  // Toggle tag
   const handleToggleTag = (id: string) => {
     setSelectedTags(prev => {
       const newSet = new Set(prev);
@@ -166,6 +171,7 @@ const [triedSomethingNewText, setTriedSomethingNewText] = useState('');
     });
   };
 
+  // Tilføj tag
   const handleAddTag = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = newTag.trim();
@@ -182,31 +188,31 @@ const [triedSomethingNewText, setTriedSomethingNewText] = useState('');
     }
   };
 
+  // Gem registrering
   const handleRegister = async () => {
     setSaving(true);
     setMessage('');
 
-    // Generér dato/tid-formater
+    // Dato og tid
     const logDatetime = new Date(`${date}T${time}`);
     const isoDatetime = logDatetime.toISOString();
-    const logDate = isoDatetime.split('T')[0]; // YYYY-MM-DD
+    const logDate = isoDatetime.split('T')[0];
 
-    // Opret selve loggen - bemær alle felter!
+    // Insert log
     const { data: logData, error: logError } = await supabase
-  .from('sexlife_logs')
-  .insert([{
-    log_datetime: isoDatetime,
-    log_date: logDate,
-    log_time: time,
-    had_sex: true,
-    initiator,
-    sex_type: sexType,
-    tried_something_new: triedSomethingNew,
-    tried_something_new_text: triedSomethingNew ? triedSomethingNewText : null,
-  }])
-  .select('id')
-  .maybeSingle();
-
+      .from('sexlife_logs')
+      .insert([{
+        log_datetime: isoDatetime,
+        log_date: logDate,
+        log_time: time,
+        had_sex: true,
+        initiator,
+        sex_type: sexType,
+        tried_something_new: triedSomethingNew,
+        tried_something_new_text: triedSomethingNew ? triedSomethingNewText : null,
+      }])
+      .select('id')
+      .maybeSingle();
 
     if (logError || !logData?.id) {
       setMessage('Kunne ikke gemme registrering.');
@@ -241,49 +247,16 @@ const [triedSomethingNewText, setTriedSomethingNewText] = useState('');
       await supabase.from('sexlife_log_places').insert(inserts);
     }
 
-// GEM TAGS - fejlsøgningsblok
-if (selectedTags.size > 0) {
-  const existingTagIds = new Set(tags.map(tag => String(tag.id)));
-  const validSelectedTags = Array.from(selectedTags).filter(tag_id => existingTagIds.has(String(tag_id)));
-
-  if (validSelectedTags.length > 0) {
-    // Hent eksisterende rækker for log_id
-    const { data: existingRows } = await supabase
-      .from('sexlife_log_tags')
-      .select('tag_id')
-      .eq('log_id', logData.id);
-
-    // DEBUGGING LOGS
-    console.log('selectedTags:', selectedTags);
-    console.log('validSelectedTags:', validSelectedTags);
-    console.log('existingRows:', existingRows);
-    console.log('logData.id:', logData.id);
-
-    const existingTagForLog = new Set((existingRows ?? []).map(row => String(row.tag_id)));
-    const inserts = validSelectedTags
-      .filter(tag_id => !existingTagForLog.has(String(tag_id)))
-      .map(tag_id => ({
+    // Gem tags
+    if (selectedTags.size > 0) {
+      const inserts = Array.from(selectedTags).map(tag_id => ({
         log_id: logData.id,
         tag_id
       }));
-
-    console.log('tags to insert:', inserts);
-
-    if (inserts.length > 0) {
-      const { error } = await supabase.from('sexlife_log_tags').insert(inserts);
-      if (error) {
-        console.error('TAG INSERT ERROR:', error);
-        setMessage('Der opstod en fejl ved gem af tags.');
-        setSaving(false);
-        return;
-      }
+      await supabase.from('sexlife_log_tags').insert(inserts);
     }
-  }
-}
 
-
-
-    // Reset alle valg (så du starter “clean” ved næste registrering)
+    // Reset valg
     setSelectedTags(new Set());
     setSelectedPositions(new Set());
     setSelectedLocations(new Set());
@@ -293,7 +266,6 @@ if (selectedTags.size > 0) {
     setSaving(false);
     setTimeout(() => router.push('/'), 1000);
   };
-
 
   return (
     <div className="p-6 max-w-md mx-auto">
@@ -368,29 +340,29 @@ if (selectedTags.size > 0) {
         </div>
       </div>
       
-          <div className="mb-6">
-  <label className="inline-flex items-center">
-    <input
-      type="checkbox"
-      checked={triedSomethingNew}
-      onChange={e => setTriedSomethingNew(e.target.checked)}
-      className="form-checkbox h-5 w-5 text-indigo-600"
-      disabled={saving}
-    />
-    <span className="ml-2">Vi prøvede noget nyt</span>
-  </label>
-  {triedSomethingNew && (
-    <textarea
-      value={triedSomethingNewText}
-      onChange={e => setTriedSomethingNewText(e.target.value)}
-      placeholder="Hvad prøvede I?"
-      className="w-full mt-2 p-2 border rounded"
-      disabled={saving}
-      rows={2}
-      maxLength={100}
-    />
-  )}
-</div>
+      <div className="mb-6">
+        <label className="inline-flex items-center">
+          <input
+            type="checkbox"
+            checked={triedSomethingNew}
+            onChange={e => setTriedSomethingNew(e.target.checked)}
+            className="form-checkbox h-5 w-5 text-indigo-600"
+            disabled={saving}
+          />
+          <span className="ml-2">Vi prøvede noget nyt</span>
+        </label>
+        {triedSomethingNew && (
+          <textarea
+            value={triedSomethingNewText}
+            onChange={e => setTriedSomethingNewText(e.target.value)}
+            placeholder="Hvad prøvede I?"
+            className="w-full mt-2 p-2 border rounded"
+            disabled={saving}
+            rows={2}
+            maxLength={100}
+          />
+        )}
+      </div>
 
       {/* Stillinger */}
       <div className="mb-6">
@@ -400,7 +372,7 @@ if (selectedTags.size > 0) {
             type="text"
             value={newPosition}
             onChange={e => setNewPosition(e.target.value)}
-            placeholder="Tilføj ny stilling"
+            placeholder="Tilføj eller søg stilling"
             className="flex-1 px-3 py-2 border rounded"
             disabled={saving}
           />
@@ -412,39 +384,96 @@ if (selectedTags.size > 0) {
             Tilføj
           </button>
         </form>
-        <div className="flex flex-wrap gap-2">
-          {positions.map(pos => (
-            <div key={pos.id} className="flex items-center">
+
+        {/* Autocomplete-søgning */}
+        {newPosition.length > 0 && (
+          <div className="mb-2 border rounded shadow bg-white z-10 relative">
+            {positions
+              .filter(pos =>
+                pos.name.toLowerCase().includes(newPosition.toLowerCase()) &&
+                !selectedPositions.has(pos.id)
+              )
+              .slice(0, 5)
+              .map(pos => (
+                <button
+                  key={pos.id}
+                  type="button"
+                  onClick={() => {
+                    handleTogglePosition(pos.id);
+                    setNewPosition('');
+                  }}
+                  className="block w-full text-left px-4 py-2 border-b hover:bg-indigo-50 flex items-center gap-2"
+                >
+                  {pos.image_url && (
+                    <img
+                      src={pos.image_url}
+                      alt={pos.name}
+                      className="w-6 h-6 object-cover rounded-full border border-gray-300"
+                    />
+                  )}
+                  {pos.name}
+                  {pos.tried_count && pos.tried_count > 0 && (
+                    <span className="ml-2 text-xs bg-indigo-50 text-indigo-700 rounded-full px-2">
+                      {pos.tried_count}x
+                    </span>
+                  )}
+                </button>
+              ))}
+          </div>
+        )}
+
+        {/* Top 10 mest brugte */}
+        <div className="mb-2 flex flex-wrap gap-2">
+          {positions
+            .filter(pos => !selectedPositions.has(pos.id))
+            .sort((a, b) => ((b.tried_count || 0) - (a.tried_count || 0)))
+            .slice(0, 10)
+            .map(pos => (
               <button
+                key={pos.id}
                 type="button"
                 onClick={() => handleTogglePosition(pos.id)}
                 disabled={saving}
                 className={
-                  "px-4 py-2 rounded-full border font-medium mr-1 " +
-                  (selectedPositions.has(pos.id)
-                    ? "bg-indigo-600 text-white border-indigo-600"
-                    : "bg-gray-100 text-gray-700 border-gray-200")
+                  "flex items-center gap-2 px-4 py-2 rounded-full border font-medium " +
+                  "bg-gray-100 text-gray-700 border-gray-200 hover:bg-indigo-100"
                 }
               >
-                {pos.name}
+                {pos.image_url && (
+                  <img
+                    src={pos.image_url}
+                    alt={pos.name}
+                    className="w-6 h-6 object-cover rounded-full border border-gray-300"
+                  />
+                )}
+                <span>{pos.name}</span>
+                {pos.tried_count && pos.tried_count > 0 && (
+                  <span className="ml-2 text-xs bg-indigo-50 text-indigo-700 rounded-full px-2">
+                    {pos.tried_count}x
+                  </span>
+                )}
               </button>
+            ))}
+        </div>
+
+        {/* Valgte stillinger */}
+        <div className="flex flex-wrap gap-2 mt-2">
+          {positions.filter(pos => selectedPositions.has(pos.id)).map(pos => (
+            <div key={pos.id} className="flex items-center gap-2 border rounded-lg px-2 py-1 bg-indigo-50">
+              {pos.image_url && (
+                <img
+                  src={pos.image_url}
+                  alt={pos.name}
+                  className="w-6 h-6 object-cover rounded-full border border-gray-300"
+                />
+              )}
+              <span>{pos.name}</span>
               <button
                 type="button"
-                onClick={async () => {
-                  if (confirm(`Vil du slette stillingen "${pos.name}"?`)) {
-                    await supabase.from('sex_positions').delete().eq('id', pos.id);
-                    setPositions(p => p.filter(x => x.id !== pos.id));
-                    setSelectedPositions(s => {
-                      const n = new Set(s);
-                      n.delete(pos.id);
-                      return n;
-                    });
-                  }
-                }}
-                disabled={saving}
+                onClick={() => handleTogglePosition(pos.id)}
                 className="text-red-600 text-xl font-bold hover:bg-red-100 rounded-full w-6 h-6 flex items-center justify-center"
-                aria-label="Slet"
-                title="Slet stilling"
+                aria-label="Fjern"
+                title="Fjern"
               >
                 ×
               </button>
@@ -513,7 +542,8 @@ if (selectedTags.size > 0) {
           ))}
         </div>
       </div>
-      {/* Huller */}
+
+      {/* Sted */}
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-2">Sted</h2>
         <form onSubmit={handleAddPlace} className="flex gap-2 mb-2">
@@ -573,6 +603,7 @@ if (selectedTags.size > 0) {
           ))}
         </div>
       </div>
+
       {/* Tags */}
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-2">Tags</h2>
