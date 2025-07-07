@@ -128,3 +128,26 @@ Integrere gamification/XP med brug af stillinger.
 Forbedre billedhåndtering, evt. støtte for flere billeder pr. stilling.
 
 Evt. kobling direkte fra inspirationsunivers til check-in (vælg fra inspirationsunivers ved registrering).
+
+## 2025-07-06 ##
+Implementeret ny struktur for changelog med månedlige filer i /changelog/-mappen for at sikre bedre overblik og undgå for stor README-fil.
+
+Aftalt workflow for vedhæftning ved nye sessioner: altid seneste README.md + aktuel måneds changelog-fil.
+
+Fastsat klare retningslinjer for, hvordan opdateringer dokumenteres:
+
+README indeholder overordnet projektbeskrivelse, arkitektur og mappestruktur.
+
+/changelog/changelog-ÅÅÅÅ-MM.md indeholder detaljerede ugentlige/dagslogs.
+
+Retableret fungerende layout og styling uden global padding på .card i globals.css. Padding håndteres nu lokalt i komponenterne.
+
+Sikret, at drag-and-drop i FantasyBoard og modaler fungerer uden stylingkonflikter.
+
+Checkin-systemet er implementeret med ugentlige behov, modpartsevaluering og XP-tildeling baseret på evalueringsstatus.
+
+Opdateret XP-systemet til at hente point fra xp_settings med korrekt rolle- og effort-afhængighed.
+
+Dokumenteret database-struktur og flow for fantasier, XP, gaver og adgangskontrol.
+
+## ##

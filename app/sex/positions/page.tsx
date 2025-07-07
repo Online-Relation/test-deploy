@@ -1,9 +1,31 @@
-// /app/sex/positions/page.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { Dialog } from '@headlessui/react';
 import { supabase } from '@/lib/supabaseClient';
+import { Badge } from '@/components/ui/badge';
+
+// Emoji-ikoner
+const emojiIcons: Record<string, string> = {
+  Oral: "😋",
+  Anal: "🍑",
+  Stående: "🦵",
+  Missionær: "❤️",
+  Cowgirl: "🤠",
+  default: "✨",
+};
+
+const effortMap = {
+  let: { text: "Let", color: "bg-green-100 text-green-700", icon: "⚡" },
+  middel: { text: "Middel", color: "bg-yellow-100 text-yellow-700", icon: "⚡" },
+  svær: { text: "Svær", color: "bg-red-100 text-red-700", icon: "⚡" },
+};
+
+const statusMap = {
+  ny: { text: "Ny", color: "bg-gray-200 text-gray-800", icon: "🆕" },
+  prøvet: { text: "Prøvet", color: "bg-green-100 text-green-700", icon: "✅" },
+  afvist: { text: "Afvist", color: "bg-red-100 text-red-700", icon: "❌" },
+};
 
 type SexPosition = {
   id: string;
@@ -12,15 +34,38 @@ type SexPosition = {
   description?: string;
   status?: 'ny' | 'prøvet' | 'afvist';
   tried_count?: number;
+  category_id?: string;
+  category_name?: string;
+  effort?: 'let' | 'middel' | 'svær';
+  family_id?: string;
+  tags?: { tag_id: string }[];
 };
+
+type Category = { id: string; name: string; };
+type Family = { id: string; name: string; };
+type Tag = { id: string; name: string; };
 
 export default function SexPositionsPage() {
   const [positions, setPositions] = useState<SexPosition[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [families, setFamilies] = useState<Family[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
+
+  // FILTER STATE
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedFamilies, setSelectedFamilies] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+  // PAGINATION
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 12;
+
+  // MODAL STATE
   const [open, setOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [activePosition, setActivePosition] = useState<SexPosition | null>(null);
 
-  // Felter til rediger/opret
+  // FORM STATE
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<'ny' | 'prøvet' | 'afvist'>('ny');
@@ -28,21 +73,77 @@ export default function SexPositionsPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState<string>('');
   const [uploading, setUploading] = useState(false);
+  const [categoryId, setCategoryId] = useState<string>('');
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [effort, setEffort] = useState<'let' | 'middel' | 'svær'>('let');
+  const [familyId, setFamilyId] = useState<string>('');
+  const [newFamilyName, setNewFamilyName] = useState('');
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [newTagName, setNewTagName] = useState('');
 
-  // Hent stillinger på load
   useEffect(() => {
     loadPositions();
+    loadCategories();
+    loadFamilies();
+    loadTags();
   }, []);
 
+  useEffect(() => {
+    if (!categoryId && categories.length > 0) setCategoryId(categories[0].id);
+    if (!familyId && families.length > 0) setFamilyId(families[0].id);
+  }, [categories, families]);
+
+  // Reset pagination hvis filter ændres
+  useEffect(() => { setCurrentPage(1); }, [selectedCategories, selectedFamilies, selectedTags]);
+
+  // Hent alle sexstillinger med tags
   async function loadPositions() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('sex_positions')
-      .select('id, name, image_url, description, status, tried_count')
+      .select(`
+        id, name, image_url, description, status, tried_count, category_id, effort, family_id,
+        category:sex_position_categories(name),
+        tags:sex_position_tag_links(tag_id)
+      `)
       .order('name');
-    if (data) setPositions(data);
+    if (error) return;
+    if (data) {
+      const mapped = data.map((pos: any) => ({
+        ...pos,
+        category_name: pos.category?.name || '',
+        category_id: pos.category_id || '',
+        effort: pos.effort || 'let',
+        family_id: pos.family_id || '',
+        tags: pos.tags || [],
+      }));
+      setPositions(mapped);
+    }
   }
 
-  // Åben modal i visningstilstand
+  async function loadCategories() {
+    const { data, error } = await supabase
+      .from('sex_position_categories')
+      .select('id, name')
+      .order('name');
+    if (!error && data) setCategories(data);
+  }
+
+  async function loadFamilies() {
+    const { data, error } = await supabase
+      .from('sex_position_families')
+      .select('id, name')
+      .order('name');
+    if (!error && data) setFamilies(data);
+  }
+
+  async function loadTags() {
+    const { data, error } = await supabase
+      .from('sex_position_tags')
+      .select('id, name')
+      .order('name');
+    if (!error && data) setTags(data);
+  }
+
   function openModalView(pos: SexPosition) {
     setActivePosition(pos);
     setEditMode(false);
@@ -53,9 +154,12 @@ export default function SexPositionsPage() {
     setTriedCount(pos.tried_count || 0);
     setImageUrl(pos.image_url || '');
     setImageFile(null);
+    setCategoryId(pos.category_id || categories[0]?.id || '');
+    setEffort(pos.effort || 'let');
+    setFamilyId(pos.family_id || families[0]?.id || '');
+    setSelectedTagIds(pos.tags ? pos.tags.map(t => t.tag_id) : []);
   }
 
-  // Åben modal til rediger/opret
   function openModalEdit(pos?: SexPosition) {
     setEditMode(true);
     setOpen(true);
@@ -67,6 +171,10 @@ export default function SexPositionsPage() {
       setTriedCount(pos.tried_count || 0);
       setImageUrl(pos.image_url || '');
       setImageFile(null);
+      setCategoryId(pos.category_id || categories[0]?.id || '');
+      setEffort(pos.effort || 'let');
+      setFamilyId(pos.family_id || families[0]?.id || '');
+      setSelectedTagIds(pos.tags ? pos.tags.map(t => t.tag_id) : []);
     } else {
       setActivePosition(null);
       setName('');
@@ -75,10 +183,16 @@ export default function SexPositionsPage() {
       setTriedCount(0);
       setImageUrl('');
       setImageFile(null);
+      setCategoryId(categories[0]?.id || '');
+      setEffort('let');
+      setFamilyId(families[0]?.id || '');
+      setSelectedTagIds([]);
     }
+    setNewCategoryName('');
+    setNewFamilyName('');
+    setNewTagName('');
   }
 
-  // Gem redigering eller ny stilling
   async function handleSave() {
     let uploadedUrl = imageUrl;
     if (imageFile) {
@@ -90,38 +204,48 @@ export default function SexPositionsPage() {
         .from('sex-positions-images')
         .upload(fileName, imageFile, { upsert: true });
       if (!error) {
-        const { publicUrl } = supabase
+        const { data } = supabase
           .storage
           .from('sex-positions-images')
-          .getPublicUrl(fileName).data;
-        uploadedUrl = publicUrl;
+          .getPublicUrl(fileName);
+        if (data?.publicUrl) {
+          uploadedUrl = `${data.publicUrl}?t=${new Date().getTime()}`;
+          setImageUrl(uploadedUrl);
+        }
       }
       setUploading(false);
     }
-
+    const values = {
+      name: name.trim(),
+      description: description.trim(),
+      status,
+      tried_count: triedCount,
+      image_url: uploadedUrl,
+      category_id: categoryId || null,
+      effort,
+      family_id: familyId || null,
+    };
     if (activePosition) {
-      await supabase.from('sex_positions').update({
-        name: name.trim(),
-        description: description.trim(),
-        status,
-        tried_count: triedCount,
-        image_url: uploadedUrl,
-      }).eq('id', activePosition.id);
+      await supabase.from('sex_positions').update(values).eq('id', activePosition.id);
+      // Slet gamle tag-links
+      await supabase.from('sex_position_tag_links').delete().eq('sex_position_id', activePosition.id);
+      // Tilføj valgte tags
+      for (const tagId of selectedTagIds) {
+        await supabase.from('sex_position_tag_links').insert({ sex_position_id: activePosition.id, tag_id: tagId });
+      }
     } else {
-      await supabase.from('sex_positions').insert([{
-        name: name.trim(),
-        description: description.trim(),
-        status,
-        tried_count: triedCount,
-        image_url: uploadedUrl,
-      }]);
+      // Opret stilling og links
+      const { data, error } = await supabase.from('sex_positions').insert([values]).select().single();
+      if (data && data.id) {
+        for (const tagId of selectedTagIds) {
+          await supabase.from('sex_position_tag_links').insert({ sex_position_id: data.id, tag_id: tagId });
+        }
+      }
     }
-
     setOpen(false);
     await loadPositions();
   }
 
-  // Slet stilling
   async function handleDelete() {
     if (!activePosition) return;
     if (!confirm('Vil du slette denne stilling?')) return;
@@ -130,56 +254,247 @@ export default function SexPositionsPage() {
     await loadPositions();
   }
 
+  async function handleCreateCategory() {
+    if (!newCategoryName.trim()) return;
+    const { data, error } = await supabase
+      .from('sex_position_categories')
+      .insert([{ name: newCategoryName.trim() }])
+      .select()
+      .single();
+    if (!error && data) {
+      setCategories(prev => [...prev, data]);
+      setCategoryId(data.id);
+      setNewCategoryName('');
+    }
+  }
+
+  async function handleCreateFamily() {
+    if (!newFamilyName.trim()) return;
+    const { data, error } = await supabase
+      .from('sex_position_families')
+      .insert([{ name: newFamilyName.trim() }])
+      .select()
+      .single();
+    if (!error && data) {
+      setFamilies(prev => [...prev, data]);
+      setFamilyId(data.id);
+      setNewFamilyName('');
+    }
+  }
+
+  async function handleCreateTag() {
+    if (!newTagName.trim()) return;
+    const { data, error } = await supabase
+      .from('sex_position_tags')
+      .insert([{ name: newTagName.trim() }])
+      .select()
+      .single();
+    if (!error && data) {
+      setTags(prev => [...prev, data]);
+      setSelectedTagIds(prev => [...prev, data.id]);
+      setNewTagName('');
+    }
+  }
+
+  const badgeClass = "inline-flex items-center rounded-full px-2 py-0 text-xs gap-1 font-normal";
+
+  // === FILTERING + PAGINATION ===
+  const filteredPositions = positions.filter(pos => {
+    // Kategori (multi)
+    const matchCategory = selectedCategories.length === 0 || selectedCategories.includes(pos.category_id || '');
+    // Familie (multi)
+    const matchFamily = selectedFamilies.length === 0 || selectedFamilies.includes(pos.family_id || '');
+    // Tags (multi, "OR" logik)
+    const tagIdsForPos = pos.tags ? pos.tags.map(t => t.tag_id) : [];
+    const matchTags =
+      selectedTags.length === 0 ||
+      selectedTags.some(tagId => tagIdsForPos.includes(tagId));
+    return matchCategory && matchFamily && matchTags;
+  });
+
+  const totalPages = Math.ceil(filteredPositions.length / pageSize);
+  const paginatedPositions = filteredPositions.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
   return (
     <div className="max-w-4xl mx-auto py-8 px-2 sm:px-4">
-      <h1 className="text-2xl font-bold mb-6">Sexstillinger – Inspiration</h1>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        {positions.map(pos => (
-          <div
-            key={pos.id}
-            className="bg-white rounded-xl shadow-md overflow-hidden flex flex-col cursor-pointer hover:shadow-lg transition"
-            onClick={() => openModalView(pos)}
-          >
-            {pos.image_url ? (
-              <img src={pos.image_url} alt={pos.name} className="w-full h-48 object-cover" />
-            ) : (
-              <div className="w-full h-48 flex items-center justify-center bg-gray-100 text-gray-400">
-                <span>Intet billede</span>
-              </div>
-            )}
-            <div className="p-4 flex-1 flex flex-col">
-              <div className="flex justify-between items-center mb-2">
-                <h2 className="font-semibold text-lg truncate">{pos.name}</h2>
-                {pos.tried_count && pos.tried_count > 0 && (
-                  <span className="inline-block bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs">
-                    {pos.tried_count}x
-                  </span>
-                )}
-                {pos.status === 'prøvet' && (
-                  <span className="inline-block bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">
-                    Prøvet
-                  </span>
-                )}
-                {pos.status === 'afvist' && (
-                  <span className="inline-block bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs">
-                    Afvist
-                  </span>
-                )}
-              </div>
-              {pos.description && <p className="text-gray-600 text-sm line-clamp-3 mb-2">{pos.description}</p>}
-            </div>
-          </div>
-        ))}
-        {/* Opret ny stilling */}
-        <div
+      {/* Header + Tilføj-knap */}
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Sexstillinger – Inspiration</h1>
+        <button
+          className="btn btn-primary px-4 py-2 rounded text-white bg-indigo-600 hover:bg-indigo-700 transition"
           onClick={() => openModalEdit()}
-          className="flex items-center justify-center border-2 border-dashed rounded-xl p-6 min-h-48 cursor-pointer hover:border-gray-400 transition bg-white"
         >
-          + Tilføj ny stilling
+          + Tilføj
+        </button>
+      </div>
+      
+      {/* === FILTER-BAR === */}
+      <div className="mb-6">
+        {/* Kategori-chips */}
+        <div className="flex flex-wrap gap-2 mb-2">
+          <Badge
+            className={selectedCategories.length === 0 ? 'bg-indigo-600 text-white cursor-pointer' : 'cursor-pointer'}
+            onClick={() => setSelectedCategories([])}
+          >
+            Alle kategorier
+          </Badge>
+          {categories.map(cat => (
+            <Badge
+              key={cat.id}
+              className={`${selectedCategories.includes(cat.id) ? 'bg-indigo-600 text-white' : ''} cursor-pointer`}
+              onClick={() => {
+                setSelectedCategories(selected =>
+                  selected.includes(cat.id)
+                    ? selected.filter(id => id !== cat.id)
+                    : [...selected, cat.id]
+                );
+              }}
+            >
+              {cat.name}
+            </Badge>
+          ))}
+        </div>
+        {/* Familie-chips */}
+        <div className="flex flex-wrap gap-2 mb-2">
+          <Badge
+            className={selectedFamilies.length === 0 ? 'bg-blue-600 text-white cursor-pointer' : 'cursor-pointer'}
+            onClick={() => setSelectedFamilies([])}
+          >
+            Alle familier
+          </Badge>
+          {families.map(fam => (
+            <Badge
+              key={fam.id}
+              className={`${selectedFamilies.includes(fam.id) ? 'bg-blue-600 text-white' : ''} cursor-pointer`}
+              onClick={() => {
+                setSelectedFamilies(selected =>
+                  selected.includes(fam.id)
+                    ? selected.filter(id => id !== fam.id)
+                    : [...selected, fam.id]
+                );
+              }}
+            >
+              {fam.name}
+            </Badge>
+          ))}
+        </div>
+        {/* Tag-chips */}
+        <div className="flex flex-wrap gap-2">
+          <Badge
+            className={selectedTags.length === 0 ? 'bg-purple-600 text-white cursor-pointer' : 'cursor-pointer'}
+            onClick={() => setSelectedTags([])}
+          >
+            Alle tags
+          </Badge>
+          {tags.map(tag => (
+            <Badge
+              key={tag.id}
+              className={`${selectedTags.includes(tag.id) ? 'bg-purple-600 text-white' : ''} cursor-pointer`}
+              onClick={() => {
+                setSelectedTags(selected =>
+                  selected.includes(tag.id)
+                    ? selected.filter(id => id !== tag.id)
+                    : [...selected, tag.id]
+                );
+              }}
+            >
+              {tag.name}
+            </Badge>
+          ))}
         </div>
       </div>
-
-      {/* Modal */}
+      {/* === CARDS === */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        {paginatedPositions.map(pos => {
+          const catIcon = emojiIcons[pos.category_name || ""] || emojiIcons.default;
+          const familyName = families.find(f => f.id === pos.family_id)?.name || "";
+          return (
+            <div
+              key={pos.id}
+              className="bg-white rounded-2xl shadow-md overflow-hidden flex flex-col cursor-pointer hover:shadow-lg transition"
+              onClick={() => openModalView(pos)}
+            >
+              {pos.image_url ? (
+                <img src={pos.image_url} alt={pos.name} className="w-full h-48 object-cover" />
+              ) : (
+                <div className="w-full h-48 flex items-center justify-center bg-gray-100 text-gray-400">
+                  <span>Intet billede</span>
+                </div>
+              )}
+              <div className="px-6 py-5 flex-1 flex flex-col">
+                <h2 className="text-base mb-1">{pos.name}</h2>
+                <p className="text-gray-600 text-sm mb-3">
+                  {pos.description && pos.description.length > 140
+                    ? pos.description.slice(0, 140) + '…'
+                    : pos.description}
+                </p>
+                <div className="flex gap-2 items-center mt-auto flex-wrap">
+                  {/* Kategori-badge */}
+                  {pos.category_name && (
+                    <Badge className={`${badgeClass} bg-pink-100 text-pink-700`}>
+                      <span className="text-base">{catIcon}</span>
+                      {pos.category_name}
+                    </Badge>
+                  )}
+                  {/* Familie-badge */}
+                  {familyName && (
+                    <Badge className={`${badgeClass} bg-blue-100 text-blue-700`}>
+                      <span className="text-base">👨‍👩‍👧‍👦</span>
+                      {familyName}
+                    </Badge>
+                  )}
+                  {/* Effort-badge */}
+                  {pos.effort && (
+                    <Badge className={`${badgeClass} ${effortMap[pos.effort].color}`}>
+                      <span className="text-base">{effortMap[pos.effort].icon}</span>
+                      {effortMap[pos.effort].text}
+                    </Badge>
+                  )}
+                  {/* Status-badge */}
+                  {pos.status && (
+                    <Badge className={`${badgeClass} ${statusMap[pos.status].color}`}>
+                      <span className="text-base">{statusMap[pos.status].icon}</span>
+                      {statusMap[pos.status].text}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {/* === PAGINATION === */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 mt-4">
+          <button
+            className="btn btn-outline px-3 py-1"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+          >
+            Forrige
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i}
+              className={`btn px-3 py-1 ${currentPage === i + 1 ? 'bg-indigo-600 text-white' : 'btn-outline'}`}
+              onClick={() => setCurrentPage(i + 1)}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <button
+            className="btn btn-outline px-3 py-1"
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+          >
+            Næste
+          </button>
+        </div>
+      )}
+      {/* === MODAL === */}
       <Dialog open={open} onClose={() => setOpen(false)} className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
         <Dialog.Panel className="bg-white rounded-lg p-6 w-full max-w-lg mx-auto space-y-6 max-h-[90vh] overflow-y-auto">
           {/* View-mode */}
@@ -190,29 +505,61 @@ export default function SexPositionsPage() {
                 <img src={activePosition.image_url} alt="Stillingsbillede" className="w-full h-64 object-contain rounded mb-2" />
               )}
               <p className="mb-2">{activePosition.description}</p>
+              <div className="flex gap-2 items-center mb-2 flex-wrap">
+                {activePosition.category_id && (
+                  <Badge className={`${badgeClass} bg-pink-100 text-pink-700`}>
+                    <span className="text-base">
+                      {emojiIcons[categories.find(c => c.id === activePosition.category_id)?.name || ""] || emojiIcons.default}
+                    </span>
+                    {categories.find(c => c.id === activePosition.category_id)?.name || ''}
+                  </Badge>
+                )}
+                {activePosition.family_id && families.length > 0 && (
+                  <Badge className={`${badgeClass} bg-blue-100 text-blue-700`}>
+                    <span className="text-base">👨‍👩‍👧‍👦</span>
+                    {families.find(f => f.id === activePosition.family_id)?.name || ""}
+                  </Badge>
+                )}
+                {activePosition.effort && (
+                  <Badge className={`${badgeClass} ${effortMap[activePosition.effort].color}`}>
+                    <span className="text-base">{effortMap[activePosition.effort].icon}</span>
+                    {effortMap[activePosition.effort].text}
+                  </Badge>
+                )}
+                {activePosition.status && (
+                  <Badge className={`${badgeClass} ${statusMap[activePosition.status].color}`}>
+                    <span className="text-base">{statusMap[activePosition.status].icon}</span>
+                    {statusMap[activePosition.status].text}
+                  </Badge>
+                )}
+              </div>
               <div className="flex gap-2">
                 {activePosition.tried_count && activePosition.tried_count > 0 && (
                   <span className="inline-block bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs">
                     {activePosition.tried_count}x
                   </span>
                 )}
-                {activePosition.status === 'prøvet' && (
-                  <span className="inline-block bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">
-                    Prøvet
-                  </span>
-                )}
-                {activePosition.status === 'afvist' && (
-                  <span className="inline-block bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs">
-                    Afvist
-                  </span>
-                )}
               </div>
+              {/* Tags-badges nederst */}
+              {activePosition.tags && activePosition.tags.length > 0 && (
+                <div className="flex gap-2 flex-wrap mt-4">
+                  {activePosition.tags.map(tagLink => {
+                    const tag = tags.find(t => t.id === tagLink.tag_id);
+                    if (!tag) return null;
+                    return (
+                      <Badge key={tag.id} className="inline-flex items-center rounded-full px-2 py-0 text-xs gap-1 font-normal bg-purple-100 text-purple-700">
+                        <span className="text-base">🏷️</span>
+                        {tag.name}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              )}
               <div className="flex justify-end mt-4">
                 <button onClick={() => setEditMode(true)} className="btn btn-primary">Rediger</button>
               </div>
             </>
           )}
-
           {/* Edit-mode */}
           {editMode && (
             <>
@@ -231,13 +578,137 @@ export default function SexPositionsPage() {
                 value={description}
                 onChange={e => setDescription(e.target.value)}
               />
+              {/* Vælg eller opret kategori */}
+              <label className="block mb-2">
+                Kategori:
+                <select
+                  className="w-full border rounded px-3 py-2 mt-1"
+                  value={categoryId}
+                  onChange={e => setCategoryId(e.target.value)}
+                >
+                  <option value="">-- Vælg kategori --</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                  <option value="__new">+ Opret ny kategori…</option>
+                </select>
+              </label>
+              {categoryId === '__new' && (
+                <div className="mb-2">
+                  <input
+                    type="text"
+                    className="w-full border rounded px-3 py-2 mt-1"
+                    placeholder="Navn på ny kategori"
+                    value={newCategoryName}
+                    onChange={e => setNewCategoryName(e.target.value)}
+                  />
+                  <button
+                    className="mt-2 btn btn-primary"
+                    onClick={handleCreateCategory}
+                  >
+                    Opret kategori
+                  </button>
+                </div>
+              )}
+              {/* Vælg eller opret familie */}
+              <label className="block mb-2">
+                Familie:
+                <select
+                  className="w-full border rounded px-3 py-2 mt-1"
+                  value={familyId}
+                  onChange={e => setFamilyId(e.target.value)}
+                >
+                  <option value="">-- Vælg familie --</option>
+                  {families.map(fam => (
+                    <option key={fam.id} value={fam.id}>{fam.name}</option>
+                  ))}
+                  <option value="__new">+ Opret ny familie…</option>
+                </select>
+              </label>
+              {familyId === '__new' && (
+                <div className="mb-2">
+                  <input
+                    type="text"
+                    className="w-full border rounded px-3 py-2 mt-1"
+                    placeholder="Navn på ny familie"
+                    value={newFamilyName}
+                    onChange={e => setNewFamilyName(e.target.value)}
+                  />
+                  <button
+                    className="mt-2 btn btn-primary"
+                    onClick={handleCreateFamily}
+                  >
+                    Opret familie
+                  </button>
+                </div>
+              )}
+              {/* Effort / Sværhedsgrad */}
+              <div className="mb-2">
+                <label className="block font-medium mb-1">Sværhedsgrad:</label>
+                <select
+                  className="w-full border rounded px-3 py-2"
+                  value={effort}
+                  onChange={e => setEffort(e.target.value as 'let' | 'middel' | 'svær')}
+                >
+                  <option value="let">Let</option>
+                  <option value="middel">Middel</option>
+                  <option value="svær">Svær</option>
+                </select>
+              </div>
+              {/* Tags */}
+              <div className="mb-2">
+                <label className="block font-medium mb-1">Tags:</label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {tags.map(tag => (
+                    <Badge
+                      key={tag.id}
+                      className={`cursor-pointer px-2 py-0 text-xs rounded-full ${
+                        selectedTagIds.includes(tag.id)
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-gray-200 text-gray-800'
+                      }`}
+                      onClick={() => {
+                        setSelectedTagIds(prev =>
+                          prev.includes(tag.id)
+                            ? prev.filter(id => id !== tag.id)
+                            : [...prev, tag.id]
+                        );
+                      }}
+                    >
+                      {tag.name}
+                    </Badge>
+                  ))}
+                  <Badge
+                    className="cursor-pointer bg-green-100 text-green-800"
+                    onClick={() => setNewTagName(' ')}
+                  >
+                    + Opret tag
+                  </Badge>
+                </div>
+                {newTagName !== '' && (
+                  <div className="flex gap-2 mt-1">
+                    <input
+                      className="w-full border rounded px-3 py-2"
+                      placeholder="Nyt tag"
+                      value={newTagName.trimStart()}
+                      onChange={e => setNewTagName(e.target.value)}
+                    />
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleCreateTag}
+                    >
+                      Tilføj
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="flex gap-3 mb-2">
                 <label className="flex items-center gap-2">
                   Status:
                   <select
                     value={status}
                     onChange={e => setStatus(e.target.value as any)}
-                    className="border rounded px-2 py-1"
+                    className="border rounded px-2 py-1 ml-2"
                   >
                     <option value="ny">Ny</option>
                     <option value="prøvet">Prøvet</option>
@@ -252,7 +723,7 @@ export default function SexPositionsPage() {
                       value={triedCount}
                       onChange={e => setTriedCount(Number(e.target.value))}
                       min={1}
-                      className="border rounded px-2 py-1 w-16"
+                      className="border rounded px-2 py-1 w-16 ml-2"
                     />
                   </label>
                 )}
@@ -262,7 +733,7 @@ export default function SexPositionsPage() {
                   Billede:
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/png,image/jpeg,image/webp"
                     onChange={e => setImageFile(e.target.files?.[0] || null)}
                     className="mt-1"
                   />
@@ -274,6 +745,21 @@ export default function SexPositionsPage() {
                   <span className="text-sm text-gray-500">Billede valgt: {imageFile.name}</span>
                 )}
               </div>
+              {/* Tags-badges nederst */}
+              {selectedTagIds.length > 0 && (
+                <div className="flex gap-2 flex-wrap mt-4">
+                  {selectedTagIds.map(tagId => {
+                    const tag = tags.find(t => t.id === tagId);
+                    if (!tag) return null;
+                    return (
+                      <Badge key={tag.id} className="inline-flex items-center rounded-full px-2 py-0 text-xs gap-1 font-normal bg-purple-100 text-purple-700">
+                        <span className="text-base">🏷️</span>
+                        {tag.name}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              )}
               <div className="flex justify-between gap-2 mt-4">
                 {activePosition && (
                   <button
