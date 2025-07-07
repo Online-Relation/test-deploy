@@ -85,59 +85,56 @@ export default function Sidebar() {
   );
 
   const renderNav = (entries: any[]) => entries.map(entry => {
-    if (!hasAccessTo(entry.key)) return null;
-    const isOpen = openState[entry.key] || false;
+  if (!hasAccessTo(entry.key)) return null;
+  const isOpen = openState[entry.key] || false;
 
-    if (entry.children.length) {
-      return (
-        <div key={entry.key}>
-          <div className="w-full flex items-center justify-between px-4 py-2 rounded hover:bg-gray-800 transition group relative">
-            <Link
-              href={entry.href || '#'}
-              onClick={() => setMobileOpen(false)}
-              className={`flex items-center gap-2 flex-1 min-w-0
-                ${entry.href && pathname.startsWith(entry.href) ? 'font-semibold text-white' : ''}
-                `}
-              style={{ zIndex: 2 }}
-            >
-              {iconMap[entry.key]}
-              {entry.label}
-            </Link>
-            <button
-              type="button"
-              onClick={e => {
-                e.stopPropagation();
-                setOpenState(os => ({ ...os, [entry.key]: !isOpen }));
-              }}
-              className="flex items-center px-2 py-1 ml-2 rounded hover:bg-gray-700 transition"
-              aria-label={isOpen ? 'Luk' : 'Åbn'}
-              tabIndex={0}
-            >
-              {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            </button>
-          </div>
-          {isOpen && (
-            <div className="ml-6 mt-1 space-y-1">
-              {renderNav(entry.children)}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    // Ingen children: normalt link
+  if (entry.children.length) {
     return (
-      <Link
-        key={entry.key}
-        href={entry.href || '#'}
-        onClick={() => setMobileOpen(false)}
-        className={`flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition ${entry.href && pathname === entry.href ? 'bg-gray-700 font-semibold' : ''}`}
-      >
-        {iconMap[entry.key]}
-        {entry.label}
-      </Link>
+      <div key={entry.key}>
+        <div
+          className="w-full flex items-center justify-between px-4 py-2 rounded hover:bg-gray-800 transition group relative cursor-pointer"
+          onClick={() => setOpenState(os => ({ ...os, [entry.key]: !isOpen }))}
+        >
+          <div className="flex items-center gap-2 flex-1 min-w-0 select-none">
+            {iconMap[entry.key]}
+            {entry.label}
+          </div>
+          <button
+            type="button"
+            onClick={e => {
+              e.stopPropagation();
+              setOpenState(os => ({ ...os, [entry.key]: !isOpen }));
+            }}
+            className="flex items-center px-2 py-1 ml-2 rounded hover:bg-gray-700 transition"
+            aria-label={isOpen ? 'Luk' : 'Åbn'}
+            tabIndex={0}
+          >
+            {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          </button>
+        </div>
+        {isOpen && (
+          <div className="ml-6 mt-1 space-y-1">
+            {renderNav(entry.children)}
+          </div>
+        )}
+      </div>
     );
-  });
+  }
+
+  // Ingen children: normalt link
+  return (
+    <Link
+      key={entry.key}
+      href={entry.href || '#'}
+      onClick={() => setMobileOpen(false)}
+      className={`flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition ${entry.href && pathname === entry.href ? 'bg-gray-700 font-semibold' : ''}`}
+    >
+      {iconMap[entry.key]}
+      {entry.label}
+    </Link>
+  );
+});
+
 
   return (
     <>
