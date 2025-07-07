@@ -81,6 +81,20 @@ export default function SexPositionsPage() {
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [newTagName, setNewTagName] = useState('');
 
+  // MOBIL FILTER DRAWER
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Responsiv breakpoint
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth < 640); // Tailwind's "sm"
+    }
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => {
     loadPositions();
     loadCategories();
@@ -227,14 +241,11 @@ export default function SexPositionsPage() {
     };
     if (activePosition) {
       await supabase.from('sex_positions').update(values).eq('id', activePosition.id);
-      // Slet gamle tag-links
       await supabase.from('sex_position_tag_links').delete().eq('sex_position_id', activePosition.id);
-      // Tilføj valgte tags
       for (const tagId of selectedTagIds) {
         await supabase.from('sex_position_tag_links').insert({ sex_position_id: activePosition.id, tag_id: tagId });
       }
     } else {
-      // Opret stilling og links
       const { data, error } = await supabase.from('sex_positions').insert([values]).select().single();
       if (data && data.id) {
         for (const tagId of selectedTagIds) {
@@ -300,11 +311,8 @@ export default function SexPositionsPage() {
 
   // === FILTERING + PAGINATION ===
   const filteredPositions = positions.filter(pos => {
-    // Kategori (multi)
     const matchCategory = selectedCategories.length === 0 || selectedCategories.includes(pos.category_id || '');
-    // Familie (multi)
     const matchFamily = selectedFamilies.length === 0 || selectedFamilies.includes(pos.family_id || '');
-    // Tags (multi, "OR" logik)
     const tagIdsForPos = pos.tags ? pos.tags.map(t => t.tag_id) : [];
     const matchTags =
       selectedTags.length === 0 ||
@@ -318,6 +326,26 @@ export default function SexPositionsPage() {
     currentPage * pageSize
   );
 
+  // Mobil-filter-drawer helpers (lokal kopi til visning)
+  const [drawerCategories, setDrawerCategories] = useState<string[]>([]);
+  const [drawerFamilies, setDrawerFamilies] = useState<string[]>([]);
+  const [drawerTags, setDrawerTags] = useState<string[]>([]);
+  useEffect(() => {
+    if (filterDrawerOpen) {
+      setDrawerCategories(selectedCategories);
+      setDrawerFamilies(selectedFamilies);
+      setDrawerTags(selectedTags);
+    }
+  }, [filterDrawerOpen, selectedCategories, selectedFamilies, selectedTags]);
+
+  // Brug drawerens filtre på “vis resultater”
+  const applyDrawerFilters = () => {
+    setSelectedCategories(drawerCategories);
+    setSelectedFamilies(drawerFamilies);
+    setSelectedTags(drawerTags);
+    setFilterDrawerOpen(false);
+  };
+
   return (
     <div className="max-w-4xl mx-auto py-8 px-2 sm:px-4">
       {/* Header + Tilføj-knap */}
@@ -330,82 +358,205 @@ export default function SexPositionsPage() {
           + Tilføj
         </button>
       </div>
-      
-      {/* === FILTER-BAR === */}
-      <div className="mb-6">
-        {/* Kategori-chips */}
-        <div className="flex flex-wrap gap-2 mb-2">
-          <Badge
-            className={selectedCategories.length === 0 ? 'bg-indigo-600 text-white cursor-pointer' : 'cursor-pointer'}
-            onClick={() => setSelectedCategories([])}
-          >
-            Alle kategorier
-          </Badge>
-          {categories.map(cat => (
+      <p className="text-gray-500 text-sm mb-6">
+        Der er <span className="font-semibold">{positions.length}</span> stillinger til inspiration
+      </p>
+
+      {/* === FILTER-BAR ELLER FILTER-KNAP === */}
+      {!isMobile ? (
+        <div className="mb-6">
+          {/* Kategori-chips */}
+          <div className="flex flex-wrap gap-2 mb-2">
             <Badge
-              key={cat.id}
-              className={`${selectedCategories.includes(cat.id) ? 'bg-indigo-600 text-white' : ''} cursor-pointer`}
-              onClick={() => {
-                setSelectedCategories(selected =>
-                  selected.includes(cat.id)
-                    ? selected.filter(id => id !== cat.id)
-                    : [...selected, cat.id]
-                );
-              }}
+              className={selectedCategories.length === 0 ? 'bg-indigo-600 text-white cursor-pointer' : 'cursor-pointer'}
+              onClick={() => setSelectedCategories([])}
             >
-              {cat.name}
+              Alle kategorier
             </Badge>
-          ))}
-        </div>
-        {/* Familie-chips */}
-        <div className="flex flex-wrap gap-2 mb-2">
-          <Badge
-            className={selectedFamilies.length === 0 ? 'bg-blue-600 text-white cursor-pointer' : 'cursor-pointer'}
-            onClick={() => setSelectedFamilies([])}
-          >
-            Alle familier
-          </Badge>
-          {families.map(fam => (
+            {categories.map(cat => (
+              <Badge
+                key={cat.id}
+                className={`${selectedCategories.includes(cat.id) ? 'bg-indigo-600 text-white' : ''} cursor-pointer`}
+                onClick={() => {
+                  setSelectedCategories(selected =>
+                    selected.includes(cat.id)
+                      ? selected.filter(id => id !== cat.id)
+                      : [...selected, cat.id]
+                  );
+                }}
+              >
+                {cat.name}
+              </Badge>
+            ))}
+          </div>
+          {/* Familie-chips */}
+          <div className="flex flex-wrap gap-2 mb-2">
             <Badge
-              key={fam.id}
-              className={`${selectedFamilies.includes(fam.id) ? 'bg-blue-600 text-white' : ''} cursor-pointer`}
-              onClick={() => {
-                setSelectedFamilies(selected =>
-                  selected.includes(fam.id)
-                    ? selected.filter(id => id !== fam.id)
-                    : [...selected, fam.id]
-                );
-              }}
+              className={selectedFamilies.length === 0 ? 'bg-blue-600 text-white cursor-pointer' : 'cursor-pointer'}
+              onClick={() => setSelectedFamilies([])}
             >
-              {fam.name}
+              Alle familier
             </Badge>
-          ))}
-        </div>
-        {/* Tag-chips */}
-        <div className="flex flex-wrap gap-2">
-          <Badge
-            className={selectedTags.length === 0 ? 'bg-purple-600 text-white cursor-pointer' : 'cursor-pointer'}
-            onClick={() => setSelectedTags([])}
-          >
-            Alle tags
-          </Badge>
-          {tags.map(tag => (
+            {families.map(fam => (
+              <Badge
+                key={fam.id}
+                className={`${selectedFamilies.includes(fam.id) ? 'bg-blue-600 text-white' : ''} cursor-pointer`}
+                onClick={() => {
+                  setSelectedFamilies(selected =>
+                    selected.includes(fam.id)
+                      ? selected.filter(id => id !== fam.id)
+                      : [...selected, fam.id]
+                  );
+                }}
+              >
+                {fam.name}
+              </Badge>
+            ))}
+          </div>
+          {/* Tag-chips */}
+          <div className="flex flex-wrap gap-2">
             <Badge
-              key={tag.id}
-              className={`${selectedTags.includes(tag.id) ? 'bg-purple-600 text-white' : ''} cursor-pointer`}
-              onClick={() => {
-                setSelectedTags(selected =>
-                  selected.includes(tag.id)
-                    ? selected.filter(id => id !== tag.id)
-                    : [...selected, tag.id]
-                );
-              }}
+              className={selectedTags.length === 0 ? 'bg-purple-600 text-white cursor-pointer' : 'cursor-pointer'}
+              onClick={() => setSelectedTags([])}
             >
-              {tag.name}
+              Alle tags
             </Badge>
-          ))}
+            {tags.map(tag => (
+              <Badge
+                key={tag.id}
+                className={`${selectedTags.includes(tag.id) ? 'bg-purple-600 text-white' : ''} cursor-pointer`}
+                onClick={() => {
+                  setSelectedTags(selected =>
+                    selected.includes(tag.id)
+                      ? selected.filter(id => id !== tag.id)
+                      : [...selected, tag.id]
+                  );
+                }}
+              >
+                {tag.name}
+              </Badge>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        <button
+          className="btn btn-outline w-full mb-6"
+          onClick={() => setFilterDrawerOpen(true)}
+        >
+          Filtrer
+        </button>
+      )}
+
+      {/* === FILTER-DRAWER (MOBIL) === */}
+      {isMobile && filterDrawerOpen && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-40 flex items-end sm:hidden">
+          <div className="w-full bg-white rounded-t-2xl p-6 max-h-[70vh] overflow-y-auto shadow-lg">
+            <div className="mb-3 font-semibold text-lg">Filtrer stillinger</div>
+            {/* Kategori */}
+            <div className="mb-4">
+              <div className="mb-1 text-sm text-gray-600">Kategorier</div>
+              <div className="flex flex-wrap gap-2">
+                <Badge
+                  className={drawerCategories.length === 0 ? 'bg-indigo-600 text-white cursor-pointer' : 'cursor-pointer'}
+                  onClick={() => setDrawerCategories([])}
+                >
+                  Alle kategorier
+                </Badge>
+                {categories.map(cat => (
+                  <Badge
+                    key={cat.id}
+                    className={`${drawerCategories.includes(cat.id) ? 'bg-indigo-600 text-white' : ''} cursor-pointer`}
+                    onClick={() => {
+                      setDrawerCategories(selected =>
+                        selected.includes(cat.id)
+                          ? selected.filter(id => id !== cat.id)
+                          : [...selected, cat.id]
+                      );
+                    }}
+                  >
+                    {cat.name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+            {/* Familie */}
+            <div className="mb-4">
+              <div className="mb-1 text-sm text-gray-600">Familier</div>
+              <div className="flex flex-wrap gap-2">
+                <Badge
+                  className={drawerFamilies.length === 0 ? 'bg-blue-600 text-white cursor-pointer' : 'cursor-pointer'}
+                  onClick={() => setDrawerFamilies([])}
+                >
+                  Alle familier
+                </Badge>
+                {families.map(fam => (
+                  <Badge
+                    key={fam.id}
+                    className={`${drawerFamilies.includes(fam.id) ? 'bg-blue-600 text-white' : ''} cursor-pointer`}
+                    onClick={() => {
+                      setDrawerFamilies(selected =>
+                        selected.includes(fam.id)
+                          ? selected.filter(id => id !== fam.id)
+                          : [...selected, fam.id]
+                      );
+                    }}
+                  >
+                    {fam.name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+            {/* Tags */}
+            <div>
+              <div className="mb-1 text-sm text-gray-600">Tags</div>
+              <div className="flex flex-wrap gap-2">
+                <Badge
+                  className={drawerTags.length === 0 ? 'bg-purple-600 text-white cursor-pointer' : 'cursor-pointer'}
+                  onClick={() => setDrawerTags([])}
+                >
+                  Alle tags
+                </Badge>
+                {tags.map(tag => (
+                  <Badge
+                    key={tag.id}
+                    className={`${drawerTags.includes(tag.id) ? 'bg-purple-600 text-white' : ''} cursor-pointer`}
+                    onClick={() => {
+                      setDrawerTags(selected =>
+                        selected.includes(tag.id)
+                          ? selected.filter(id => id !== tag.id)
+                          : [...selected, tag.id]
+                      );
+                    }}
+                  >
+                    {tag.name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+            <button
+              className="btn btn-primary w-full mt-6"
+              onClick={applyDrawerFilters}
+            >
+              Vis {positions.filter(pos => {
+                const matchCategory = drawerCategories.length === 0 || drawerCategories.includes(pos.category_id || '');
+                const matchFamily = drawerFamilies.length === 0 || drawerFamilies.includes(pos.family_id || '');
+                const tagIdsForPos = pos.tags ? pos.tags.map(t => t.tag_id) : [];
+                const matchTags =
+                  drawerTags.length === 0 ||
+                  drawerTags.some(tagId => tagIdsForPos.includes(tagId));
+                return matchCategory && matchFamily && matchTags;
+              }).length} resultater
+            </button>
+            <button
+              className="w-full text-gray-400 underline mt-2"
+              onClick={() => setFilterDrawerOpen(false)}
+            >
+              Annuller
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* === CARDS === */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {paginatedPositions.map(pos => {
@@ -432,28 +583,24 @@ export default function SexPositionsPage() {
                     : pos.description}
                 </p>
                 <div className="flex gap-2 items-center mt-auto flex-wrap">
-                  {/* Kategori-badge */}
                   {pos.category_name && (
                     <Badge className={`${badgeClass} bg-pink-100 text-pink-700`}>
                       <span className="text-base">{catIcon}</span>
                       {pos.category_name}
                     </Badge>
                   )}
-                  {/* Familie-badge */}
                   {familyName && (
                     <Badge className={`${badgeClass} bg-blue-100 text-blue-700`}>
                       <span className="text-base">👨‍👩‍👧‍👦</span>
                       {familyName}
                     </Badge>
                   )}
-                  {/* Effort-badge */}
                   {pos.effort && (
                     <Badge className={`${badgeClass} ${effortMap[pos.effort].color}`}>
                       <span className="text-base">{effortMap[pos.effort].icon}</span>
                       {effortMap[pos.effort].text}
                     </Badge>
                   )}
-                  {/* Status-badge */}
                   {pos.status && (
                     <Badge className={`${badgeClass} ${statusMap[pos.status].color}`}>
                       <span className="text-base">{statusMap[pos.status].icon}</span>
@@ -466,7 +613,6 @@ export default function SexPositionsPage() {
           );
         })}
       </div>
-      {/* === PAGINATION === */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-2 mt-4">
           <button
@@ -494,6 +640,9 @@ export default function SexPositionsPage() {
           </button>
         </div>
       )}
+
+
+
       {/* === MODAL === */}
       <Dialog open={open} onClose={() => setOpen(false)} className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
         <Dialog.Panel className="bg-white rounded-lg p-6 w-full max-w-lg mx-auto space-y-6 max-h-[90vh] overflow-y-auto">
