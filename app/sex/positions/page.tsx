@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog } from '@headlessui/react';
 import { supabase } from '@/lib/supabaseClient';
 import { Badge } from '@/components/ui/badge';
+import XpBadge from '@/components/ui/XpBadge';
 
 // Emoji-ikoner
 const emojiIcons: Record<string, string> = {
@@ -51,21 +52,21 @@ export default function SexPositionsPage() {
   const [families, setFamilies] = useState<Family[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
 
-  // FILTER STATE
+  const [userRole, setUserRole] = useState<string>('');
+  const [xpSettings, setXpSettings] = useState<Record<string, number>>({});
+
+  // Form states
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedFamilies, setSelectedFamilies] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
-  // PAGINATION
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 12;
 
-  // MODAL STATE
   const [open, setOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [activePosition, setActivePosition] = useState<SexPosition | null>(null);
 
-  // FORM STATE
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<'ny' | 'prøvet' | 'afvist'>('ny');
@@ -81,20 +82,73 @@ export default function SexPositionsPage() {
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [newTagName, setNewTagName] = useState('');
 
-  // MOBIL FILTER DRAWER
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Responsiv breakpoint
+  const badgeClass = "inline-flex items-center rounded-full px-2 py-0 text-xs gap-1 font-normal";
+
+  // Responsive breakpoint for mobile
   useEffect(() => {
     function handleResize() {
-      setIsMobile(window.innerWidth < 640); // Tailwind's "sm"
+      setIsMobile(window.innerWidth < 640);
     }
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Fetch user role once on mount
+  useEffect(() => {
+    async function fetchUserRole() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        if (!error && data?.role) {
+          setUserRole(data.role);
+        } else {
+          console.error('Fejl ved hentning af brugerrolle:', error);
+        }
+      }
+    }
+    fetchUserRole();
+  }, []);
+
+  // Load XP settings when userRole is known
+  useEffect(() => {
+    if (!userRole) return;
+
+    async function loadXpSettings() {
+      const { data, error } = await supabase
+        .from('xp_settings')
+        .select('effort, xp')
+        .eq('role', userRole)
+        .eq('action', 'sex_position');
+
+      if (error) {
+        console.error('Fejl ved hentning af XP settings:', error);
+        return;
+      }
+
+      if (data && Array.isArray(data)) {
+        const map: Record<string, number> = {};
+        data.forEach((row: any) => {
+          if (row.effort) {
+            map[row.effort] = row.xp;
+          }
+        });
+        setXpSettings(map);
+      } else {
+        console.warn('XP settings data er tom eller ikke et array:', data);
+      }
+    }
+    loadXpSettings();
+  }, [userRole]);
+
+  // Load data on mount
   useEffect(() => {
     loadPositions();
     loadCategories();
@@ -107,10 +161,10 @@ export default function SexPositionsPage() {
     if (!familyId && families.length > 0) setFamilyId(families[0].id);
   }, [categories, families]);
 
-  // Reset pagination hvis filter ændres
-  useEffect(() => { setCurrentPage(1); }, [selectedCategories, selectedFamilies, selectedTags]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategories, selectedFamilies, selectedTags]);
 
-  // Hent alle sexstillinger med tags
   async function loadPositions() {
     const { data, error } = await supabase
       .from('sex_positions')
@@ -307,9 +361,7 @@ export default function SexPositionsPage() {
     }
   }
 
-  const badgeClass = "inline-flex items-center rounded-full px-2 py-0 text-xs gap-1 font-normal";
-
-  // === FILTERING + PAGINATION ===
+  // Filtering + Pagination
   const filteredPositions = positions.filter(pos => {
     const matchCategory = selectedCategories.length === 0 || selectedCategories.includes(pos.category_id || '');
     const matchFamily = selectedFamilies.length === 0 || selectedFamilies.includes(pos.family_id || '');
@@ -326,7 +378,7 @@ export default function SexPositionsPage() {
     currentPage * pageSize
   );
 
-  // Mobil-filter-drawer helpers (lokal kopi til visning)
+  // Mobile filter drawer helpers
   const [drawerCategories, setDrawerCategories] = useState<string[]>([]);
   const [drawerFamilies, setDrawerFamilies] = useState<string[]>([]);
   const [drawerTags, setDrawerTags] = useState<string[]>([]);
@@ -337,8 +389,6 @@ export default function SexPositionsPage() {
       setDrawerTags(selectedTags);
     }
   }, [filterDrawerOpen, selectedCategories, selectedFamilies, selectedTags]);
-
-  // Brug drawerens filtre på “vis resultater”
   const applyDrawerFilters = () => {
     setSelectedCategories(drawerCategories);
     setSelectedFamilies(drawerFamilies);
@@ -348,7 +398,7 @@ export default function SexPositionsPage() {
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-2 sm:px-4">
-      {/* Header + Tilføj-knap */}
+      {/* Header + Add Button */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Sexstillinger – Inspiration</h1>
         <button
@@ -362,10 +412,10 @@ export default function SexPositionsPage() {
         Der er <span className="font-semibold">{positions.length}</span> stillinger til inspiration
       </p>
 
-      {/* === FILTER-BAR ELLER FILTER-KNAP === */}
+      {/* Filter bar or filter button */}
       {!isMobile ? (
         <div className="mb-6">
-          {/* Kategori-chips */}
+          {/* Category chips */}
           <div className="flex flex-wrap gap-2 mb-2">
             <Badge
               className={selectedCategories.length === 0 ? 'bg-indigo-600 text-white cursor-pointer' : 'cursor-pointer'}
@@ -389,7 +439,7 @@ export default function SexPositionsPage() {
               </Badge>
             ))}
           </div>
-          {/* Familie-chips */}
+          {/* Family chips */}
           <div className="flex flex-wrap gap-2 mb-2">
             <Badge
               className={selectedFamilies.length === 0 ? 'bg-blue-600 text-white cursor-pointer' : 'cursor-pointer'}
@@ -413,7 +463,7 @@ export default function SexPositionsPage() {
               </Badge>
             ))}
           </div>
-          {/* Tag-chips */}
+          {/* Tag chips */}
           <div className="flex flex-wrap gap-2">
             <Badge
               className={selectedTags.length === 0 ? 'bg-purple-600 text-white cursor-pointer' : 'cursor-pointer'}
@@ -447,12 +497,12 @@ export default function SexPositionsPage() {
         </button>
       )}
 
-      {/* === FILTER-DRAWER (MOBIL) === */}
+      {/* Filter drawer for mobile */}
       {isMobile && filterDrawerOpen && (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-40 flex items-end sm:hidden">
           <div className="w-full bg-white rounded-t-2xl p-6 max-h-[70vh] overflow-y-auto shadow-lg">
             <div className="mb-3 font-semibold text-lg">Filtrer stillinger</div>
-            {/* Kategori */}
+            {/* Categories */}
             <div className="mb-4">
               <div className="mb-1 text-sm text-gray-600">Kategorier</div>
               <div className="flex flex-wrap gap-2">
@@ -479,7 +529,7 @@ export default function SexPositionsPage() {
                 ))}
               </div>
             </div>
-            {/* Familie */}
+            {/* Families */}
             <div className="mb-4">
               <div className="mb-1 text-sm text-gray-600">Familier</div>
               <div className="flex flex-wrap gap-2">
@@ -562,6 +612,8 @@ export default function SexPositionsPage() {
         {paginatedPositions.map(pos => {
           const catIcon = emojiIcons[pos.category_name || ""] || emojiIcons.default;
           const familyName = families.find(f => f.id === pos.family_id)?.name || "";
+          const xpValue = pos.effort ? xpSettings[pos.effort] || 0 : 0;
+
           return (
             <div
               key={pos.id}
@@ -607,12 +659,17 @@ export default function SexPositionsPage() {
                       {statusMap[pos.status].text}
                     </Badge>
                   )}
+                  {xpValue > 0 && (
+                    <XpBadge xp={xpValue} size="small" />
+                  )}
                 </div>
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-2 mt-4">
           <button
@@ -641,12 +698,9 @@ export default function SexPositionsPage() {
         </div>
       )}
 
-
-
-      {/* === MODAL === */}
+      {/* Modal */}
       <Dialog open={open} onClose={() => setOpen(false)} className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
         <Dialog.Panel className="bg-white rounded-lg p-6 w-full max-w-lg mx-auto space-y-6 max-h-[90vh] overflow-y-auto">
-          {/* View-mode */}
           {!editMode && activePosition && (
             <>
               <h2 className="text-xl font-bold mb-2">{activePosition.name}</h2>
@@ -681,6 +735,9 @@ export default function SexPositionsPage() {
                     {statusMap[activePosition.status].text}
                   </Badge>
                 )}
+                {activePosition.effort && xpSettings[activePosition.effort] > 0 && (
+                  <XpBadge xp={xpSettings[activePosition.effort]} size="small" />
+                )}
               </div>
               <div className="flex gap-2">
                 {activePosition.tried_count && activePosition.tried_count > 0 && (
@@ -689,7 +746,6 @@ export default function SexPositionsPage() {
                   </span>
                 )}
               </div>
-              {/* Tags-badges nederst */}
               {activePosition.tags && activePosition.tags.length > 0 && (
                 <div className="flex gap-2 flex-wrap mt-4">
                   {activePosition.tags.map(tagLink => {
@@ -709,7 +765,6 @@ export default function SexPositionsPage() {
               </div>
             </>
           )}
-          {/* Edit-mode */}
           {editMode && (
             <>
               <h2 className="text-xl font-bold mb-2">{activePosition ? 'Rediger stilling' : 'Tilføj ny stilling'}</h2>
@@ -727,7 +782,6 @@ export default function SexPositionsPage() {
                 value={description}
                 onChange={e => setDescription(e.target.value)}
               />
-              {/* Vælg eller opret kategori */}
               <label className="block mb-2">
                 Kategori:
                 <select
@@ -759,7 +813,6 @@ export default function SexPositionsPage() {
                   </button>
                 </div>
               )}
-              {/* Vælg eller opret familie */}
               <label className="block mb-2">
                 Familie:
                 <select
@@ -791,7 +844,6 @@ export default function SexPositionsPage() {
                   </button>
                 </div>
               )}
-              {/* Effort / Sværhedsgrad */}
               <div className="mb-2">
                 <label className="block font-medium mb-1">Sværhedsgrad:</label>
                 <select
@@ -804,7 +856,6 @@ export default function SexPositionsPage() {
                   <option value="svær">Svær</option>
                 </select>
               </div>
-              {/* Tags */}
               <div className="mb-2">
                 <label className="block font-medium mb-1">Tags:</label>
                 <div className="flex flex-wrap gap-2 mb-2">
@@ -894,21 +945,18 @@ export default function SexPositionsPage() {
                   <span className="text-sm text-gray-500">Billede valgt: {imageFile.name}</span>
                 )}
               </div>
-              {/* Tags-badges nederst */}
-              {selectedTagIds.length > 0 && (
-                <div className="flex gap-2 flex-wrap mt-4">
-                  {selectedTagIds.map(tagId => {
-                    const tag = tags.find(t => t.id === tagId);
-                    if (!tag) return null;
-                    return (
-                      <Badge key={tag.id} className="inline-flex items-center rounded-full px-2 py-0 text-xs gap-1 font-normal bg-purple-100 text-purple-700">
-                        <span className="text-base">🏷️</span>
-                        {tag.name}
-                      </Badge>
-                    );
-                  })}
-                </div>
-              )}
+              <div className="flex gap-2 flex-wrap mt-4">
+                {selectedTagIds.map(tagId => {
+                  const tag = tags.find(t => t.id === tagId);
+                  if (!tag) return null;
+                  return (
+                    <Badge key={tag.id} className="inline-flex items-center rounded-full px-2 py-0 text-xs gap-1 font-normal bg-purple-100 text-purple-700">
+                      <span className="text-base">🏷️</span>
+                      {tag.name}
+                    </Badge>
+                  );
+                })}
+              </div>
               <div className="flex justify-between gap-2 mt-4">
                 {activePosition && (
                   <button
