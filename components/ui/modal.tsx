@@ -126,6 +126,13 @@ const [showImages, setShowImages] = useState(false);
     setNewFantasy({ ...newFantasy, extra_images: allImages });
     setUploading(false);
   };
+const handleDeleteExtraImage = (index: number) => {
+  const updatedImages = [...extraImages];
+  updatedImages.splice(index, 1);
+  setExtraImages(updatedImages);
+  setNewFantasy({ ...newFantasy, extra_images: updatedImages });
+};
+
 
   const handleSubmit = async () => {
     if (!onCreate) return;
@@ -230,18 +237,30 @@ const [showImages, setShowImages] = useState(false);
   </div>
 )}
 
-              {extraImages.length > 0 && (
-                <div className="mt-2 flex space-x-2 overflow-x-auto">
-                  {extraImages.map((url, i) => (
-                    <img
-                      key={i}
-                      src={url}
-                      alt={`Ekstra billede ${i + 1}`}
-                      className="h-24 rounded"
-                    />
-                  ))}
-                </div>
-              )}
+     {extraImages.length > 0 && (
+  <div className="mt-2 flex space-x-2 overflow-x-auto">
+    {extraImages.map((url, i) => (
+      <div key={i} className="relative">
+        <img
+          src={url}
+          alt={`Ekstra billede ${i + 1}`}
+          className="h-24 rounded"
+        />
+        <button
+          type="button"
+          onClick={() => handleDeleteExtraImage(i)}
+          className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-700"
+          aria-label="Slet billede"
+        >
+          ×
+        </button>
+      </div>
+    ))}
+  </div>
+)}
+
+
+
               
               {/* Badges nederst */}
               <div className="mt-6 border-t pt-4 flex flex-wrap gap-2">
