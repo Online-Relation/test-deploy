@@ -59,6 +59,7 @@ export const accessHierarchy: AccessEntry[] = [
       { key: 'checkin/evaluering', label: 'Evaluering', href: '/checkin/evaluering', children: [] },
     ],
   },
+  { key: 'kalender', label: 'Kalender', href: '/kalender', children: [] },
   {
     key: 'spil',
     label: 'Spil',

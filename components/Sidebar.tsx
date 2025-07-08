@@ -11,7 +11,7 @@ import { useUserContext } from '@/context/UserContext';
 import { supabase } from '@/lib/supabaseClient';
 import { DatabaseZap } from 'lucide-react';
 import {
-  LayoutDashboard, ListTodo, Sparkles, Backpack, HeartHandshake, Briefcase, Settings, ChevronDown, ChevronRight, Menu, X, BrainCircuit, Globe, UserCircle, Heart,
+  LayoutDashboard, ListTodo, Sparkles, Backpack, HeartHandshake, Briefcase, Settings, ChevronDown, ChevronRight, Menu, X, BrainCircuit, Globe, UserCircle, Heart,CalendarDays,ClipboardCheck
 } from 'lucide-react';
 
 import { accessHierarchy } from '@/lib/accessHierarchy'; // <-- brug denne!
@@ -28,7 +28,7 @@ const iconMap: Record<string, ReactNode> = {
   manifestation: <BrainCircuit size={20} />,
   career: <Briefcase size={20} />,
   tanker: <UserCircle size={20} />,
-  indtjekning: <Heart size={20} />,
+  indtjekning: <ClipboardCheck size={20} />,
   personlighed: <UserCircle size={20} />,
   profile: <Settings size={20} />,
   settings: <Settings size={20} />,
@@ -37,6 +37,7 @@ const iconMap: Record<string, ReactNode> = {
   data: <DatabaseZap size={20} />,
   intim: <Heart size={20} />, // Ikon til Intimitet
   '/sex/positions': <Heart size={20} />,
+  kalender: <CalendarDays size={20} />,
 };
 
 export default function Sidebar() {
