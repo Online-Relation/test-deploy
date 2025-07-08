@@ -43,7 +43,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <XpProvider>
             <CategoryProvider>
               <ClientSidebarWrapper />
-              <main className="flex-1 min-h-screen bg-surface shadow-inner">
+              <main
+                className="flex-1 min-h-screen bg-surface shadow-inner"
+                style={{ marginTop: 'calc(env(safe-area-inset-top) + 3rem)' }} // 3rem for menuhøjde ca.
+              >
                 <div className="container mx-auto px-2 sm:px-4 md:px-6 lg:px-8">
                   {children}
                 </div>

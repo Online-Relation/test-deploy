@@ -2,7 +2,6 @@
 import { SharedCalendar } from "@/components/calendar/SharedCalendar";
 
 
-
 export default function KalenderPage() {
   return (
     <div className="max-w-5xl mx-auto pt-10">

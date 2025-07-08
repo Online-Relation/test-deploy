@@ -140,7 +140,13 @@ export default function Sidebar() {
   return (
     <>
       {/* Mobilmenu */}
-      <div className="md:hidden flex items-center justify-between bg-gray-900 text-white px-4 py-3 fixed top-0 left-0 right-0 z-50">
+      <div
+  className="md:hidden flex items-center justify-between bg-gray-900 text-white px-4 py-3 fixed left-0 right-0 z-50"
+  style={{
+    top: 'env(safe-area-inset-top)',
+    paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)', // 0.75rem er din py-3 padding
+  }}
+>
         <button onClick={() => setMobileOpen(prev => !prev)}>
           {mobileOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
