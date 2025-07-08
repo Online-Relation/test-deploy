@@ -75,6 +75,7 @@ export default function Modal({
     if (error) console.error('Fejl ved hentning af kategorier:', error.message);
     else if (data) setCategories(data);
   }
+const [showImages, setShowImages] = useState(false);
 
   const handleImageUpload = async (e: any) => {
     const file = e.target.files[0];
@@ -120,7 +121,6 @@ export default function Modal({
       urls.push(publicUrl);
     }
 
-    // Vi samler tidligere extra_images med nye billeder, så intet går tabt
     const allImages = [...(newFantasy.extra_images || []), ...urls];
     setExtraImages(allImages);
     setNewFantasy({ ...newFantasy, extra_images: allImages });
@@ -171,46 +171,65 @@ export default function Modal({
 
           <h2 className="text-2xl font-semibold">{title}</h2>
 
-          {/* Vis galleri */}
-          {extraImages.length > 0 && !isCreateMode && (
-            <div className="relative w-full h-56 mb-2 rounded overflow-hidden">
-              <img
-                src={extraImages[currentImageIndex]}
-                alt={`Ekstra billede ${currentImageIndex + 1}`}
-                className="object-cover w-full h-full rounded"
-              />
-              <button
-                onClick={handlePrev}
-                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-1 rounded"
-              >
-                <ChevronLeft size={20} />
-              </button>
-              <button
-                onClick={handleNext}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-1 rounded"
-              >
-                <ChevronRight size={20} />
-              </button>
-              <div className="absolute bottom-2 right-2 text-xs bg-black/50 text-white px-2 py-0.5 rounded">
-                {currentImageIndex + 1} / {extraImages.length}
-              </div>
-            </div>
-          )}
+         
 
           {readOnly ? (
             <>
-              <p className="font-semibold">{newFantasy.title}</p>
-              <div
-                className="prose max-w-none"
-                dangerouslySetInnerHTML={{ __html: newFantasy.description || '' }}
-              />
               {newFantasy.image_url && (
                 <img
                   src={newFantasy.image_url}
                   alt={newFantasy.title}
-                  className="w-full rounded mt-2"
+                  className="w-full rounded mb-4"
                 />
               )}
+
+              <p className="font-semibold mb-2">{newFantasy.title}</p>
+
+              <div
+                className="prose max-w-none"
+                dangerouslySetInnerHTML={{ __html: newFantasy.description || '' }}
+              />
+ {/* Vis galleri */}
+          {extraImages.length > 0 && !isCreateMode && (
+  <div className="relative w-full h-[400px] mb-2 rounded overflow-hidden">
+    <img
+      src={extraImages[currentImageIndex]}
+      alt={`Ekstra billede ${currentImageIndex + 1}`}
+      className={`object-contain w-full h-full rounded transition-filter duration-300 ${showImages ? 'filter-none' : 'blur-xl'}`}
+      style={{ cursor: 'pointer' }}
+      onClick={() => setShowImages(true)}
+    />
+    {!showImages && (
+      <button
+        onClick={() => setShowImages(true)}
+        className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white px-4 py-2 rounded"
+      >
+        Vis billede
+      </button>
+    )}
+
+    {showImages && (
+      <>
+        <button
+          onClick={handlePrev}
+          className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-1 rounded"
+        >
+          <ChevronLeft size={20} />
+        </button>
+        <button
+          onClick={handleNext}
+          className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-1 rounded"
+        >
+          <ChevronRight size={20} />
+        </button>
+        <div className="absolute bottom-2 right-2 text-xs bg-black/50 text-white px-2 py-0.5 rounded">
+          {currentImageIndex + 1} / {extraImages.length}
+        </div>
+      </>
+    )}
+  </div>
+)}
+
               {extraImages.length > 0 && (
                 <div className="mt-2 flex space-x-2 overflow-x-auto">
                   {extraImages.map((url, i) => (
@@ -223,7 +242,7 @@ export default function Modal({
                   ))}
                 </div>
               )}
-
+              
               {/* Badges nederst */}
               <div className="mt-6 border-t pt-4 flex flex-wrap gap-2">
                 {newFantasy.category && (

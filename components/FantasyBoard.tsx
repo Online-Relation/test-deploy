@@ -301,25 +301,26 @@ export default function FantasyBoard() {
 
       {selectedFantasy && (
         <Modal
-          title={selectedFantasy.title}
-          onClose={() => setSelectedFantasy(null)}
-          fantasy={selectedFantasy}
-          newFantasy={newFantasyData}
-          setNewFantasy={setNewFantasyData}
-          readOnly={true}
-          children={
-            <button
-              className="btn-primary mt-4"
-              onClick={(e) => {
-                e.stopPropagation();
-                setEditingFantasy(selectedFantasy);
-                setSelectedFantasy(null);
-              }}
-            >
-              Redigér
-            </button>
-          }
-        />
+  title={selectedFantasy.title}
+  onClose={() => setSelectedFantasy(null)}
+  fantasy={selectedFantasy}
+  newFantasy={newFantasyData}
+  setNewFantasy={setNewFantasyData}
+  readOnly={true}
+  children={
+    <button
+      className="btn-primary mt-4"
+      onClick={(e) => {
+        e.stopPropagation();
+        setEditingFantasy(selectedFantasy);
+        setSelectedFantasy(null);
+      }}
+    >
+      Redigér
+    </button>
+  }
+/>
+
       )}
 
       {editingFantasy && (
