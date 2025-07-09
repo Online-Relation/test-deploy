@@ -19,8 +19,10 @@ const allWidgets: Widget[] = [
   { key: 'reward_progress', label: 'Næste gave' },
   { key: 'task_summary', label: 'Opgaver klar' },
   { key: 'weekly_recommendation', label: 'Ugens anbefaling' },
-  { key: 'reminder_widget', label: 'Deadline Reminder' },  // <-- tilføjet!
+  { key: 'reminder_widget', label: 'Deadline Reminder' },
+  { key: 'challenge_card', label: 'Udfordringskort' }, // <-- Tilføjet!
 ];
+
 
 
 const layoutOptions = ['small', 'medium', 'large'];

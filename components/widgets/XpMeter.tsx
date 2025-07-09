@@ -1,11 +1,7 @@
-// /components/widgets/XpMeter.tsx
-'use client';
-
 import { Card, CardContent } from '@/components/ui/card';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { useXp } from '@/context/XpContext'; // <--- BRUG CONTEXT
 
 export default function XpMeter({
   height,
@@ -14,24 +10,7 @@ export default function XpMeter({
   height: string;
   layout: string;
 }) {
-  const [xp, setXp] = useState(0);
-
-  useEffect(() => {
-    const loadXp = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data } = await supabase
-        .from('xp_log')
-        .select('change')
-        .eq('user_id', user.id);
-
-      const total = data?.reduce((sum, e) => sum + e.change, 0) || 0;
-      setXp(total);
-    };
-
-    loadXp();
-  }, []);
+  const { xp } = useXp(); // <-- Hent XP direkte fra context
 
   const heightClass = {
     auto: 'h-auto',
@@ -41,8 +20,7 @@ export default function XpMeter({
 
   const getSizeClass = (layout: string, height: string) => {
     if (typeof window !== 'undefined' && window.innerWidth < 640) {
-      // Mobil: ekstra stor
-      return 'w-64 h-64'; // 256px
+      return 'w-64 h-64';
     }
     if (layout === 'large' && height === 'large') return 'w-[18vw] h-[18vw] max-w-[360px] max-h-[360px]';
     if (layout === 'large') return 'w-[16vw] h-[16vw] max-w-[320px] max-h-[320px]';

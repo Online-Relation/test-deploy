@@ -6,6 +6,9 @@ import { useUserContext } from '@/context/UserContext';
 import WidgetRenderer from '@/components/widgets/WidgetRenderer';
 import { BucketProvider } from '@/context/BucketContext';
 
+// -- NYT: Import til ChallengeCardWidget --
+import ChallengeCardWidget from '@/components/widgets/ChallengeCardWidget';
+
 interface Widget {
   widget_key: string;
   layout: 'small' | 'medium' | 'large';
@@ -17,21 +20,21 @@ export default function DashboardPage() {
   const { user } = useUserContext();
   const [widgets, setWidgets] = useState<Widget[]>([]);
 
-  // --- DEBUG START ---
-  // Kan slettes, kun til fejlsøgning
-  // console.log('ReminderWidget type:', typeof ReminderWidget);
+  // -- DEBUG (kan slettes) --
   if (user) {
     console.log('currentUserId:', user.id);
   }
-  // --- DEBUG SLUT ---
 
+  // --- OPDATERET: Tilføj 'challenge_card' til listen over understøttede widgets ---
   const supportedWidgets = [
     'xp_meter',
     'reward_progress',
     'task_summary',
     'kompliment_reminder',
     'weekly_recommendation',
-    'reminder_widget',    // <-- TILFØJ denne!
+    'reminder_widget',
+    'activity_overview',
+    'challenge_card', // <-- NYT!
   ];
 
   useEffect(() => {
@@ -52,14 +55,10 @@ export default function DashboardPage() {
 
   const layoutClass = (layout: string) => {
     switch (layout) {
-      case 'small':
-        return 'col-span-12 sm:col-span-6 lg:col-span-4';
-      case 'medium':
-        return 'col-span-12 sm:col-span-8';
-      case 'large':
-        return 'col-span-12';
-      default:
-        return 'col-span-12';
+      case 'small': return 'col-span-12 sm:col-span-6 lg:col-span-4';
+      case 'medium': return 'col-span-12 sm:col-span-8';
+      case 'large': return 'col-span-12';
+      default: return 'col-span-12';
     }
   };
 
@@ -83,7 +82,12 @@ export default function DashboardPage() {
               key={widget.widget_key}
               className={`${layoutClass(widget.layout)} ${heightClass(widget.height)} w-full`}
             >
-              <WidgetRenderer widget={widget} />
+              {/* SPECIAL CASE hvis du vil rende ChallengeCardWidget direkte (ellers via WidgetRenderer): */}
+              {widget.widget_key === 'challenge_card' ? (
+                <ChallengeCardWidget widget={widget} />
+              ) : (
+                <WidgetRenderer widget={widget} />
+              )}
             </div>
           ))}
       </div>

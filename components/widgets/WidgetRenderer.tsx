@@ -1,4 +1,3 @@
-// /components/widgets/WidgetRenderer.tsx
 'use client';
 
 import KomplimentReminder from './KomplimentReminder';
@@ -6,17 +5,22 @@ import XpMeter from './XpMeter';
 import RewardProgress from './RewardProgress';
 import TaskSummary from './TaskSummary';
 import WeeklyRecommendation from './WeeklyRecommendation';
-import ReminderWidget from './ReminderWidget'; // <-- Ny import!
-import { useUserContext } from '@/context/UserContext'; // <-- Importér bruger
+import ReminderWidget from './ReminderWidget';
+import ActivityOverviewWidget from './ActivityOverviewWidget';
+import ChallengeCardWidget from './ChallengeCardWidget'; // <-- NY import!
+import { useUserContext } from '@/context/UserContext';
 
 interface Widget {
   widget_key: string;
   layout: string;
   height: string;
+  // Tilføj evt. flere properties hvis du bruger dem
 }
 
 export default function WidgetRenderer({ widget }: { widget: Widget }) {
-  const { user } = useUserContext(); // <-- Hent bruger
+  const { user } = useUserContext();
+
+  if (!widget) return null;
 
   switch (widget.widget_key) {
     case 'kompliment_reminder':
@@ -30,9 +34,12 @@ export default function WidgetRenderer({ widget }: { widget: Widget }) {
     case 'weekly_recommendation':
       return <WeeklyRecommendation />;
     case 'reminder_widget':
-      // Send kun currentUserId hvis bruger er logget ind
       if (!user?.id) return null;
       return <ReminderWidget currentUserId={user.id} />;
+    case 'activity_overview':
+      return <ActivityOverviewWidget widget={widget} />;
+    case 'challenge_card':
+      return <ChallengeCardWidget widget={widget} />;   // <--- her gives widget videre!
     default:
       return null;
   }

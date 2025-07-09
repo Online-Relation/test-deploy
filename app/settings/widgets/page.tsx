@@ -9,21 +9,24 @@ interface UserProfile {
   display_name: string;
 }
 
-// --- Tilføj Deadline Reminder her! ---
+// --- TILFØJ Challenge Card widget her! ---
 const allWidgets = [
   { key: 'kompliment_reminder', label: 'Kompliment' },
   { key: 'xp_meter', label: 'XP-meter' },
   { key: 'reward_progress', label: 'Næste gave' },
   { key: 'task_summary', label: 'Opgaver klar' },
   { key: 'weekly_recommendation', label: 'Ugens anbefaling' },
-  { key: 'reminder_widget', label: 'Deadline Reminder' }, // <--- NY!
+  { key: 'reminder_widget', label: 'Deadline Reminder' },
+  { key: 'challenge_card', label: 'Udfordringskort' }, // <--- NY!
 ];
 
 const heightOptions = ['auto', 'medium', 'large'];
 
 export default function WidgetAccessPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [accessMap, setAccessMap] = useState<Record<string, Record<string, { enabled: boolean; order: number; height: string }>>>({});
+  const [accessMap, setAccessMap] = useState<
+    Record<string, Record<string, { enabled: boolean; order: number; height: string }>>
+  >({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -31,7 +34,9 @@ export default function WidgetAccessPage() {
       if (!profiles) return;
       setUsers(profiles);
 
-      const { data: widgets } = await supabase.from('dashboard_widgets').select('user_id, widget_key, enabled, order, height');
+      const { data: widgets } = await supabase
+        .from('dashboard_widgets')
+        .select('user_id, widget_key, enabled, order, height');
 
       // Find og opret manglende widgets for hver bruger
       for (const user of profiles) {
@@ -51,7 +56,9 @@ export default function WidgetAccessPage() {
       }
 
       // Genhent efter insert
-      const { data: updatedWidgets } = await supabase.from('dashboard_widgets').select('user_id, widget_key, enabled, order, height');
+      const { data: updatedWidgets } = await supabase
+        .from('dashboard_widgets')
+        .select('user_id, widget_key, enabled, order, height');
       const map: Record<string, Record<string, { enabled: boolean; order: number; height: string }>> = {};
 
       for (const user of profiles) {
@@ -154,12 +161,12 @@ export default function WidgetAccessPage() {
                       type="number"
                       className="w-16 border p-1 rounded"
                       value={accessMap[user.id]?.[w.key]?.order ?? 0}
-                      onChange={(e) => changeOrder(user.id, w.key, parseInt(e.target.value))}
+                      onChange={e => changeOrder(user.id, w.key, parseInt(e.target.value))}
                     />
                   </div>
                   <select
                     value={accessMap[user.id]?.[w.key]?.height || 'auto'}
-                    onChange={(e) => changeHeight(user.id, w.key, e.target.value)}
+                    onChange={e => changeHeight(user.id, w.key, e.target.value)}
                     className="w-full border p-1 rounded"
                   >
                     {heightOptions.map(h => (

@@ -72,14 +72,15 @@ export default function PointsPage() {
       s.action === 'complete_task'
     );
     const parquizSettings = roleSettings.filter((s) =>
-  s.action === 'complete_parquiz'
-  );
+    s.action === 'complete_parquiz'
+    );
     const sexPositionSettings = roleSettings.filter((s) =>
       s.action === 'sex_position_used'
+    );
 
-
-    
-);
+    const challengeCardSettings = roleSettings.filter((s) =>
+      s.action === 'answer_challenge_card'
+    );
 
     return (
       <div className="mb-10">
@@ -451,6 +452,41 @@ export default function PointsPage() {
     </table>
   </>
 )}
+
+
+{challengeCardSettings.length > 0 && (
+  <>
+    <h3 className="font-semibold mb-2">Udfordringskort</h3>
+    <table className="w-full border text-sm mb-6">
+      <thead className="bg-gray-100">
+        <tr>
+          <th className="border px-4 py-2 text-left">Handling</th>
+          <th className="border px-4 py-2 text-left">Effort</th>
+          <th className="border px-4 py-2 text-left">XP</th>
+        </tr>
+      </thead>
+      <tbody>
+        {challengeCardSettings.map((setting) => (
+          <tr key={setting.id}>
+            <td className="border px-4 py-2">{setting.action}</td>
+            <td className="border px-4 py-2">{setting.effort || '-'}</td>
+            <td className="border px-4 py-2">
+              <input
+                type="number"
+                value={setting.xp}
+                onChange={(e) =>
+                  updateXP(setting.id, parseInt(e.target.value))
+                }
+                className="w-20 border px-2 py-1 text-right"
+              />
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </>
+)}
+
 
 
       </div>

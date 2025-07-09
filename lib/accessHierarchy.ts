@@ -27,16 +27,18 @@ export const accessHierarchy: AccessEntry[] = [
       { key: '/sex/positions', label: 'Inspiration', href: '/sex/positions', children: [] },
     ],
   },
-  {
-    key: 'fantasy',
-    label: 'Parforhold',
-    href: '/fantasy',
-    children: [
-      { key: 'fantasy/parquiz', label: 'Parquiz', href: '/quiz/parquiz', children: [] },
-      { key: 'fantasy/anbefalinger', label: 'Anbefalinger', href: '/fantasy/anbefalinger', children: [] },
-      { key: 'dates', label: 'Date Ideas', href: '/dates', children: [] },
-    ],
-  },
+ {
+  key: 'fantasy',
+  label: 'Parforhold',
+  href: '/fantasy',
+  children: [
+    { key: 'fantasy/parquiz', label: 'Parquiz', href: '/quiz/parquiz', children: [] },
+    { key: 'fantasy/anbefalinger', label: 'Anbefalinger', href: '/fantasy/anbefalinger', children: [] },
+    { key: 'fantasy/udfordringskort', label: 'Udfordringskort', href: '/fantasy/udfordringskort', children: [] }, // <-- NYT
+    { key: 'dates', label: 'Date Ideas', href: '/dates', children: [] },
+  ],
+},
+
   {
     key: 'indtjekning',
     label: 'Indtjekning',

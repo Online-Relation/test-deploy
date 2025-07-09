@@ -260,3 +260,11 @@ input, textarea, select {
   background: #3b82f6; /* eller farve afhængig af eventTypeInfo */
 }
 }
+
+@media (max-width: 639px) {
+  .btn.btn-outline {
+    background-color: #6366f1; /* eksempel: Indigo-600, svarer til Tailwinds indigo-600 */
+    color: white;
+  }
+}
+
