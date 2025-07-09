@@ -1,18 +1,21 @@
-// /components/widgets/ChallengeCardWidget.tsx
 'use client';
 import { useEffect, useState } from "react";
 import { useUserContext } from '@/context/UserContext';
 import { useXp } from '@/context/XpContext';
 import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
+import { Trophy, Sparkles } from "lucide-react";
+import { Badge } from '@/components/ui/badge'; // ← Din badge-komponent
 
 interface ChallengeCard {
   id: string;
+  title: string;      // ← tilføj denne linje
   question: string;
   category: string;
   active_from: string;
   active_to: string;
 }
+
 
 interface Widget {
   widget_key: string;
@@ -44,14 +47,13 @@ export default function ChallengeCardWidget({
   const [alreadyAnswered, setAlreadyAnswered] = useState(false);
   const [xpValue, setXpValue] = useState<number>(0);
   const [partnerHasAnswered, setPartnerHasAnswered] = useState<boolean>(false);
-  const [checkingAnswer, setCheckingAnswer] = useState(true); // <--- NY
+  const [checkingAnswer, setCheckingAnswer] = useState(true);
 
-  // Hent aktivt udfordringskort (kun det kort, der er aktivt i dag)
   useEffect(() => {
     async function fetchCard() {
       setLoading(true);
       const today = new Date().toISOString().slice(0, 10);
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("challenge_cards")
         .select("*")
         .lte("active_from", today)
@@ -66,7 +68,6 @@ export default function ChallengeCardWidget({
     // eslint-disable-next-line
   }, [refresh]);
 
-  // Hent XP fra xp_settings (dynamisk efter rolle)
   useEffect(() => {
     async function fetchXP() {
       if (!userRole) {
@@ -84,14 +85,12 @@ export default function ChallengeCardWidget({
     fetchXP();
   }, [userRole]);
 
-  // Check om brugeren allerede har svaret, og om partneren har svaret
   useEffect(() => {
     if (!card || !userId || !partnerId) return;
 
     async function checkAnswers() {
-      setCheckingAnswer(true); // <-- NY
+      setCheckingAnswer(true);
       if (!card) return;
-      // Check brugerens svar
       const { data: myAnswer } = await supabase
         .from("challenge_answers")
         .select("id")
@@ -101,7 +100,6 @@ export default function ChallengeCardWidget({
 
       setAlreadyAnswered(!!myAnswer);
 
-      // Check partnerens svar (kun hvis du har svaret)
       if (myAnswer) {
         const { data: partnerAnswer } = await supabase
           .from("challenge_answers")
@@ -113,7 +111,7 @@ export default function ChallengeCardWidget({
       } else {
         setPartnerHasAnswered(false);
       }
-      setCheckingAnswer(false); // <-- NY
+      setCheckingAnswer(false);
     }
     checkAnswers();
     // eslint-disable-next-line
@@ -124,7 +122,6 @@ export default function ChallengeCardWidget({
     if (!card || !userId) return;
     setLoading(true);
 
-    // Indsæt svar i challenge_answers
     const { error: answerError } = await supabase.from("challenge_answers").insert({
       challenge_id: card.id,
       user_id: userId,
@@ -135,7 +132,6 @@ export default function ChallengeCardWidget({
     if (answerError) {
       console.error("challenge_answers error:", answerError.message);
     } else {
-      // Log XP til xp_log
       const { error: xpLogError } = await supabase.from("xp_log").insert({
         user_id: userId,
         action: "answer_challenge_card",
@@ -145,7 +141,7 @@ export default function ChallengeCardWidget({
         console.error("xp_log error:", xpLogError.message);
       } else {
         fetchXp();
-        if (onAnswered) onAnswered(); // Trigger parent refresh!
+        if (onAnswered) onAnswered();
       }
     }
 
@@ -153,55 +149,88 @@ export default function ChallengeCardWidget({
     setLoading(false);
   }
 
-  // -- UI --
-  if (loading || checkingAnswer) return null; // <-- skjul widget under async-check
-  if (!card) return null; // skjul widget hvis ingen aktiv udfordring
+  if (loading || checkingAnswer) return null;
+  if (!card) return null;
 
-  // VIS kun takkebesked hvis du lige har svaret nu
   if (submitted) {
     return (
-      <div className="p-4 rounded-2xl bg-green-50 text-green-800 text-center">
-        <div>Du har besvaret denne udfordring! 🏆</div>
-        <div>Du har optjent <b>{xpValue} XP point</b>.</div>
+      <div className="w-full rounded-2xl shadow bg-green-50 border border-green-200 px-6 py-6 mb-6 text-center flex flex-col gap-3 items-center">
+        <Trophy className="mx-auto text-green-400 mb-1" size={28} />
+        <div className="text-base font-bold text-green-900 mb-1">Du har besvaret denne udfordring!</div>
+        <div className="text-sm font-semibold text-green-800 mb-2">Du har optjent <b>{xpValue} XP point</b>.</div>
         {partnerHasAnswered ? (
-          <div className="mt-2">
-            Din partner har også svaret –
-            <Link href="/fantasy/udfordringskort" className="underline ml-1">se svaret nu</Link>
+          <div className="text-green-800">
+            Din partner har også svaret –{" "}
+            <Link href="/fantasy/udfordringskort" className="underline font-semibold">
+              se svaret nu
+            </Link>
           </div>
         ) : (
-          <div className="mt-2">
+          <div className="text-green-700">
             Din partner har ikke svaret endnu.<br />
-            Find svaret senere i <Link href="/fantasy/udfordringskort" className="underline">Udfordringskort</Link>
+            Find svaret senere i <Link href="/fantasy/udfordringskort" className="underline font-semibold">Udfordringskort</Link>
           </div>
         )}
       </div>
     );
   }
 
-  // Hvis du har svaret før (alreadyAnswered) og loader dashboardet igen: skjul widget og besked
   if (alreadyAnswered) return null;
 
-  // Vis kortet hvis ikke besvaret endnu
+function getDaysLeft(card: ChallengeCard) {
+  const toDate = new Date(card.active_to);
+  const today = new Date();
+  // Sæt tiden til midnat for begge for at undgå off-by-one fejl
+  toDate.setHours(0,0,0,0);
+  today.setHours(0,0,0,0);
+  const msLeft = toDate.getTime() - today.getTime();
+  return Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)));
+}
+
+  // Nu med <Badge>
   return (
-    <div className="p-4 rounded-2xl bg-white shadow flex flex-col gap-2">
-      <div className="text-sm text-indigo-700 font-semibold mb-1">Udfordringskort</div>
-      <div className="text-lg font-bold mb-2">{card.question}</div>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+    <div className="w-full rounded-2xl shadow-lg bg-white border border-indigo-100 px-0 py-0 mt-4 mb-8">
+      <div className="flex items-center gap-2 px-8 pt-7 pb-2">
+        <Sparkles size={20} className="text-indigo-500" />
+        <span className="text-indigo-700 text-base font-bold">Udfordringskort</span>
+        <span className="ml-auto">
+          <Badge className="badge-warning">+{xpValue} XP</Badge>
+        </span>
+      </div>
+
+      <div className="px-8 pt-1 pb-0">
+  <div className="font-semibold text-indigo-800 mb-1 text-base sm:text-lg text-left">
+    {card.title}:
+  </div>
+  <div className="text-base sm:text-lg font-small text-gray-900 mb-2 text-left leading-snug whitespace-pre-line">
+    {card.question}
+  </div>
+</div>
+
+
+      <form onSubmit={handleSubmit} className="flex flex-col items-center w-full px-8 pb-7">
         <textarea
           value={answer}
           onChange={e => setAnswer(e.target.value)}
-          className="border rounded p-2 w-full min-h-[64px]"
+          className="w-full bg-gray-50 rounded-xl border border-indigo-100 p-3 shadow-inner focus:outline-indigo-400 focus:ring-2 focus:ring-indigo-300 text-base min-h-[60px] transition-all resize-none"
           placeholder="Skriv dit svar her…"
           required
         />
         <button
           type="submit"
-          className="btn btn-primary mt-2"
           disabled={loading || !answer.trim()}
+          className="btn btn-primary mt-5 w-full sm:w-2/3"
         >
-          Indsend svar (+{xpValue} XP)
+          {loading ? "Indsender..." : `Indsend svar (+${xpValue} XP)`}
         </button>
+        {card && (
+  <div className="mt-3 text-xs text-gray-500 text-center">
+    Du har <b>{getDaysLeft(card)}</b> dag{getDaysLeft(card) === 1 ? '' : 'e'} til at besvare spørgsmålet.
+  </div>
+)}
+
       </form>
+      
     </div>
   );
 }

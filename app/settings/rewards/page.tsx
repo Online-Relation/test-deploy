@@ -29,6 +29,11 @@ export default function RewardsPage() {
   const [types, setTypes] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [editingReward, setEditingReward] = useState<Reward | null>(null);
+
+  // NYT: Level-længde state
+  const [levelLength, setLevelLength] = useState<number>(100);
+  const [levelSettingId, setLevelSettingId] = useState<number | null>(null);
+
   const user = useUser();
 
   useEffect(() => {
@@ -36,14 +41,38 @@ export default function RewardsPage() {
     fetchRewards();
     fetchTypes();
     fetchCategories();
+    fetchLevelLength();
   }, [user]);
 
+  // NYT: Hent og opdatér level-længde
+  const fetchLevelLength = async () => {
+    const { data, error } = await supabase
+      .from('xp_settings')
+      .select('id, xp')
+      .eq('action', 'level_length')
+      .eq('role', 'common')
+      .maybeSingle();
+    if (!error && data) {
+      setLevelLength(data.xp);
+      setLevelSettingId(data.id);
+    }
+  };
+
+  const handleLevelLengthChange = async (val: number) => {
+    setLevelLength(val);
+    if (!levelSettingId) return;
+    await supabase
+      .from('xp_settings')
+      .update({ xp: val })
+      .eq('id', levelSettingId);
+  };
+
+  // Eksisterende kode fortsætter...
   const fetchRewards = async () => {
     if (!user) return;
     const { data, error } = await supabase
       .from('rewards')
       .select('*');
-
     if (!error && data) {
       setRewards(data.filter(r => !r.redeemed));
       setRedeemedRewards(data.filter(r => r.redeemed));
@@ -86,7 +115,6 @@ export default function RewardsPage() {
 
   const handleSaveReward = async () => {
     if (!title || !requiredXp || !assignedTo || !category || !type) return;
-
     if (editingReward) {
       const { error } = await supabase.from('rewards').update({
         title,
@@ -140,6 +168,20 @@ export default function RewardsPage() {
 
   return (
     <div>
+      {/* NY SEKTION I TOPPEN */}
+      <div className="mb-8 border-b pb-5">
+        <h2 className="text-lg font-bold mb-2">Level-indstillinger</h2>
+        <label className="block text-sm mb-1">Hvor mange XP skal ét level kræve?</label>
+        <input
+          type="number"
+          min={1}
+          value={levelLength}
+          onChange={e => handleLevelLengthChange(Number(e.target.value))}
+          className="border px-2 py-1 rounded w-32"
+        />
+        <span className="ml-2 text-gray-600">XP per level</span>
+      </div>
+
       <h1 className="text-2xl font-bold mb-4">{editingReward ? 'Rediger gave' : 'Opret gave'}</h1>
       <div className="space-y-2 mb-6 max-w-md">
         <input type="text" placeholder="F.eks. 'Ny kjole'" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full border p-2 rounded" />
@@ -174,7 +216,7 @@ export default function RewardsPage() {
             <div className="text-sm text-gray-500">Tildelt til: {reward.assigned_to}</div>
             <div className="text-sm text-gray-500">Kategori: {reward.category}</div>
             <div className="text-sm text-gray-400 italic">Type: {reward.type}</div>
-            <button onClick={() => startEdit(reward)} className="text-sm text-blue-600 hover:underline mt-2">Reddiger</button>
+            <button onClick={() => startEdit(reward)} className="text-sm text-blue-600 hover:underline mt-2">Rediger</button>
           </li>
         ))}
       </ul>
