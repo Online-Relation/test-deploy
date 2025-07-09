@@ -7,14 +7,14 @@ import TaskSummary from './TaskSummary';
 import WeeklyRecommendation from './WeeklyRecommendation';
 import ReminderWidget from './ReminderWidget';
 import ActivityOverviewWidget from './ActivityOverviewWidget';
-import ChallengeCardWidget from './ChallengeCardWidget'; // <-- NY import!
+import ChallengeCardWidget from './ChallengeCardWidget';
+import LevelTipWidget from './LevelTipWidget'; // <-- NY import!
 import { useUserContext } from '@/context/UserContext';
 
 interface Widget {
   widget_key: string;
   layout: string;
   height: string;
-  // Tilføj evt. flere properties hvis du bruger dem
 }
 
 export default function WidgetRenderer({ widget }: { widget: Widget }) {
@@ -39,7 +39,9 @@ export default function WidgetRenderer({ widget }: { widget: Widget }) {
     case 'activity_overview':
       return <ActivityOverviewWidget widget={widget} />;
     case 'challenge_card':
-      return <ChallengeCardWidget widget={widget} />;   // <--- her gives widget videre!
+      return <ChallengeCardWidget widget={widget} />;
+    case 'level_tip':  // <--- NYT widget-key
+      return <LevelTipWidget />; // Kan evt. tage layout/height, hvis du vil!
     default:
       return null;
   }

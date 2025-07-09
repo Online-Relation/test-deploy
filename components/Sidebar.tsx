@@ -86,15 +86,20 @@ export default function Sidebar() {
     </Link>
   );
 
-  const renderNav = (entries: any[]) => entries.map(entry => {
+ // Indsæt i Sidebar.tsx
+const renderNav = (entries: any[], level = 0) => entries.map(entry => {
   if (!hasAccessTo(entry.key)) return null;
   const isOpen = openState[entry.key] || false;
+  const isSubMenu = level > 0;
 
   if (entry.children.length) {
     return (
       <div key={entry.key}>
         <div
-          className="w-full flex items-center justify-between px-4 py-2 rounded hover:bg-gray-800 transition group relative cursor-pointer"
+          className={
+            `w-full flex items-center justify-between px-4 py-2 rounded hover:bg-gray-800 transition group relative cursor-pointer` +
+            (isSubMenu ? ' sidebar-submenu' : '')
+          }
           onClick={() => setOpenState(os => ({ ...os, [entry.key]: !isOpen }))}
         >
           <div className="flex items-center gap-2 flex-1 min-w-0 select-none">
@@ -116,7 +121,7 @@ export default function Sidebar() {
         </div>
         {isOpen && (
           <div className="ml-6 mt-1 space-y-1">
-            {renderNav(entry.children)}
+            {renderNav(entry.children, level + 1)}
           </div>
         )}
       </div>
@@ -129,13 +134,18 @@ export default function Sidebar() {
       key={entry.key}
       href={entry.href || '#'}
       onClick={() => setMobileOpen(false)}
-      className={`flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition ${entry.href && pathname === entry.href ? 'bg-gray-700 font-semibold' : ''}`}
+      className={
+        `flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition` +
+        (entry.href && pathname === entry.href ? ' bg-gray-700 font-semibold' : '') +
+        (isSubMenu ? ' sidebar-submenu' : '')
+      }
     >
       {iconMap[entry.key]}
       {entry.label}
     </Link>
   );
 });
+
 
 
   return (

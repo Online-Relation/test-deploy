@@ -74,7 +74,7 @@ input, textarea, select {
   --card-foreground: #252525;
   --popover: #ffffff;
   --popover-foreground: #252525;
-  --primary: #4F46E5;
+  --primary: #4f46e5;
   --primary-foreground: #ffffff;
   --secondary: #6366F1;
   --secondary-foreground: #ffffff;
@@ -278,4 +278,24 @@ input, textarea, select {
     color: white;
   }
 }
+
+/* Sidebar menu submenu */
+.sidebar-submenu {
+  position: relative;
+  padding-left: 1.7rem !important;
+  /* (Evt. font-style, font-size osv. her hvis du ønsker det) */
+}
+.sidebar-submenu::before {
+  content: '';
+  position: absolute;
+  left: 1rem;
+  top: 0.5rem;
+  bottom: 0.5rem;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--primary);
+  opacity: 0.85;
+}
+
+
 

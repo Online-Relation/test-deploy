@@ -1,15 +1,14 @@
-// /app/settings/widgets/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 interface UserProfile {
   id: string;
   display_name: string;
 }
 
-// --- TILFØJ Challenge Card widget her! ---
 const allWidgets = [
   { key: 'kompliment_reminder', label: 'Kompliment' },
   { key: 'xp_meter', label: 'XP-meter' },
@@ -17,16 +16,17 @@ const allWidgets = [
   { key: 'task_summary', label: 'Opgaver klar' },
   { key: 'weekly_recommendation', label: 'Ugens anbefaling' },
   { key: 'reminder_widget', label: 'Deadline Reminder' },
-  { key: 'challenge_card', label: 'Udfordringskort' }, // <--- NY!
+  { key: 'challenge_card', label: 'Udfordringskort' },
+  { key: 'level_tip', label: 'Tip til næste level' },
 ];
 
 const heightOptions = ['auto', 'medium', 'large'];
 
 export default function WidgetAccessPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [accessMap, setAccessMap] = useState<
-    Record<string, Record<string, { enabled: boolean; order: number; height: string }>>
-  >({});
+  // For hver bruger: deres widgets-array med enabled/order/height
+  const [widgetOrder, setWidgetOrder] = useState<Record<string, any[]>>({});
+  const [accessMap, setAccessMap] = useState<Record<string, Record<string, { enabled: boolean; height: string }>>>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -34,15 +34,15 @@ export default function WidgetAccessPage() {
       if (!profiles) return;
       setUsers(profiles);
 
-      const { data: widgets } = await supabase
-        .from('dashboard_widgets')
-        .select('user_id, widget_key, enabled, order, height');
-
-      // Find og opret manglende widgets for hver bruger
+      const { data: widgets } = await supabase.from('dashboard_widgets').select('user_id, widget_key, enabled, order, height');
+      // For hver bruger, find og opret alle widgets
+      let orderMap: Record<string, any[]> = {};
+      let access: Record<string, Record<string, { enabled: boolean; height: string }>> = {};
       for (const user of profiles) {
+        let userWidgets = widgets?.filter(w => w.user_id === user.id);
+        // Sikrer at alle widgets findes, ellers opretter dem (kun første load)
         for (const widget of allWidgets) {
-          const match = widgets?.find(w => w.user_id === user.id && w.widget_key === widget.key);
-          if (!match) {
+          if (!userWidgets?.find(w => w.widget_key === widget.key)) {
             await supabase.from('dashboard_widgets').insert({
               user_id: user.id,
               widget_key: widget.key,
@@ -54,132 +54,122 @@ export default function WidgetAccessPage() {
           }
         }
       }
-
-      // Genhent efter insert
-      const { data: updatedWidgets } = await supabase
-        .from('dashboard_widgets')
-        .select('user_id, widget_key, enabled, order, height');
-      const map: Record<string, Record<string, { enabled: boolean; order: number; height: string }>> = {};
-
+      // Re-hent efter evt. insert
+      const { data: updatedWidgets } = await supabase.from('dashboard_widgets').select('user_id, widget_key, enabled, order, height');
       for (const user of profiles) {
-        map[user.id] = {};
-        for (const w of allWidgets) {
-          const match = updatedWidgets?.find(d => d.user_id === user.id && d.widget_key === w.key);
-          map[user.id][w.key] = {
-            enabled: match?.enabled ?? false,
-            order: match?.order ?? 0,
-            height: match?.height ?? 'auto',
-          };
+        let userWidgets = updatedWidgets?.filter(w => w.user_id === user.id)
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        orderMap[user.id] = userWidgets?.map(w => ({
+          key: w.widget_key,
+          label: allWidgets.find(aw => aw.key === w.widget_key)?.label ?? w.widget_key,
+          enabled: w.enabled,
+          height: w.height ?? 'auto',
+        })) || [];
+        access[user.id] = {};
+        for (const w of userWidgets || []) {
+          access[user.id][w.widget_key] = { enabled: w.enabled, height: w.height ?? 'auto' };
         }
       }
-
-      setAccessMap(map);
+      setWidgetOrder(orderMap);
+      setAccessMap(access);
     };
-
     fetchData();
   }, []);
 
-  const toggle = (userId: string, widgetKey: string) => {
-    setAccessMap(prev => ({
+  // Drag logic
+  const onDragEnd = (userId: string) => (result: DropResult) => {
+    if (!result.destination) return;
+    const items = Array.from(widgetOrder[userId]);
+    const [removed] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, removed);
+    setWidgetOrder(prev => ({ ...prev, [userId]: items }));
+  };
+
+  const toggle = (userId: string, index: number) => {
+    setWidgetOrder(prev => ({
       ...prev,
-      [userId]: {
-        ...prev[userId],
-        [widgetKey]: {
-          ...prev[userId][widgetKey],
-          enabled: !prev[userId]?.[widgetKey]?.enabled,
-        },
-      },
+      [userId]: prev[userId].map((w, i) =>
+        i === index ? { ...w, enabled: !w.enabled } : w
+      ),
     }));
   };
 
-  const changeOrder = (userId: string, widgetKey: string, value: number) => {
-    setAccessMap(prev => ({
+  const changeHeight = (userId: string, index: number, value: string) => {
+    setWidgetOrder(prev => ({
       ...prev,
-      [userId]: {
-        ...prev[userId],
-        [widgetKey]: {
-          ...prev[userId][widgetKey],
-          order: value,
-        },
-      },
-    }));
-  };
-
-  const changeHeight = (userId: string, widgetKey: string, value: string) => {
-    setAccessMap(prev => ({
-      ...prev,
-      [userId]: {
-        ...prev[userId],
-        [widgetKey]: {
-          ...prev[userId][widgetKey],
-          height: value,
-        },
-      },
+      [userId]: prev[userId].map((w, i) =>
+        i === index ? { ...w, height: value } : w
+      ),
     }));
   };
 
   const saveChanges = async () => {
-    for (const userId in accessMap) {
-      for (const widgetKey in accessMap[userId]) {
-        const update = {
+    for (const userId in widgetOrder) {
+      for (let i = 0; i < widgetOrder[userId].length; i++) {
+        const w = widgetOrder[userId][i];
+        await supabase.from('dashboard_widgets').upsert({
           user_id: userId,
-          widget_key: widgetKey,
-          enabled: accessMap[userId][widgetKey].enabled,
+          widget_key: w.key,
+          enabled: w.enabled,
+          order: i,
+          height: w.height,
           layout: 'medium',
-          order: accessMap[userId][widgetKey].order,
-          height: accessMap[userId][widgetKey].height,
-        };
-
-        await supabase.from('dashboard_widgets').upsert(update, {
-          onConflict: 'user_id,widget_key',
-        });
+        }, { onConflict: 'user_id,widget_key' });
       }
     }
-
     alert('Widgets opdateret ✅');
   };
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">Widget-adgang</h1>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {users.map(user => (
           <div key={user.id} className="border rounded p-4">
             <h2 className="font-semibold mb-3">{user.display_name}</h2>
-            <div className="space-y-4">
-              {allWidgets.map(w => (
-                <div key={w.key} className="flex flex-col gap-2">
-                  <div className="flex items-center gap-4">
-                    <input
-                      type="checkbox"
-                      checked={accessMap[user.id]?.[w.key]?.enabled || false}
-                      onChange={() => toggle(user.id, w.key)}
-                    />
-                    <span className="flex-1">{w.label}</span>
-                    <input
-                      type="number"
-                      className="w-16 border p-1 rounded"
-                      value={accessMap[user.id]?.[w.key]?.order ?? 0}
-                      onChange={e => changeOrder(user.id, w.key, parseInt(e.target.value))}
-                    />
-                  </div>
-                  <select
-                    value={accessMap[user.id]?.[w.key]?.height || 'auto'}
-                    onChange={e => changeHeight(user.id, w.key, e.target.value)}
-                    className="w-full border p-1 rounded"
-                  >
-                    {heightOptions.map(h => (
-                      <option key={h} value={h}>{h}</option>
+            <DragDropContext onDragEnd={onDragEnd(user.id)}>
+              <Droppable droppableId={user.id}>
+                {(provided) => (
+                  <div ref={provided.innerRef} {...provided.droppableProps}>
+                    {widgetOrder[user.id]?.map((w, i) => (
+                      <Draggable key={w.key} draggableId={w.key} index={i}>
+                        {(prov) => (
+                          <div
+                            ref={prov.innerRef}
+                            {...prov.draggableProps}
+                            {...prov.dragHandleProps}
+                            className={`flex flex-col gap-2 mb-2 bg-gray-50 border p-2 rounded shadow transition-all`}
+                          >
+                            <div className="flex items-center gap-4">
+                              <input
+                                type="checkbox"
+                                checked={w.enabled}
+                                onChange={() => toggle(user.id, i)}
+                              />
+                              <span className="flex-1">{w.label}</span>
+                              <span className="text-gray-400 cursor-move">≡</span>
+                            </div>
+                            <select
+                              value={w.height || 'auto'}
+                              onChange={e => changeHeight(user.id, i, e.target.value)}
+                              className="w-full border p-1 rounded"
+                            >
+                              {heightOptions.map(h => (
+                                <option key={h} value={h}>{h}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </Draggable>
                     ))}
-                  </select>
-                </div>
-              ))}
-            </div>
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </DragDropContext>
           </div>
         ))}
       </div>
-
       <button
         onClick={saveChanges}
         className="mt-6 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"

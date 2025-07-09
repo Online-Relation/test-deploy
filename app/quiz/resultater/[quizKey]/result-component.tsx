@@ -1,4 +1,3 @@
-// /app/quiz/resultater/[quizKey]/result-component.tsx
 'use client';
 
 import { FC, useEffect, useState } from 'react';
@@ -37,6 +36,7 @@ interface Profile {
   id: string;
   display_name: string;
   avatar_url: string | null;
+  role: string; // <-- tilføjet!
 }
 
 interface Grouped {
@@ -59,7 +59,7 @@ const QuizResultComponent: FC<Props> = ({
   sessionId,
 }) => {
   const { quizKey: rawKey } = useParams();
-  const quizKey = rawKey as string;
+  const quizKey = typeof rawKey === 'string' ? rawKey : '';
   const { user } = useUserContext();
 
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
@@ -68,6 +68,10 @@ const QuizResultComponent: FC<Props> = ({
   const [recommendationError, setRecommendationError] = useState<string | null>(null);
   const [view, setView] = useState<'results' | 'visual' | 'recommendations'>('results');
 
+  // NYT: XP-logik states
+  const [xpGiven, setXpGiven] = useState(false);
+  const [checkingXp, setCheckingXp] = useState(true);
+
   useEffect(() => {
     const fetchProfiles = async () => {
       const userIds = [...new Set(answers.map((a) => a.user_id))];
@@ -75,7 +79,7 @@ const QuizResultComponent: FC<Props> = ({
 
       const { data: pData } = await supabase
         .from('profiles')
-        .select('id, display_name, avatar_url')
+        .select('id, display_name, avatar_url, role')
         .in('id', userIds);
 
       if (pData) {
@@ -87,6 +91,101 @@ const QuizResultComponent: FC<Props> = ({
 
     fetchProfiles();
   }, [answers]);
+
+  // --- XP-TILDELING ---
+  useEffect(() => {
+    const assignXpIfNeeded = async () => {
+      setCheckingXp(true);
+
+      const userIds = [...new Set(answers.map(a => a.user_id))];
+
+      if (userIds.length === 0 || !quizKey) {
+        setCheckingXp(false);
+        return;
+      }
+
+      // Find roller for brugere
+      const { data: roleData, error: roleError } = await supabase
+        .from('profiles')
+        .select('id, role')
+        .in('id', userIds);
+
+      if (roleError) {
+        setCheckingXp(false);
+        return;
+      }
+      const userRoles: Record<string, string> = {};
+      roleData?.forEach((row: any) => {
+        userRoles[row.id] = row.role;
+      });
+
+      // Tjek om XP allerede er givet for denne quiz
+      const { data: xpLog } = await supabase
+        .from('xp_log')
+        .select('id, user_id, description')
+        .ilike('description', `%complete_parquiz:%${quizKey}%`)
+        .in('user_id', userIds);
+
+      // Find hvilke brugere der mangler XP
+      const alreadyGiven = new Set((xpLog || []).map(row => row.user_id));
+      const toGive = userIds.filter(uid => !alreadyGiven.has(uid));
+
+      if (toGive.length === 0) {
+        setXpGiven(true);
+        setCheckingXp(false);
+        return;
+      }
+
+      // Hent effort fra quiz_meta (default: "medium")
+      const { data: quizMeta } = await supabase
+        .from('quiz_meta')
+        .select('effort')
+        .eq('quiz_key', quizKey)
+        .maybeSingle();
+      const effort = quizMeta?.effort || 'medium';
+
+      // Hent XP for hver bruger/rolle
+      const xpRows: any[] = [];
+      for (const userId of toGive) {
+        const role = userRoles[userId];
+        if (!role) continue;
+
+        const { data: xpSetting } = await supabase
+          .from('xp_settings')
+          .select('xp')
+          .eq('action', 'complete_parquiz')
+          .eq('role', role)
+          .eq('effort', effort)
+          .maybeSingle();
+
+        if (!xpSetting) continue;
+
+        xpRows.push({
+          user_id: userId,
+          change: xpSetting.xp,
+          description: `complete_parquiz: ${quizKey} (${effort})`,
+          created_at: new Date().toISOString(),
+        });
+      }
+
+      if (xpRows.length === 0) {
+        setCheckingXp(false);
+        return;
+      }
+
+      // Insert XP-log
+      const { error: insertError } = await supabase
+        .from('xp_log')
+        .insert(xpRows);
+
+      if (!insertError) setXpGiven(true);
+      setCheckingXp(false);
+    };
+
+    assignXpIfNeeded();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answers, quizKey]);
+  // --- XP-TILDELING SLUT ---
 
   useEffect(() => {
     const cleanedKey = quizKey.replace(/\+/g, ' ');
@@ -172,6 +271,10 @@ const QuizResultComponent: FC<Props> = ({
 
   return (
     <div className="space-y-6">
+      {/* XP status/debug */}
+      {checkingXp && <div className="text-sm text-blue-500">Tjekker XP...</div>}
+      {xpGiven && <div className="text-sm text-green-600">🎉 XP tildelt for denne quiz!</div>}
+
       <div className="flex justify-between gap-2 text-sm">
         <Button onClick={() => setView('results')} variant={view === 'results' ? 'secondary' : 'ghost'}>
           Resultater

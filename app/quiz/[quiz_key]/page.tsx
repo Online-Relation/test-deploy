@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useUserContext } from '@/context/UserContext';
 import { v4 as uuidv4 } from 'uuid';
-
+import { awardQuizXpToUser } from '@/lib/xpAwardQuiz';
 
 type Question = {
   id: string;
@@ -45,74 +45,68 @@ export default function QuizPage() {
       if (data) setQuestions(data);
     };
 
-const fetchSavedAnswers = async () => {
-  if (!user) return;
+    const fetchSavedAnswers = async () => {
+      if (!user) return;
 
-  const decodedKey = decodeURIComponent(quiz_key as string);
-  const localKey = `quiz_session_${decodedKey}`;
-  let storedSessionId = localStorage.getItem(localKey);
+      const localKey = `quiz_session_${decodedKey}`;
+      let storedSessionId = localStorage.getItem(localKey);
 
-  if (!storedSessionId) {
-    // Tjek i Supabase om brugeren tidligere har oprettet en session
-   const { data: existing } = await supabase
-  .from('quiz_sessions')
-  .select('session_id')
-  .eq('quiz_key', decodedKey)
-  .order('created_at', { ascending: false })
-  .limit(1)
-  .maybeSingle();
+      if (!storedSessionId) {
+        // Tjek i Supabase om brugeren tidligere har oprettet en session
+        const { data: existing } = await supabase
+          .from('quiz_sessions')
+          .select('session_id')
+          .eq('quiz_key', decodedKey)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
+        if (existing?.session_id) {
+          storedSessionId = existing.session_id;
+        } else {
+          const newId = uuidv4();
+          await supabase.from('quiz_sessions').insert({
+            quiz_key: decodedKey,
+            session_id: newId,
+            starter_user_id: user.id,
+          });
+          storedSessionId = newId;
+        }
 
-    if (existing?.session_id) {
-      storedSessionId = existing.session_id;
-    } else {
-      const newId = uuidv4();
-      await supabase.from('quiz_sessions').insert({
-        quiz_key: decodedKey,
-        session_id: newId,
-        starter_user_id: user.id,
-      });
-      storedSessionId = newId;
-    }
+        if (storedSessionId) {
+          localStorage.setItem(localKey, storedSessionId);
+        }
+      }
 
-   if (storedSessionId) {
-  localStorage.setItem(localKey, storedSessionId);
-}
+      setSessionId(storedSessionId);
 
-  }
+      // Hent svar (hvis nogen) for denne session
+      const { data } = await supabase
+        .from('quiz_responses')
+        .select('question_id, answer, session_id')
+        .eq('quiz_key', decodedKey)
+        .eq('user_id', user.id)
+        .eq('session_id', storedSessionId)
+        .eq('status', 'in_progress');
 
-  setSessionId(storedSessionId);
+      if (data && data.length > 0) {
+        const saved: Record<string, string> = {};
+        data.forEach((entry) => {
+          saved[entry.question_id] = entry.answer;
+        });
+        setAnswers(saved);
+      }
+    };
 
-  // Hent svar (hvis nogen) for denne session
-  const { data } = await supabase
-    .from('quiz_responses')
-    .select('question_id, answer, session_id')
-    .eq('quiz_key', decodedKey)
-    .eq('user_id', user.id)
-    .eq('session_id', storedSessionId)
-    .eq('status', 'in_progress');
+    const fetchQuizMeta = async () => {
+      const { data } = await supabase
+        .from('quiz_meta')
+        .select('description')
+        .eq('quiz_key', decodedKey)
+        .single();
 
-  if (data && data.length > 0) {
-    const saved: Record<string, string> = {};
-    data.forEach((entry) => {
-      saved[entry.question_id] = entry.answer;
-    });
-    setAnswers(saved);
-  }
-};
-
-
-const fetchQuizMeta = async () => {
-  const decodedKey = decodeURIComponent(quiz_key as string);
-  const { data } = await supabase
-    .from('quiz_meta')
-    .select('description')
-    .eq('quiz_key', decodedKey)
-    .single();
-
-  if (data?.description) setQuizDescription(data.description);
-};
-
+      if (data?.description) setQuizDescription(data.description);
+    };
 
     Promise.all([
       fetchQuestions(),
@@ -157,6 +151,7 @@ const fetchQuizMeta = async () => {
     }
   };
 
+  // XP-fordeling bruger nu brugerens rolle!
   const handleSubmit = async () => {
     if (!sessionId || !user) return;
 
@@ -165,6 +160,22 @@ const fetchQuizMeta = async () => {
       .update({ status: 'submitted' })
       .eq('session_id', sessionId)
       .eq('user_id', user.id);
+
+    // Hent effort + rolle fra quiz_meta + profile
+    const [{ data: quizMeta }, { data: profile }] = await Promise.all([
+      supabase.from('quiz_meta').select('effort').eq('quiz_key', decodeURIComponent(quiz_key as string)).maybeSingle(),
+      supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+    ]);
+    const quizEffort = quizMeta?.effort || 'medium';
+    const role = profile?.role || '';
+
+    // XP TILDELING - Brugerens ROLLE (mads/stine) bruges!
+    await awardQuizXpToUser({
+      userId: user.id,
+      quizKey: decodeURIComponent(quiz_key as string),
+      effort: quizEffort,
+      role: role,
+    });
 
     router.push(`/quiz/resultater/${quiz_key}?session=${sessionId}`);
   };

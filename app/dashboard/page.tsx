@@ -1,12 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useUserContext } from '@/context/UserContext';
 import WidgetRenderer from '@/components/widgets/WidgetRenderer';
 import { BucketProvider } from '@/context/BucketContext';
-
-// -- NYT: Import til ChallengeCardWidget --
 import ChallengeCardWidget from '@/components/widgets/ChallengeCardWidget';
 
 interface Widget {
@@ -19,23 +17,26 @@ interface Widget {
 export default function DashboardPage() {
   const { user } = useUserContext();
   const [widgets, setWidgets] = useState<Widget[]>([]);
+  const [challengeCardRefresh, setChallengeCardRefresh] = useState(0);
 
-  // -- DEBUG (kan slettes) --
-  if (user) {
-    console.log('currentUserId:', user.id);
-  }
+  // Funktion til at trigge refresh af ChallengeCardWidget (videresendes som prop)
+  const handleChallengeCardRefresh = useCallback(() => {
+    setChallengeCardRefresh(c => c + 1);
+  }, []);
 
-  // --- OPDATERET: Tilføj 'challenge_card' til listen over understøttede widgets ---
-  const supportedWidgets = [
-    'xp_meter',
-    'reward_progress',
-    'task_summary',
-    'kompliment_reminder',
-    'weekly_recommendation',
-    'reminder_widget',
-    'activity_overview',
-    'challenge_card', // <-- NYT!
-  ];
+  // --- Widgets ---
+const supportedWidgets = [
+  'xp_meter',
+  'reward_progress',
+  'task_summary',
+  'kompliment_reminder',
+  'weekly_recommendation',
+  'reminder_widget',
+  'activity_overview',
+  'challenge_card',
+  'level_tip', // <-- Tilføj denne!
+];
+
 
   useEffect(() => {
     const fetchWidgets = async () => {
@@ -82,9 +83,13 @@ export default function DashboardPage() {
               key={widget.widget_key}
               className={`${layoutClass(widget.layout)} ${heightClass(widget.height)} w-full`}
             >
-              {/* SPECIAL CASE hvis du vil rende ChallengeCardWidget direkte (ellers via WidgetRenderer): */}
+              {/* Render ChallengeCardWidget med refresh */}
               {widget.widget_key === 'challenge_card' ? (
-                <ChallengeCardWidget widget={widget} />
+                <ChallengeCardWidget
+                  widget={widget}
+                  refresh={challengeCardRefresh}
+                  onAnswered={handleChallengeCardRefresh}
+                />
               ) : (
                 <WidgetRenderer widget={widget} />
               )}

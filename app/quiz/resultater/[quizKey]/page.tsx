@@ -1,3 +1,5 @@
+// /app/quiz/resultater/[quizKey]/page.tsx
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,6 +8,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { Card } from '@/components/ui/card';
 import QuizResultComponent from '@/app/quiz/resultater/[quizKey]/result-component';
 import levenshtein from 'fast-levenshtein';
+import { awardQuizXpToUser } from '@/lib/xpAwardQuiz';
 
 interface Question {
   id: string;
@@ -22,7 +25,7 @@ interface Answer {
   status: string;
 }
 
-export default function GenerelAnbefalingPage() {
+export default function QuizResultPage() {
   const { quizKey: rawKey } = useParams();
   const quizKey = decodeURIComponent(rawKey as string);
   const searchParams = useSearchParams();
@@ -47,12 +50,14 @@ export default function GenerelAnbefalingPage() {
 
       setLoading(true);
 
+      // 1. Hent quizspørgsmål
       const { data: questions } = await supabase
         .from('quiz_questions')
         .select('id, question, type, order')
         .eq('quiz_key', quizKey)
         .order('order', { ascending: true });
 
+      // 2. Hent besvarelser
       const { data: answersData } = await supabase
         .from('quiz_responses')
         .select('question_id, answer, user_id, session_id, status')
@@ -60,9 +65,37 @@ export default function GenerelAnbefalingPage() {
         .eq('session_id', sessionId)
         .eq('status', 'submitted');
 
-      console.log('🔍 QUESTIONS', JSON.stringify(questions, null, 2));
-      console.log('🔍 ANSWERS', JSON.stringify(answersData, null, 2));
+      // 3. Hent effort fra quiz_meta
+      const { data: metaData } = await supabase
+        .from('quiz_meta')
+        .select('effort')
+        .eq('quiz_key', quizKey)
+        .maybeSingle();
+      const effort = metaData?.effort || 'medium';
 
+      // 4. Tildel XP til ALLE brugere med submitted svar (ROLLEBASERET)
+      if (answersData && answersData.length > 0) {
+        const uniqueUserIds = [...new Set(answersData.map(a => a.user_id))];
+
+        // Hent alle roller på én gang (bedre performance)
+        const { data: roles } = await supabase
+          .from('profiles')
+          .select('id, role')
+          .in('id', uniqueUserIds);
+
+        for (const userId of uniqueUserIds) {
+          const userProfile = roles?.find(p => p.id === userId);
+          const role = userProfile?.role || 'mads'; // fallback hvis rolle ikke findes
+          await awardQuizXpToUser({
+            userId,
+            quizKey,
+            effort,
+            role,
+          });
+        }
+      }
+
+      // 5. Hent anbefaling
       const { data: meta } = await supabase
         .from('overall_meta')
         .select('recommendation')
@@ -80,6 +113,7 @@ export default function GenerelAnbefalingPage() {
 
       setAnswers(answersData);
 
+      // 6. Resultat-gruppering som før
       const importanceScale = [
         'ikke vigtigt',
         'mindre vigtigt',
@@ -98,47 +132,46 @@ export default function GenerelAnbefalingPage() {
       };
 
       for (const q of questions) {
-  const related = answersData.filter((a) => a.question_id === q.id);
-  const uniqueUsers = [...new Set(related.map((a) => a.user_id))];
-  if (uniqueUsers.length !== 2) continue;
+        const related = answersData.filter((a) => a.question_id === q.id);
+        const uniqueUsers = [...new Set(related.map((a) => a.user_id))];
+        if (uniqueUsers.length !== 2) continue;
 
-  let [a1, a2] = related.map((a) =>
-    a.answer.trim().toLowerCase().replace(/[.,!?]/g, '')
-  );
+        let [a1, a2] = related.map((a) =>
+          a.answer.trim().toLowerCase().replace(/[.,!?]/g, '')
+        );
 
-  // Helt ens
-  if (a1 === a2) {
-    result.green.push(q);
-    continue;
-  }
+        // Helt ens
+        if (a1 === a2) {
+          result.green.push(q);
+          continue;
+        }
 
-  // Ja/nej/måske logik
-  const yn = ['ja', 'nej', 'måske'];
-  if (yn.includes(a1) && yn.includes(a2)) {
-    if (a1 === a2) result.green.push(q);
-    else if (a1 === 'måske' || a2 === 'måske') result.yellow.push(q);
-    else result.red.push(q);
-    continue;
-  }
+        // Ja/nej/måske logik
+        const yn = ['ja', 'nej', 'måske'];
+        if (yn.includes(a1) && yn.includes(a2)) {
+          if (a1 === a2) result.green.push(q);
+          else if (a1 === 'måske' || a2 === 'måske') result.yellow.push(q);
+          else result.red.push(q);
+          continue;
+        }
 
-  // Skala-svar
-  const i1 = importanceScale.indexOf(a1);
-  const i2 = importanceScale.indexOf(a2);
-  if (i1 !== -1 && i2 !== -1) {
-    const diff = Math.abs(i1 - i2);
-    if (diff === 0) result.green.push(q);
-    else if (diff <= 2) result.yellow.push(q); // <= 2 = gul
-    else result.red.push(q); // først ved 3 forskel = rød
-    continue;
-  }
+        // Skala-svar
+        const i1 = importanceScale.indexOf(a1);
+        const i2 = importanceScale.indexOf(a2);
+        if (i1 !== -1 && i2 !== -1) {
+          const diff = Math.abs(i1 - i2);
+          if (diff === 0) result.green.push(q);
+          else if (diff <= 2) result.yellow.push(q);
+          else result.red.push(q);
+          continue;
+        }
 
-  // Fallback: brug tekst-afstand
-  const dist = levenshtein.get(a1, a2);
-  if (dist <= 2) result.green.push(q);
-  else if (dist <= 5) result.yellow.push(q);
-  else result.red.push(q);
-}
-
+        // Fallback: brug tekst-afstand
+        const dist = levenshtein.get(a1, a2);
+        if (dist <= 2) result.green.push(q);
+        else if (dist <= 5) result.yellow.push(q);
+        else result.red.push(q);
+      }
 
       setGrouped(result);
       setLoading(false);
