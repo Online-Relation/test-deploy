@@ -166,46 +166,71 @@ const renderNav = (entries: any[], level = 0) => entries.map(entry => {
         </Link>
       </div>
 
-      {mobileOpen && (
-        <div
-          ref={menuRef}
-          className="md:hidden fixed inset-0 bg-gray-900 text-white overflow-y-auto p-4 space-y-2 z-40"
-        >
-          {dashboardLink}
-          {renderNav(accessHierarchy)}
+     {mobileOpen && (
+  <div
+    ref={menuRef}
+    className="md:hidden fixed inset-0 bg-gray-900 text-white overflow-y-auto p-4 space-y-2 z-40"
+  >
+    {dashboardLink}
+    {renderNav(accessHierarchy)}
+
+    {/* --- Brugerboks og log ud på mobil --- */}
+    <div className="flex flex-col items-center gap-2 mt-8">
+      <Link href="/profile" className="flex flex-col items-center gap-2 cursor-pointer">
+        {user.avatar_url ? (
+          <img src={user.avatar_url} className="w-14 h-14 rounded-full" alt="avatar" />
+        ) : (
+          <div className="w-14 h-14 rounded-full bg-gray-700 text-white flex items-center justify-center font-semibold">
+            {user.display_name?.[0] || '👤'}
+          </div>
+        )}
+        <div className="text-sm font-medium text-white">{user.display_name}</div>
+      </Link>
+      <button
+        onClick={async () => { await supabase.auth.signOut(); router.push('/login'); }}
+        className="text-xs text-gray-300 hover:text-white"
+      >
+        Log ud
+      </button>
+      <div className="text-center bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-semibold mt-2">
+        🎯 XP: {xp}
+      </div>
+    </div>
+    {/* --- Slut brugerblok --- */}
+  </div>
+)}
+
+{/* Desktopmenu */}
+<div className="hidden md:flex min-h-screen w-64 bg-gray-900 text-white flex-col justify-between pt-6">
+  <div>
+    <div className="p-6 text-xl font-bold">
+      <Link href="/dashboard" className="hover:underline">✨ Mit Dashboard</Link>
+    </div>
+    <nav className="flex flex-col space-y-1 px-4 mt-4">{renderNav(accessHierarchy)}</nav>
+  </div>
+  <div className="mb-6 flex flex-col items-center gap-2 px-4">
+    <Link href="/profile" className="flex flex-col items-center gap-2 cursor-pointer mt-6">
+      {user.avatar_url ? (
+        <img src={user.avatar_url} className="w-14 h-14 rounded-full" alt="avatar" />
+      ) : (
+        <div className="w-14 h-14 rounded-full bg-gray-700 text-white flex items-center justify-center font-semibold">
+          {user.display_name?.[0] || '👤'}
         </div>
       )}
+      <div className="text-sm font-medium text-white">{user.display_name}</div>
+    </Link>
+    <button
+      onClick={async () => { await supabase.auth.signOut(); router.push('/login'); }}
+      className="text-xs text-gray-300 hover:text-white"
+    >
+      Log ud
+    </button>
+    <div className="text-center bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
+      🎯 XP: {xp}
+    </div>
+  </div>
+</div>
 
-      {/* Desktopmenu */}
-      <div className="hidden md:flex min-h-screen w-64 bg-gray-900 text-white flex-col justify-between pt-6">
-        <div>
-          <div className="p-6 text-xl font-bold">
-            <Link href="/dashboard" className="hover:underline">✨ Mit Dashboard</Link>
-          </div>
-          <nav className="flex flex-col space-y-1 px-4 mt-4">{renderNav(accessHierarchy)}</nav>
-        </div>
-        <div className="mb-6 flex flex-col items-center gap-2 px-4">
-          <Link href="/profile" className="flex flex-col items-center gap-2 cursor-pointer mt-6">
-            {user.avatar_url ? (
-              <img src={user.avatar_url} className="w-14 h-14 rounded-full" alt="avatar" />
-            ) : (
-              <div className="w-14 h-14 rounded-full bg-gray-700 text-white flex items-center justify-center font-semibold">
-                {user.display_name?.[0] || '👤'}
-              </div>
-            )}
-            <div className="text-sm font-medium text-white">{user.display_name}</div>
-          </Link>
-          <button
-            onClick={async () => { await supabase.auth.signOut(); router.push('/login'); }}
-            className="text-xs text-gray-300 hover:text-white"
-          >
-            Log ud
-          </button>
-          <div className="text-center bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
-            🎯 XP: {xp}
-          </div>
-        </div>
-      </div>
     </>
   );
 }
