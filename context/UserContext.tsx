@@ -44,12 +44,17 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
       // Hent auth bruger
       const authRes = await supabase.auth.getUser();
-      if (authRes.error) {
-        console.error('❌ Fejl ved hentning af bruger fra Supabase:', authRes.error.message);
-        setUser(null);
-        setLoading(false);
-        return;
-      }
+
+if (authRes.error) {
+  // Kun log hvis det er en anden fejl end "Auth session missing"
+  if (authRes.error.message !== "Auth session missing!") {
+    console.error('❌ Fejl ved hentning af bruger fra Supabase:', authRes.error.message);
+  }
+  setUser(null);
+  setLoading(false);
+  return;
+}
+
 
       const authUser = authRes.data?.user;
       if (!authUser) {

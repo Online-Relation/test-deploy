@@ -7,13 +7,37 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState(''); // Email eller username
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    setLoading(true);
+
+    let email = identifier.trim();
+
+    // Hvis det IKKE ligner en email, så antag det er username:
+    if (!email.includes('@')) {
+      // Find email ud fra username
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('username', email)
+        .maybeSingle();
+
+      if (error || !data?.email) {
+        alert('Brugernavn findes ikke.');
+        setLoading(false);
+        return;
+      }
+      email = data.email;
+    }
+
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
+
     if (error) {
       alert(error.message);
     } else {
@@ -48,24 +72,29 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
+              type="text"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="Email eller brugernavn"
+              autoComplete="username"
               className="w-full border border-gray-300 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              disabled={loading}
             />
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Adgangskode"
+              autoComplete="current-password"
               className="w-full border border-gray-300 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              disabled={loading}
             />
             <button
               type="submit"
               className="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700 transition"
+              disabled={loading}
             >
-              Log ind
+              {loading ? 'Logger ind...' : 'Log ind'}
             </button>
           </form>
 
