@@ -152,33 +152,35 @@ export default function QuizPage() {
   };
 
   // XP-fordeling bruger nu brugerens rolle!
-  const handleSubmit = async () => {
-    if (!sessionId || !user) return;
+const handleSubmit = async () => {
+  if (!sessionId || !user) return;
 
-    await supabase
-      .from('quiz_responses')
-      .update({ status: 'submitted' })
-      .eq('session_id', sessionId)
-      .eq('user_id', user.id);
+  await supabase
+    .from('quiz_responses')
+    .update({ status: 'submitted' })
+    .eq('session_id', sessionId)
+    .eq('user_id', user.id);
 
-    // Hent effort + rolle fra quiz_meta + profile
-    const [{ data: quizMeta }, { data: profile }] = await Promise.all([
-      supabase.from('quiz_meta').select('effort').eq('quiz_key', decodeURIComponent(quiz_key as string)).maybeSingle(),
-      supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
-    ]);
-    const quizEffort = quizMeta?.effort || 'medium';
-    const role = profile?.role || '';
+  // Hent effort + rolle fra quiz_meta + profile
+  const [{ data: quizMeta }, { data: profile }] = await Promise.all([
+    supabase.from('quiz_meta').select('effort').eq('quiz_key', decodeURIComponent(quiz_key as string)).maybeSingle(),
+    supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+  ]);
+  const quizEffort = quizMeta?.effort || 'medium';
+  const role = profile?.role || '';
 
-    // XP TILDELING - Brugerens ROLLE (mads/stine) bruges!
-    await awardQuizXpToUser({
-      userId: user.id,
-      quizKey: decodeURIComponent(quiz_key as string),
-      effort: quizEffort,
-      role: role,
-    });
+  // XP TILDELING - Brugerens ROLLE (mads/stine) bruges!
+  await awardQuizXpToUser({
+    userId: user.id,
+    quizKey: decodeURIComponent(quiz_key as string),
+    effort: quizEffort,
+    role: role,
+  });
 
-    router.push(`/quiz/resultater/${quiz_key}?session=${sessionId}`);
-  };
+  // Redirect til spin hjulet med quizKey og sessionId som query-parametre
+  router.push(`/quiz/spin?quizKey=${encodeURIComponent(quiz_key as string)}&session=${encodeURIComponent(sessionId)}`);
+};
+
 
   if (isLoading || !sessionId || !user) {
     return (
