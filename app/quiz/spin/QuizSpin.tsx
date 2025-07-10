@@ -113,8 +113,11 @@ export default function QuizSpin({ quizKey, sessionId }: QuizSpinProps) {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-pink-50 to-purple-100 p-6 relative">
-      <h1 className="text-3xl font-bold mb-8 text-indigo-700">Hvem starter samtalen?</h1>
-      <p>test</p>
+  <h1 className="text-3xl font-bold mb-8 text-indigo-700">Hvem starter samtalen?</h1>
+  <div className="max-w-md text-center mb-8 text-indigo-600 text-sm sm:text-base">
+    Når I begge har gennemført quizzen, er det vinderen på lykkehjulet, der får æren (og måske lidt udfordringen) med at starte samtalen. Så gør jer klar til at åbne op og skabe plads til de gode snakke!
+  </div>
+      
 
       <div className="relative w-64 h-64">
         {/* Pil */}
