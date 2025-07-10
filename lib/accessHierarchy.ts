@@ -118,6 +118,7 @@ export const accessHierarchy: AccessEntry[] = [
       { key: 'settings/quiz-admin', label: 'Quiz admin', href: '/settings/quiz-admin', children: [] },
       { key: 'settings/couple-background', label: 'Baggrund', href: '/settings/couple-background', children: [] },
       { key: 'settings/tables', label: 'Tables', href: '/settings/tables', children: [] },
+      { key: 'settings/activity', label: 'Activity', href: '/settings/activity', children: [] },
       {
         key: 'settings/gpt',
         label: 'Gpt',

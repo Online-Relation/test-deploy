@@ -1,7 +1,7 @@
 {
   "name": "Mit Dashboard",
   "short_name": "Dashboard",
-  "start_url": "/",
+  "start_url": "/login",
   "display": "standalone",
   "background_color": "#fafaf9",
   "theme_color": "#6366f1",

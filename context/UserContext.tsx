@@ -1,4 +1,3 @@
-// context/UserContext.tsx
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
@@ -32,19 +31,29 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const isAuthPage = pathname === '/login' || pathname === '/signup';
 
   useEffect(() => {
-    if (isAuthPage) return;
+    if (isAuthPage) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
+    let unsubscribe: (() => void) | undefined;
 
     const fetchUser = async () => {
       setLoading(true);
 
-      const { data: { user: authUser }, error } = await supabase.auth.getUser();
-
-      if (error) {
-        console.error('❌ Fejl ved hentning af bruger fra Supabase:', error.message);
+      // Hent auth bruger
+      const authRes = await supabase.auth.getUser();
+      if (authRes.error) {
+        console.error('❌ Fejl ved hentning af bruger fra Supabase:', authRes.error.message);
+        setUser(null);
+        setLoading(false);
+        return;
       }
 
+      const authUser = authRes.data?.user;
       if (!authUser) {
-        console.warn('⚠️ Ingen authUser fundet – bruger er ikke logget ind');
+        // Ikke logget ind
         setUser(null);
         setLoading(false);
         return;
@@ -52,11 +61,12 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
       const userId = authUser.id;
 
+      // Hent profil
       const profileResult = await supabase
         .from('profiles')
         .select('id, display_name, avatar_url, role, partner_id')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (profileResult.error || !profileResult.data) {
         console.error('❌ Fejl ved hentning af profil:', profileResult.error?.message);
@@ -67,22 +77,24 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
       const profileData = profileResult.data;
 
-      const accessResult = await supabase
-        .from('access_control')
-        .select('menu_key, allowed')
-        .eq('user_id', userId);
+      // Hent adgangsrettigheder (kan undlades hvis ikke nødvendigt)
+      let accessMap: AccessMap = {};
+      try {
+        const accessResult = await supabase
+          .from('access_control')
+          .select('menu_key, allowed')
+          .eq('user_id', userId);
 
-      if (accessResult.error) {
-        console.error('❌ Fejl ved hentning af access_control:', accessResult.error.message);
-      }
-
-      const accessRows = accessResult.data || [];
-      const accessMap: AccessMap = {};
-      accessRows.forEach((row) => {
-        if (row.menu_key) {
-          accessMap[row.menu_key] = row.allowed === true;
+        if (accessResult.error) {
+          console.error('❌ Fejl ved hentning af access_control:', accessResult.error.message);
+        } else if (Array.isArray(accessResult.data)) {
+          accessResult.data.forEach((row) => {
+            if (row.menu_key) accessMap[row.menu_key] = !!row.allowed;
+          });
         }
-      });
+      } catch (err) {
+        console.error('❌ Fejl i access-control fetch:', err);
+      }
 
       setUser({
         id: userId,
@@ -93,16 +105,20 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         access: accessMap,
         partner_id: profileData.partner_id ?? null,
       });
-
       setLoading(false);
     };
 
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
+    fetchUser();
+
+    // Lyt til auth state
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, _session) => {
       fetchUser();
     });
+    unsubscribe = () => listener?.subscription?.unsubscribe();
 
+    // Ryd op ved unmount
     return () => {
-      listener.subscription.unsubscribe();
+      if (unsubscribe) unsubscribe();
     };
   }, [isAuthPage]);
 

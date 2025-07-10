@@ -1,3 +1,4 @@
+// app/dashboard/page.tsx
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
@@ -6,6 +7,7 @@ import { useUserContext } from '@/context/UserContext';
 import WidgetRenderer from '@/components/widgets/WidgetRenderer';
 import { BucketProvider } from '@/context/BucketContext';
 import ChallengeCardWidget from '@/components/widgets/ChallengeCardWidget';
+import { logUserActivity } from '@/lib/logUserActivity'; // <-- IMPORT!
 
 interface Widget {
   widget_key: string;
@@ -19,24 +21,39 @@ export default function DashboardPage() {
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [challengeCardRefresh, setChallengeCardRefresh] = useState(0);
 
+  // --- Log login-event kun én gang pr. session ---
+  useEffect(() => {
+    // Kun for én bestemt bruger (fx: 5687c342-1a13-441c-86ca-f7e87e1edbd5)
+    if (user?.id === "5687c342-1a13-441c-86ca-f7e87e1edbd5") {
+      // Forhindrer duplikater i session (kan optimeres yderligere hvis ønskes)
+      if (!sessionStorage.getItem("login_logged")) {
+        logUserActivity({
+          userId: user.id,
+          path: "/login", // Eller '/dashboard' hvis du vil, men '/login' er mere logisk
+          extra: { event: "login" }
+        });
+        sessionStorage.setItem("login_logged", "1");
+      }
+    }
+  }, [user]);
+
   // Funktion til at trigge refresh af ChallengeCardWidget (videresendes som prop)
   const handleChallengeCardRefresh = useCallback(() => {
     setChallengeCardRefresh(c => c + 1);
   }, []);
 
   // --- Widgets ---
-const supportedWidgets = [
-  'xp_meter',
-  'reward_progress',
-  'task_summary',
-  'kompliment_reminder',
-  'weekly_recommendation',
-  'reminder_widget',
-  'activity_overview',
-  'challenge_card',
-  'level_tip', // <-- Tilføj denne!
-];
-
+  const supportedWidgets = [
+    'xp_meter',
+    'reward_progress',
+    'task_summary',
+    'kompliment_reminder',
+    'weekly_recommendation',
+    'reminder_widget',
+    'activity_overview',
+    'challenge_card',
+    'level_tip', // <-- Tilføj denne!
+  ];
 
   useEffect(() => {
     const fetchWidgets = async () => {
