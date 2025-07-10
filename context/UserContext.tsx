@@ -32,6 +32,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     if (isAuthPage) {
+      // Hvis vi er på login/signup skal vi ikke have bruger data
       setUser(null);
       setLoading(false);
       return;
@@ -42,19 +43,18 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     const fetchUser = async () => {
       setLoading(true);
 
-      // Hent auth bruger
+      // Hent auth bruger fra Supabase
       const authRes = await supabase.auth.getUser();
 
-if (authRes.error) {
-  // Kun log hvis det er en anden fejl end "Auth session missing"
-  if (authRes.error.message !== "Auth session missing!") {
-    console.error('❌ Fejl ved hentning af bruger fra Supabase:', authRes.error.message);
-  }
-  setUser(null);
-  setLoading(false);
-  return;
-}
-
+      if (authRes.error) {
+        // Log kun fejl der ikke er "Auth session missing"
+        if (authRes.error.message !== "Auth session missing!") {
+          console.error('❌ Fejl ved hentning af bruger fra Supabase:', authRes.error.message);
+        }
+        setUser(null);
+        setLoading(false);
+        return;
+      }
 
       const authUser = authRes.data?.user;
       if (!authUser) {
@@ -66,7 +66,7 @@ if (authRes.error) {
 
       const userId = authUser.id;
 
-      // Hent profil
+      // Hent profil-data
       const profileResult = await supabase
         .from('profiles')
         .select('id, display_name, avatar_url, role, partner_id')
@@ -82,7 +82,7 @@ if (authRes.error) {
 
       const profileData = profileResult.data;
 
-      // Hent adgangsrettigheder (kan undlades hvis ikke nødvendigt)
+      // Hent adgangsrettigheder, hvis nødvendigt
       let accessMap: AccessMap = {};
       try {
         const accessResult = await supabase
@@ -115,13 +115,12 @@ if (authRes.error) {
 
     fetchUser();
 
-    // Lyt til auth state
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, _session) => {
+    // Lyt til auth state changes og opdater bruger
+    const { data: listener } = supabase.auth.onAuthStateChange(() => {
       fetchUser();
     });
     unsubscribe = () => listener?.subscription?.unsubscribe();
 
-    // Ryd op ved unmount
     return () => {
       if (unsubscribe) unsubscribe();
     };

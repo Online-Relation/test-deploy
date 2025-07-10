@@ -114,6 +114,7 @@ export default function QuizSpin({ quizKey, sessionId }: QuizSpinProps) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-pink-50 to-purple-100 p-6 relative">
       <h1 className="text-3xl font-bold mb-8 text-indigo-700">Hvem starter samtalen?</h1>
+      <p>test</p>
 
       <div className="relative w-64 h-64">
         {/* Pil */}

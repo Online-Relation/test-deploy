@@ -190,22 +190,30 @@ function getDaysLeft(card: ChallengeCard) {
   // Nu med <Badge>
   return (
     <div className="w-full rounded-2xl shadow-lg bg-white border border-indigo-100 px-0 py-0 mt-4 mb-8">
-      <div className="flex items-center gap-2 px-8 pt-7 pb-2">
-        <Sparkles size={20} className="text-indigo-500" />
-        <span className="text-indigo-700 text-base font-bold">Udfordringskort</span>
-        <span className="ml-auto">
-          <Badge className="badge-warning">+{xpValue} XP</Badge>
-        </span>
-      </div>
+    <div className="flex items-center gap-2 px-8 pt-7 pb-2">
+      <Sparkles size={24} className="text-indigo-600" /> 
+      {/* Gør ikonet lidt større og farven lidt kraftigere */}
+      <span className="text-indigo-800 text-xl font-extrabold">
+        Sandhedens time
+      </span>
+      <span className="ml-auto">
+        <Badge className="badge-warning">+{xpValue} XP</Badge>
+      </span>
+    </div>
+    <div className="px-8 pt-0 pb-2">
+      <p className="text-indigo-700 text-sm italic">
+        Her er plads til ærlighed – og måske en smule pinlig stilhed. Klar, parat, åben!
+      </p>
+    </div>
 
-      <div className="px-8 pt-1 pb-0">
-  <div className="font-semibold text-indigo-800 mb-1 text-base sm:text-lg text-left">
-    {card.title}:
-  </div>
-  <div className="text-base sm:text-lg font-small text-gray-900 mb-2 text-left leading-snug whitespace-pre-line">
-    {card.question}
-  </div>
-</div>
+    <div className="px-8 pt-1 pb-0">
+      <div className="font-semibold text-indigo-700 mb-1 text-sm sm:text-base text-left">
+        {card.title}:
+      </div>
+      <div className="text-base sm:text-lg font-normal text-gray-900 mb-2 text-left leading-snug whitespace-pre-line">
+        {card.question}
+      </div>
+    </div>
 
 
       <form onSubmit={handleSubmit} className="flex flex-col items-center w-full px-8 pb-7">
