@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
+import { createNotification } from '@/lib/notifications';
+import { useUserContext } from '@/context/UserContext';
 
 interface BucketCategory {
   id: string;
@@ -27,16 +27,20 @@ interface Note {
 }
 
 export default function BucketlistBoard() {
+  const { user } = useUserContext();
+
   const [categories, setCategories] = useState<BucketCategory[]>([]);
   const [activeType, setActiveType] = useState<'personlig' | 'par'>('personlig');
   const [newCategoryTitle, setNewCategoryTitle] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
+      console.log('Henter bucketlist kategorier...');
       const { data, error } = await supabase.from('bucketlist').select('*');
       if (error) {
         console.error('Fejl ved hentning fra Supabase:', error.message);
       } else if (data) {
+        console.log('Bucketlist kategorier modtaget:', data);
         setCategories(data);
       }
     };
@@ -44,27 +48,55 @@ export default function BucketlistBoard() {
   }, []);
 
   const addCategory = async () => {
-    if (!newCategoryTitle.trim()) return;
+    console.log('Tilføj bucket kaldt med titel:', newCategoryTitle);
+    if (!newCategoryTitle.trim()) {
+      console.log('Titel er tom - afbryder');
+      return;
+    }
+    if (!user?.id) {
+      console.log('Ingen bruger i context - afbryder');
+      return;
+    }
 
-    const newCat: BucketCategory = {
-      id: uuidv4(),
+    const newCat: Omit<BucketCategory, 'id'> = {
       title: newCategoryTitle.trim(),
       type: activeType,
       goals: [],
       imageUrl: '',
     };
 
-    const { error } = await supabase.from('bucketlist').insert([newCat]);
+    console.log('Prøver at indsætte bucket:', newCat);
+
+    const { data, error } = await supabase
+      .from('bucketlist')
+      .insert([newCat])
+      .select()
+      .single();
+
     if (error) {
       console.error('Fejl ved tilføjelse til Supabase:', error.message);
       return;
     }
 
-    setCategories(prev => [...prev, newCat]);
+    console.log('Bucket oprettet:', data);
+
+    setCategories(prev => [...prev, data]);
     setNewCategoryTitle('');
+
+    try {
+      console.log('Kalder createNotification med:', user.id, data.title, data.id);
+      await createNotification(user.id, 'fantasy_added', {
+        fantasyTitle: data.title,
+        fantasyId: data.id,
+      });
+      console.log('Notifikation oprettet!');
+    } catch (e) {
+      console.error('Fejl ved oprettelse af notifikation:', e);
+    }
   };
 
   const deleteCategory = async (id: string) => {
+    console.log('Sletter kategori med id:', id);
     const { error } = await supabase.from('bucketlist').delete().eq('id', id);
     if (error) {
       console.error('Fejl ved sletning fra Supabase:', error.message);
@@ -74,14 +106,13 @@ export default function BucketlistBoard() {
   };
 
   const updateCategory = async (updated: BucketCategory) => {
-    const { error } = await supabase.from('bucketlist')
-      .update(updated)
-      .eq('id', updated.id);
+    console.log('Opdaterer kategori:', updated);
+    const { error } = await supabase.from('bucketlist').update(updated).eq('id', updated.id);
     if (error) {
       console.error('Fejl ved opdatering i Supabase:', error.message);
       return;
     }
-    setCategories(prev => prev.map(cat => cat.id === updated.id ? updated : cat));
+    setCategories(prev => prev.map(cat => (cat.id === updated.id ? updated : cat)));
   };
 
   const visibleCategories = categories.filter(cat => cat.type === activeType);
@@ -93,13 +124,17 @@ export default function BucketlistBoard() {
         <div className="space-x-2">
           <button
             onClick={() => setActiveType('personlig')}
-            className={`px-3 py-1 rounded ${activeType === 'personlig' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+            className={`px-3 py-1 rounded ${
+              activeType === 'personlig' ? 'bg-blue-600 text-white' : 'bg-gray-200'
+            }`}
           >
             Min
           </button>
           <button
             onClick={() => setActiveType('par')}
-            className={`px-3 py-1 rounded ${activeType === 'par' ? 'bg-pink-600 text-white' : 'bg-gray-200'}`}
+            className={`px-3 py-1 rounded ${
+              activeType === 'par' ? 'bg-pink-600 text-white' : 'bg-gray-200'
+            }`}
           >
             Parforhold
           </button>
@@ -143,7 +178,9 @@ export default function BucketlistBoard() {
                   📝 {totalNotes} noter på denne bucket
                 </p>
                 <div className="mt-4 flex gap-2">
-                  <button onClick={() => deleteCategory(cat.id)} className="text-red-500">🗑️</button>
+                  <button onClick={() => deleteCategory(cat.id)} className="text-red-500">
+                    🗑️
+                  </button>
                 </div>
               </div>
             </div>

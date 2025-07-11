@@ -34,7 +34,7 @@ export const accessHierarchy: AccessEntry[] = [
   children: [
     { key: 'fantasy/parquiz', label: 'Parquiz', href: '/quiz/parquiz', children: [] },
     { key: 'fantasy/anbefalinger', label: 'Anbefalinger', href: '/fantasy/anbefalinger', children: [] },
-    { key: 'fantasy/udfordringskort', label: 'Udfordringskort', href: '/fantasy/udfordringskort', children: [] }, // <-- NYT
+    { key: 'fantasy/udfordringskort', label: 'Sandhedens time', href: '/fantasy/udfordringskort', children: [] }, // <-- NYT
     { key: 'dates', label: 'Date Ideas', href: '/dates', children: [] },
   ],
 },
@@ -118,6 +118,8 @@ export const accessHierarchy: AccessEntry[] = [
       { key: 'settings/quiz-admin', label: 'Quiz admin', href: '/settings/quiz-admin', children: [] },
       { key: 'settings/couple-background', label: 'Baggrund', href: '/settings/couple-background', children: [] },
       { key: 'settings/tables', label: 'Tables', href: '/settings/tables', children: [] },
+      { key: 'settings/notifications', label: 'Notifikationer', href: '/settings/notifications', children: [] },
+      
       { key: 'settings/activity', label: 'Activity', href: '/settings/activity', children: [] },
       {
         key: 'settings/gpt',

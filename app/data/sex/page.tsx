@@ -1,5 +1,3 @@
-// /app/data/sex/page.tsx
-
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -18,7 +16,9 @@ import {
   TimeScale
 } from 'chart.js';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Tooltip, Legend, TimeScale);
+ChartJS.register(
+  CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Tooltip, Legend, TimeScale
+);
 
 const sexTypeLabels = [
   { key: 'hverdag', label: 'Hverdag' },
@@ -54,7 +54,7 @@ export default function SexDataPage() {
     async function load() {
       setLoading(true);
 
-      // Sex logs (husk de nye felter)
+      // Sex logs
       const { data: sexLogs } = await supabase
         .from('sexlife_logs')
         .select('id, log_date, initiator, sex_type, tried_something_new, tried_something_new_text')
@@ -92,40 +92,35 @@ export default function SexDataPage() {
     load();
   }, []);
 
-  // Find antal dage siden sidste sex
-const lastLog = logs.length > 0
-  ? logs[logs.length - 1]
-  : null;
+  // Dage siden sidste sex
+  const lastLog = logs.length > 0 ? logs[logs.length - 1] : null;
+  const daysSinceSex = lastLog
+    ? Math.floor((Date.now() - new Date(lastLog.log_date).getTime()) / (1000 * 60 * 60 * 24))
+    : null;
 
-const daysSinceSex = lastLog
-  ? Math.floor((Date.now() - new Date(lastLog.log_date).getTime()) / (1000 * 60 * 60 * 24))
-  : null;
-
-// Vælg farve og tekst
-let tempBg = "bg-green-200 dark:bg-green-800";
-let tempText = "🔥 Hot! I har haft sex for nylig";
-let tempEmoji = "🔥";
-
-if (daysSinceSex !== null) {
-  if (daysSinceSex < 4) {
-    tempBg = "bg-green-200 dark:bg-green-800";
-    tempText = "🔥 Hot! I har haft sex for nylig";
-    tempEmoji = "🔥";
-  } else if (daysSinceSex < 10) {
-    tempBg = "bg-yellow-200 dark:bg-yellow-800";
-    tempText = "😏 Lidt tid siden – måske snart igen?";
-    tempEmoji = "😏";
+  // Temperatur-grafik
+  let tempBg = "bg-green-200 dark:bg-green-800";
+  let tempText = "🔥 Hot! I har haft sex for nylig";
+  let tempEmoji = "🔥";
+  if (daysSinceSex !== null) {
+    if (daysSinceSex < 4) {
+      tempBg = "bg-green-200 dark:bg-green-800";
+      tempText = "🔥 Hot! I har haft sex for nylig";
+      tempEmoji = "🔥";
+    } else if (daysSinceSex < 10) {
+      tempBg = "bg-yellow-200 dark:bg-yellow-800";
+      tempText = "😏 Lidt tid siden – måske snart igen?";
+      tempEmoji = "😏";
+    } else {
+      tempBg = "bg-red-200 dark:bg-red-800";
+      tempText = "🥶 Det er ved at være længe siden!";
+      tempEmoji = "🥶";
+    }
   } else {
-    tempBg = "bg-red-200 dark:bg-red-800";
-    tempText = "🥶 Det er ved at være længe siden!";
-    tempEmoji = "🥶";
+    tempBg = "bg-gray-200 dark:bg-gray-800";
+    tempText = "Ingen sexlogs endnu";
+    tempEmoji = "❔";
   }
-} else {
-  tempBg = "bg-gray-200 dark:bg-gray-800";
-  tempText = "Ingen sexlogs endnu";
-  tempEmoji = "❔";
-}
-
 
   // Statistik: antal pr. måned
   const logsByMonth = logs.reduce((acc, log) => {
@@ -134,7 +129,6 @@ if (daysSinceSex !== null) {
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
-
   const months = Object.keys(logsByMonth).sort();
   const sexCounts = months.map(m => logsByMonth[m]);
 
@@ -204,75 +198,74 @@ if (daysSinceSex !== null) {
   }, []);
 
   // Oralsex statistik
-useEffect(() => {
-  async function fetchOralSexStats() {
-    // 1. Find id'erne på de to tags
-    const { data: tagsData } = await supabase
-      .from('sex_tags')
-      .select('id, name');
-    const oralTags = (tagsData ?? []).filter(t =>
-      t.name.trim().toLowerCase() === 'oralsex til mads' ||
-      t.name.trim().toLowerCase() === 'oralsex til stine'
-    );
-    if (oralTags.length === 0) return;
+  useEffect(() => {
+    async function fetchOralSexStats() {
+      // 1. Find id'erne på de to tags
+      const { data: tagsData } = await supabase
+        .from('sex_tags')
+        .select('id, name');
+      const oralTags = (tagsData ?? []).filter(t =>
+        t.name.trim().toLowerCase() === 'oralsex til mads' ||
+        t.name.trim().toLowerCase() === 'oralsex til stine'
+      );
+      if (oralTags.length === 0) return;
 
-    // 2. Find alle sex-logs for året
-    const thisYear = new Date().getFullYear();
-    const yearStart = `${thisYear}-01-01`;
-    const { data: sexLogs } = await supabase
-      .from('sexlife_logs')
-      .select('id, log_date, initiator');
-    // 3. Find alle log-tag-relations
-    const { data: logTags } = await supabase
-      .from('sexlife_log_tags')
-      .select('log_id, tag_id');
+      // 2. Find alle sex-logs for året
+      const thisYear = new Date().getFullYear();
+      const yearStart = `${thisYear}-01-01`;
+      const { data: sexLogs } = await supabase
+        .from('sexlife_logs')
+        .select('id, log_date, initiator');
+      // 3. Find alle log-tag-relations
+      const { data: logTags } = await supabase
+        .from('sexlife_log_tags')
+        .select('log_id, tag_id');
 
-    // 4. Find logs for hver tag
-    const oralLogsToStine = (logTags ?? [])
-      .filter(t => {
-        const tag = oralTags.find(x => x.id === t.tag_id);
-        return tag && tag.name.trim().toLowerCase() === 'oralsex til stine';
-      })
-      .map(t => t.log_id);
+      // 4. Find logs for hver tag
+      const oralLogsToStine = (logTags ?? [])
+        .filter(t => {
+          const tag = oralTags.find(x => x.id === t.tag_id);
+          return tag && tag.name.trim().toLowerCase() === 'oralsex til stine';
+        })
+        .map(t => t.log_id);
 
-    const oralLogsToMads = (logTags ?? [])
-      .filter(t => {
-        const tag = oralTags.find(x => x.id === t.tag_id);
-        return tag && tag.name.trim().toLowerCase() === 'oralsex til mads';
-      })
-      .map(t => t.log_id);
+      const oralLogsToMads = (logTags ?? [])
+        .filter(t => {
+          const tag = oralTags.find(x => x.id === t.tag_id);
+          return tag && tag.name.trim().toLowerCase() === 'oralsex til mads';
+        })
+        .map(t => t.log_id);
 
-    // 5. Saml statistik pr. måned og år
-    const stats: Record<string, { mads: number; stine: number }> = {};
-    let madsYear = 0, stineYear = 0;
-    sexLogs?.forEach(log => {
-      const monthKey = log.log_date.slice(0, 7); // YYYY-MM
-      // Til Mads
-      if (oralLogsToMads.includes(log.id)) {
-        stats[monthKey] = stats[monthKey] || { mads: 0, stine: 0 };
-        stats[monthKey].mads += 1;
-        if (log.log_date >= yearStart) madsYear += 1;
-      }
-      // Til Stine
-      if (oralLogsToStine.includes(log.id)) {
-        stats[monthKey] = stats[monthKey] || { mads: 0, stine: 0 };
-        stats[monthKey].stine += 1;
-        if (log.log_date >= yearStart) stineYear += 1;
-      }
-    });
+      // 5. Saml statistik pr. måned og år
+      const stats: Record<string, { mads: number; stine: number }> = {};
+      let madsYear = 0, stineYear = 0;
+      sexLogs?.forEach(log => {
+        const monthKey = log.log_date.slice(0, 7); // YYYY-MM
+        // Til Mads
+        if (oralLogsToMads.includes(log.id)) {
+          stats[monthKey] = stats[monthKey] || { mads: 0, stine: 0 };
+          stats[monthKey].mads += 1;
+          if (log.log_date >= yearStart) madsYear += 1;
+        }
+        // Til Stine
+        if (oralLogsToStine.includes(log.id)) {
+          stats[monthKey] = stats[monthKey] || { mads: 0, stine: 0 };
+          stats[monthKey].stine += 1;
+          if (log.log_date >= yearStart) stineYear += 1;
+        }
+      });
 
-    const sortedMonths = Object.keys(stats).sort().slice(-3);
-    setOralsexStats({
-      months: sortedMonths,
-      madsCounts: sortedMonths.map(m => stats[m].mads),
-      stineCounts: sortedMonths.map(m => stats[m].stine),
-      madsYear,
-      stineYear
-    });
-  }
-  fetchOralSexStats();
-}, []);
-
+      const sortedMonths = Object.keys(stats).sort().slice(-3);
+      setOralsexStats({
+        months: sortedMonths,
+        madsCounts: sortedMonths.map(m => stats[m].mads),
+        stineCounts: sortedMonths.map(m => stats[m].stine),
+        madsYear,
+        stineYear
+      });
+    }
+    fetchOralSexStats();
+  }, []);
 
   // Almindelig/anal statistik
   useEffect(() => {
@@ -336,41 +329,42 @@ useEffect(() => {
   const totalAnalActs = sexTypeMonthlyStats.analCounts.reduce((a, b) => a + b, 0);
   const analPct = totalSexActs > 0 ? Math.round((totalAnalActs / totalSexActs) * 100) : 0;
 
+  // Fantasi status
   let fantasyBg = "bg-green-200 dark:bg-green-800";
-let fantasyText = "I har for nylig opfyldt en fantasi!";
-let fantasyEmoji = "✨";
-
-if (daysSince !== null) {
-  if (daysSince < 14) {
-    fantasyBg = "bg-green-200 dark:bg-green-800";
-    fantasyText = "Fantasi opfyldt for nylig!";
-    fantasyEmoji = "✨";
-  } else if (daysSince < 30) {
-    fantasyBg = "bg-yellow-200 dark:bg-yellow-800";
-    fantasyText = "Det er ved at være et stykke tid siden I opfyldte en fantasi";
-    fantasyEmoji = "⏳";
+  let fantasyText = "I har for nylig opfyldt en fantasi!";
+  let fantasyEmoji = "✨";
+  if (daysSince !== null) {
+    if (daysSince < 14) {
+      fantasyBg = "bg-green-200 dark:bg-green-800";
+      fantasyText = "Fantasi opfyldt for nylig!";
+      fantasyEmoji = "✨";
+    } else if (daysSince < 30) {
+      fantasyBg = "bg-yellow-200 dark:bg-yellow-800";
+      fantasyText = "Det er ved at være et stykke tid siden I opfyldte en fantasi";
+      fantasyEmoji = "⏳";
+    } else {
+      fantasyBg = "bg-red-200 dark:bg-red-800";
+      fantasyText = "Tid til at opfylde en fantasi igen?";
+      fantasyEmoji = "💭";
+    }
   } else {
-    fantasyBg = "bg-red-200 dark:bg-red-800";
-    fantasyText = "Tid til at opfylde en fantasi igen?";
-    fantasyEmoji = "💭";
+    fantasyBg = "bg-gray-200 dark:bg-gray-800";
+    fantasyText = "Ingen fantasi er opfyldt endnu";
+    fantasyEmoji = "❔";
   }
-} else {
-  fantasyBg = "bg-gray-200 dark:bg-gray-800";
-  fantasyText = "Ingen fantasi er opfyldt endnu";
-  fantasyEmoji = "❔";
-}
-
 
   return (
-    
     <div className="max-w-4xl mx-auto mt-8 p-2">
+      {/* Temperaturkort */}
       <div className={`rounded-2xl shadow-lg ${tempBg} p-6 mb-6 flex flex-col items-center`}>
-  <div className="text-4xl mb-2">{tempEmoji}</div>
-  <div className="text-lg font-bold mb-1">{tempText}</div>
-  {daysSinceSex !== null &&
-    <div className="text-xs text-gray-700 dark:text-gray-200">Det er <b>{daysSinceSex}</b> dage siden sidste sex.</div>
-  }
-</div>
+        <div className="text-4xl mb-2">{tempEmoji}</div>
+        <div className="text-lg font-bold mb-1">{tempText}</div>
+        {daysSinceSex !== null &&
+          <div className="text-xs text-gray-700 dark:text-gray-200">
+            Det er <b>{daysSinceSex}</b> dage siden sidste sex.
+          </div>
+        }
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Sex pr. måned */}
@@ -428,19 +422,20 @@ if (daysSince !== null) {
           />
         </div>
       </div>
+
       {/* Sidste opfyldte fantasi */}
       <div className={`rounded-2xl shadow-lg ${fantasyBg} p-6 mt-8 flex flex-col items-center transition-colors`}>
-  <div className="text-3xl mb-2">{fantasyEmoji}</div>
-  <h2 className="text-lg font-bold mb-2 text-center">Sidste fantasi</h2>
-  <div className="text-base font-semibold text-center mb-1">{fantasyText}</div>
-  {lastFantasy ? (
-    <p className="text-center">
-      <b>{lastFantasy.title}</b> blev opfyldt for <b>{daysSince}</b> dage siden.
-    </p>
-  ) : (
-    <p className="text-center text-gray-500 italic">Ingen fantasi er opfyldt endnu.</p>
-  )}
-</div>
+        <div className="text-3xl mb-2">{fantasyEmoji}</div>
+        <h2 className="text-lg font-bold mb-2 text-center">Sidste fantasi</h2>
+        <div className="text-base font-semibold text-center mb-1">{fantasyText}</div>
+        {lastFantasy ? (
+          <p className="text-center">
+            <b>{lastFantasy.title}</b> blev opfyldt for <b>{daysSince}</b> dage siden.
+          </p>
+        ) : (
+          <p className="text-center text-gray-500 italic">Ingen fantasi er opfyldt endnu.</p>
+        )}
+      </div>
 
       {/* Tendenser måned for måned */}
       <div className="rounded-2xl shadow-lg bg-white dark:bg-gray-900 p-6 mt-8 flex flex-col items-center">
@@ -476,6 +471,7 @@ if (daysSince !== null) {
           Se om trenden går op eller ned, og om der er store udsving fra måned til måned.
         </p>
       </div>
+
       {/* Oralsex graf */}
       <div className="rounded-2xl shadow-lg bg-white dark:bg-gray-900 p-6 mt-8 flex flex-col items-center">
         <h2 className="text-lg font-bold mb-2 text-center">Oralsex de sidste 3 måneder</h2>
@@ -507,6 +503,7 @@ if (daysSince !== null) {
           }}
         />
       </div>
+
       {/* Oralsex i år */}
       <div className="flex flex-col md:flex-row gap-4 justify-center items-center mt-4">
         <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6 flex-1 text-center">
@@ -520,6 +517,7 @@ if (daysSince !== null) {
           <div className="text-sm text-gray-500 mt-1">oralsex i år</div>
         </div>
       </div>
+
       {/* Almindelig vs. anal sex graf */}
       <div className="rounded-2xl shadow-lg bg-white dark:bg-gray-900 p-6 mt-8 flex flex-col items-center">
         <h2 className="text-lg font-bold mb-2 text-center">Almindelig sex vs. anal sex (pr. måned)</h2>
@@ -555,6 +553,7 @@ if (daysSince !== null) {
           {analPct}% af jeres sexliv har I analsex
         </p>
       </div>
+
       {/* 3 kasser med statistik */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
         {/* Kasse 1: Placeringer */}
@@ -578,26 +577,26 @@ if (daysSince !== null) {
 
         {/* Kasse 2: Stillinger */}
         <div className="rounded-2xl shadow-lg bg-white dark:bg-gray-900 p-6 flex flex-col items-center">
-        <h2 className="text-lg font-bold mb-2 text-center">Stillinger</h2>
-        <ul className="w-full">
+          <h2 className="text-lg font-bold mb-2 text-center">Stillinger</h2>
+          <ul className="w-full">
             {[...positions]
-            .map(pos => ({
+              .map(pos => ({
                 ...pos,
                 count: logPositions.filter(l => l.position_id === pos.id).length
-            }))
-            .sort((a, b) => b.count - a.count)
-            .map(pos => (
+              }))
+              .sort((a, b) => b.count - a.count)
+              .map(pos => (
                 <li key={pos.id} className="flex justify-between items-center border-b py-1">
-                <span>{pos.name}</span>
-                <span className="font-bold">{pos.count}</span>
+                  <span>{pos.name}</span>
+                  <span className="font-bold">{pos.count}</span>
                 </li>
-            ))}
-        </ul>
+              ))}
+          </ul>
         </div>
 
         {/* Kasse 3: Prøvede noget nyt */}
         <div className="rounded-2xl shadow-lg bg-white dark:bg-gray-900 p-6 flex flex-col items-center">
-          <h2 className="text-lg font-bold mb-2 text-center">Prøvede noget nyt</h2>
+          <h2 className="text-lg font-bold mb-2 text-center text-indigo-600">Prøvede noget nyt</h2>
           {lastTriedNew ? (
             <>
               <div className="mb-1">

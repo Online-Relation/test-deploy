@@ -86,6 +86,8 @@ export default function IndtjekningHverdag() {
   const [fetching, setFetching] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+
   const baseChips = flattenChips(CHIP_CATEGORIES_INIT);
 
   useEffect(() => {
@@ -173,6 +175,18 @@ export default function IndtjekningHverdag() {
     setNewTagCategory("");
   };
 
+  function loadForEdit(item: any) {
+    setEditingId(item.id);
+    setDate(item.checkin_date ? new Date(item.checkin_date) : undefined);
+    setWasTogether(item.was_together ? "ja" : "nej");
+    setConflict(item.conflict ? "ja" : "nej");
+    setConflictText(item.conflict_text || "");
+    setMood(item.mood);
+    setSelectedTags(item.tags || []);
+    setIlyWho(item.ily_who || "");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -184,15 +198,36 @@ export default function IndtjekningHverdag() {
           .padStart(2, "0")}`
       : undefined;
 
-    const { error } = await supabase.from("daily_checkin").insert({
-      checkin_date,
-      was_together: wasTogether === "ja",
-      conflict: conflict === "ja",
-      conflict_text: conflict === "ja" ? conflictText : null,
-      mood,
-      tags: selectedTags,
-      ily_who: ilyWho || null, // NYT FELT
-    });
+    let result;
+    if (editingId) {
+      // Update
+      result = await supabase
+        .from("daily_checkin")
+        .update({
+          checkin_date,
+          was_together: wasTogether === "ja",
+          conflict: conflict === "ja",
+          conflict_text: conflict === "ja" ? conflictText : null,
+          mood,
+          tags: selectedTags,
+          ily_who: ilyWho || null,
+        })
+        .eq("id", editingId);
+    } else {
+      // Insert
+      result = await supabase
+        .from("daily_checkin")
+        .insert({
+          checkin_date,
+          was_together: wasTogether === "ja",
+          conflict: conflict === "ja",
+          conflict_text: conflict === "ja" ? conflictText : null,
+          mood,
+          tags: selectedTags,
+          ily_who: ilyWho || null,
+        });
+    }
+    const { error } = result;
 
     setLoading(false);
     if (!error) {
@@ -200,9 +235,21 @@ export default function IndtjekningHverdag() {
       setConflictText("");
       setSelectedTags([]);
       setIlyWho("");
+      setEditingId(null);
     } else {
       alert("Der opstod en fejl! Prøv igen.");
     }
+  }
+
+  function handleCancelEdit() {
+    setEditingId(null);
+    setDate(new Date());
+    setWasTogether("");
+    setConflict("");
+    setConflictText("");
+    setMood(3);
+    setSelectedTags([]);
+    setIlyWho("");
   }
 
   if (done) {
@@ -217,7 +264,7 @@ export default function IndtjekningHverdag() {
             Indsend en ny
           </button>
         </div>
-        <LatestRegistrations latest={latest} fetching={fetching} errorMsg={errorMsg} />
+        <LatestRegistrations latest={latest} fetching={fetching} errorMsg={errorMsg} onEdit={loadForEdit} />
       </div>
     );
   }
@@ -226,7 +273,9 @@ export default function IndtjekningHverdag() {
     <div className="max-w-md mx-auto py-6 px-4">
       <form onSubmit={handleSubmit}>
         <div className="rounded-2xl shadow-lg bg-white p-4 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Indtjekning – Hverdag</h2>
+          <h2 className="text-xl font-semibold mb-4">
+            {editingId ? "Rediger indtjekning" : "Indtjekning – Hverdag"}
+          </h2>
 
           {/* Kalender-vælger med markerede dage */}
           <div className="mb-4">
@@ -422,22 +471,37 @@ export default function IndtjekningHverdag() {
             </div>
           </div>
 
-          {/* Submit */}
-          <button
-            className="btn-primary w-full mt-4 shadow"
-            type="submit"
-            disabled={loading}
-          >
-            {loading ? "Gemmer..." : "Gem"}
-          </button>
+          {/* Submit & Cancel */}
+          <div className="flex gap-3 mt-4">
+            <button
+              className="btn-primary flex-1 shadow"
+              type="submit"
+              disabled={loading}
+            >
+              {loading
+                ? "Gemmer..."
+                : editingId
+                ? "Opdater indtjekning"
+                : "Gem"}
+            </button>
+            {editingId && (
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="flex-1 rounded bg-gray-200 border border-gray-400 text-gray-800 font-semibold shadow"
+              >
+                Annuller redigering
+              </button>
+            )}
+          </div>
         </div>
       </form>
-      <LatestRegistrations latest={latest} fetching={fetching} errorMsg={errorMsg} />
+      <LatestRegistrations latest={latest} fetching={fetching} errorMsg={errorMsg} onEdit={loadForEdit} />
     </div>
   );
 }
 
-function LatestRegistrations({ latest, fetching, errorMsg }: { latest: any[], fetching: boolean, errorMsg?: string | null }) {
+function LatestRegistrations({ latest, fetching, errorMsg, onEdit }: { latest: any[], fetching: boolean, errorMsg?: string | null, onEdit: (item: any) => void }) {
   const moodOptions = [
     { value: 1, label: "Frost", color: "bg-blue-200 border-blue-400 text-blue-900" },
     { value: 2, label: "Kølig", color: "bg-cyan-200 border-cyan-400 text-cyan-900" },
@@ -460,7 +524,7 @@ function LatestRegistrations({ latest, fetching, errorMsg }: { latest: any[], fe
           {latest.map((item) => {
             const mood = moodOptions.find((m) => m.value === item.mood);
             return (
-              <li key={item.id} className="flex items-center justify-between border-b pb-1 last:border-b-0">
+              <li key={item.id} className="flex items-center justify-between border-b pb-1 last:border-b-0 gap-1 flex-wrap">
                 <span className="text-sm">{item.checkin_date}</span>
                 <span className={`rounded-full px-3 py-1 text-xs font-medium ${mood?.color}`}>
                   {mood?.label}
@@ -471,13 +535,19 @@ function LatestRegistrations({ latest, fetching, errorMsg }: { latest: any[], fe
                 <span className="text-xs">
                   {item.conflict ? "Konflikt" : ""}
                 </span>
-                {/* VIS DET NYE FELT I LISTEN */}
                 <span className="text-xs">
                   {item.ily_who === "mig" && "Jeg sagde det"}
                   {item.ily_who === "partner" && "Min kæreste sagde det"}
                   {item.ily_who === "begge" && "Begge sagde det"}
                   {!item.ily_who && ""}
                 </span>
+                <button
+                  className="ml-2 px-2 py-1 text-xs rounded bg-yellow-300"
+                  onClick={() => onEdit(item)}
+                  type="button"
+                >
+                  Rediger
+                </button>
               </li>
             );
           })}

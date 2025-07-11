@@ -5,9 +5,10 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useUserContext } from '@/context/UserContext';
 import WidgetRenderer from '@/components/widgets/WidgetRenderer';
+import DashboardUserWidget from '@/components/widgets/DashboardUserWidget';
 import { BucketProvider } from '@/context/BucketContext';
 import ChallengeCardWidget from '@/components/widgets/ChallengeCardWidget';
-import { logUserActivity } from '@/lib/logUserActivity'; // <-- IMPORT!
+import { logUserActivity } from '@/lib/logUserActivity';
 
 interface Widget {
   widget_key: string;
@@ -23,13 +24,11 @@ export default function DashboardPage() {
 
   // --- Log login-event kun én gang pr. session ---
   useEffect(() => {
-    // Kun for én bestemt bruger (fx: 5687c342-1a13-441c-86ca-f7e87e1edbd5)
     if (user?.id === "5687c342-1a13-441c-86ca-f7e87e1edbd5") {
-      // Forhindrer duplikater i session (kan optimeres yderligere hvis ønskes)
       if (!sessionStorage.getItem("login_logged")) {
         logUserActivity({
           userId: user.id,
-          path: "/login", // Eller '/dashboard' hvis du vil, men '/login' er mere logisk
+          path: "/login",
           extra: { event: "login" }
         });
         sessionStorage.setItem("login_logged", "1");
@@ -37,12 +36,10 @@ export default function DashboardPage() {
     }
   }, [user]);
 
-  // Funktion til at trigge refresh af ChallengeCardWidget (videresendes som prop)
   const handleChallengeCardRefresh = useCallback(() => {
     setChallengeCardRefresh(c => c + 1);
   }, []);
 
-  // --- Widgets ---
   const supportedWidgets = [
     'xp_meter',
     'reward_progress',
@@ -52,7 +49,9 @@ export default function DashboardPage() {
     'reminder_widget',
     'activity_overview',
     'challenge_card',
-    'level_tip', // <-- Tilføj denne!
+    'level_tip',
+    'profile_header',
+    'manifestation_reminder', // <-- RET TIL DENNE
   ];
 
   useEffect(() => {
@@ -63,6 +62,8 @@ export default function DashboardPage() {
         .select('widget_key, layout, height, order')
         .eq('user_id', user.id)
         .eq('enabled', true);
+
+      console.log('DashboardPage: fetchWidgets data', data, 'error', error);
 
       if (error) console.error('Fejl ved hentning af widgets:', error);
       else setWidgets(data?.filter(w => supportedWidgets.includes(w.widget_key)) || []);
@@ -88,30 +89,37 @@ export default function DashboardPage() {
     }
   };
 
-  if (!user) return null;
+  if (!user) {
+    console.log('DashboardPage: ingen user – return null');
+    return null;
+  }
+
+  console.log('DashboardPage: widgets', widgets);
 
   return (
     <BucketProvider>
       <div className="w-full sm:max-w-6xl sm:mx-auto px-2 sm:px-4 py-6 grid grid-cols-12 gap-4 sm:gap-6">
         {widgets
           .sort((a, b) => a.order - b.order)
-          .map(widget => (
-            <div
-              key={widget.widget_key}
-              className={`${layoutClass(widget.layout)} ${heightClass(widget.height)} w-full`}
-            >
-              {/* Render ChallengeCardWidget med refresh */}
-              {widget.widget_key === 'challenge_card' ? (
-                <ChallengeCardWidget
-                  widget={widget}
-                  refresh={challengeCardRefresh}
-                  onAnswered={handleChallengeCardRefresh}
-                />
-              ) : (
-                <WidgetRenderer widget={widget} />
-              )}
-            </div>
-          ))}
+          .map(widget => {
+            console.log('DashboardPage: renderer widget', widget.widget_key);
+            return (
+              <div
+                key={widget.widget_key}
+                className={`${layoutClass(widget.layout)} ${heightClass(widget.height)} w-full`}
+              >
+                {widget.widget_key === 'challenge_card' ? (
+                  <ChallengeCardWidget
+                    widget={widget}
+                    refresh={challengeCardRefresh}
+                    onAnswered={handleChallengeCardRefresh}
+                  />
+                ) : (
+                  <WidgetRenderer widget={widget} />
+                )}
+              </div>
+            );
+          })}
       </div>
     </BucketProvider>
   );

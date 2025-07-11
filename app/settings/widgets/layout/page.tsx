@@ -19,6 +19,8 @@ const allWidgets = [
   { key: 'reminder_widget', label: 'Deadline Reminder' },
   { key: 'challenge_card', label: 'Udfordringskort' },
   { key: 'level_tip', label: 'Tip til næste level' },
+  { key: 'profile_header', label: 'Profilheader' },
+  { key: 'manifestation_reminder', label: 'Manifestation Reminder' },
 ];
 
 const layoutOptions = ['small', 'medium', 'large'];
@@ -30,8 +32,6 @@ export default function WidgetLayoutPage() {
   const [widgetLayout, setWidgetLayout] = useState<
     Record<string, { layout: string; order: number; height?: string }>
   >({});
-
-  // Gem rækkefølge af widgets separat som array (for drag/drop)
   const [orderedKeys, setOrderedKeys] = useState<string[]>([]);
 
   useEffect(() => {
@@ -62,7 +62,6 @@ export default function WidgetLayoutPage() {
       });
       setWidgetLayout(layoutMap);
 
-      // Rækkefølge ift. order, fallback til allWidgets rækkefølge hvis ikke sat
       const ordered = [...allWidgets]
         .map(w => w.key)
         .sort((a, b) => {
@@ -75,7 +74,6 @@ export default function WidgetLayoutPage() {
     load();
   }, [selectedUser]);
 
-  // Når der droppes, opdater rækkefølge
   function handleDragEnd(result: DropResult) {
     if (!result.destination) return;
     const newOrder = Array.from(orderedKeys);
@@ -83,7 +81,6 @@ export default function WidgetLayoutPage() {
     newOrder.splice(result.destination.index, 0, removed);
     setOrderedKeys(newOrder);
 
-    // Opdater order på alle widgets
     setWidgetLayout(prev => {
       const copy = { ...prev };
       newOrder.forEach((key, idx) => {
@@ -111,15 +108,17 @@ export default function WidgetLayoutPage() {
   const saveChanges = async () => {
     if (!selectedUser) return;
     for (const key of orderedKeys) {
+      const payload = {
+        user_id: selectedUser,
+        widget_key: key,
+        enabled: true,
+        layout: widgetLayout[key]?.layout || 'medium',
+        order: widgetLayout[key]?.order ?? 0,
+        height: widgetLayout[key]?.height || 'auto',
+      };
+      console.log('Gemmer widget:', payload); // <-- HER!
       await supabase.from('dashboard_widgets').upsert(
-        {
-          user_id: selectedUser,
-          widget_key: key,
-          enabled: true,
-          layout: widgetLayout[key]?.layout || 'medium',
-          order: widgetLayout[key]?.order ?? 0,
-          height: widgetLayout[key]?.height || 'auto',
-        },
+        payload,
         { onConflict: 'user_id,widget_key' }
       );
     }

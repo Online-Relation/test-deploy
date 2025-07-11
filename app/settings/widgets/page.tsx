@@ -18,13 +18,14 @@ const allWidgets = [
   { key: 'reminder_widget', label: 'Deadline Reminder' },
   { key: 'challenge_card', label: 'Udfordringskort' },
   { key: 'level_tip', label: 'Tip til næste level' },
+  { key: 'profile_header', label: 'Profilheader' },
+  { key: 'manifestation_reminder', label: 'Manifestation Reminder' },
 ];
 
 const heightOptions = ['auto', 'medium', 'large'];
 
 export default function WidgetAccessPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
-  // For hver bruger: deres widgets-array med enabled/order/height
   const [widgetOrder, setWidgetOrder] = useState<Record<string, any[]>>({});
   const [accessMap, setAccessMap] = useState<Record<string, Record<string, { enabled: boolean; height: string }>>>({});
 
@@ -40,7 +41,6 @@ export default function WidgetAccessPage() {
       let access: Record<string, Record<string, { enabled: boolean; height: string }>> = {};
       for (const user of profiles) {
         let userWidgets = widgets?.filter(w => w.user_id === user.id);
-        // Sikrer at alle widgets findes, ellers opretter dem (kun første load)
         for (const widget of allWidgets) {
           if (!userWidgets?.find(w => w.widget_key === widget.key)) {
             await supabase.from('dashboard_widgets').insert({
@@ -70,6 +70,7 @@ export default function WidgetAccessPage() {
           access[user.id][w.widget_key] = { enabled: w.enabled, height: w.height ?? 'auto' };
         }
       }
+      console.log('WidgetAccessPage: orderMap', orderMap);
       setWidgetOrder(orderMap);
       setAccessMap(access);
     };
@@ -83,24 +84,33 @@ export default function WidgetAccessPage() {
     const [removed] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, removed);
     setWidgetOrder(prev => ({ ...prev, [userId]: items }));
+    console.log('WidgetAccessPage: efter drag', items);
   };
 
   const toggle = (userId: string, index: number) => {
-    setWidgetOrder(prev => ({
-      ...prev,
-      [userId]: prev[userId].map((w, i) =>
-        i === index ? { ...w, enabled: !w.enabled } : w
-      ),
-    }));
+    setWidgetOrder(prev => {
+      const newOrder = {
+        ...prev,
+        [userId]: prev[userId].map((w, i) =>
+          i === index ? { ...w, enabled: !w.enabled } : w
+        ),
+      };
+      console.log('WidgetAccessPage: toggle', userId, newOrder[userId][index]);
+      return newOrder;
+    });
   };
 
   const changeHeight = (userId: string, index: number, value: string) => {
-    setWidgetOrder(prev => ({
-      ...prev,
-      [userId]: prev[userId].map((w, i) =>
-        i === index ? { ...w, height: value } : w
-      ),
-    }));
+    setWidgetOrder(prev => {
+      const newOrder = {
+        ...prev,
+        [userId]: prev[userId].map((w, i) =>
+          i === index ? { ...w, height: value } : w
+        ),
+      };
+      console.log('WidgetAccessPage: changeHeight', userId, newOrder[userId][index]);
+      return newOrder;
+    });
   };
 
   const saveChanges = async () => {
@@ -115,6 +125,7 @@ export default function WidgetAccessPage() {
           height: w.height,
           layout: 'medium',
         }, { onConflict: 'user_id,widget_key' });
+        console.log('WidgetAccessPage: gemmer widget', w);
       }
     }
     alert('Widgets opdateret ✅');
