@@ -21,7 +21,9 @@ const allWidgets = [
   { key: 'level_tip', label: 'Tip til næste level' },
   { key: 'profile_header', label: 'Profilheader' },
   { key: 'manifestation_reminder', label: 'Manifestation Reminder' },
+  { key: 'followup_thoughts', label: 'Opfølgning' }, // <-- tilføjet her!
 ];
+
 
 const layoutOptions = ['small', 'medium', 'large'];
 const heightOptions = ['auto', 'medium', 'large'];

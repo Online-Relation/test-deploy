@@ -13,6 +13,7 @@ import ChallengeCardWidget from './ChallengeCardWidget';
 import LevelTipWidget from './LevelTipWidget';
 import DashboardUserWidget from './DashboardUserWidget';
 import ManifestReminderWidget from './ManifestReminderWidget'; // <-- korrekt navn
+import FollowUpThoughtsWidget from "@/components/widgets/FollowUpThoughtsWidget";
 import { useUserContext } from '@/context/UserContext';
 
 interface Widget {
@@ -80,6 +81,9 @@ export default function WidgetRenderer({ widget }: { widget: Widget }) {
     case 'manifestation_reminder':
       console.log('WidgetRenderer: Render ManifestReminderWidget');
       return <ManifestReminderWidget />;
+    case 'followup_thoughts':
+      console.log('WidgetRenderer: Render FollowUpThoughtsWidget');
+      return <FollowUpThoughtsWidget />;
     default:
       console.log('WidgetRenderer: Unknown widget_key', widget.widget_key);
       return null;

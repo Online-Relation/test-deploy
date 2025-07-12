@@ -1,4 +1,4 @@
-// app/dashboard/page.tsx
+// /app/dashboard/page.tsx
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
@@ -9,6 +9,7 @@ import DashboardUserWidget from '@/components/widgets/DashboardUserWidget';
 import { BucketProvider } from '@/context/BucketContext';
 import ChallengeCardWidget from '@/components/widgets/ChallengeCardWidget';
 import { logUserActivity } from '@/lib/logUserActivity';
+
 
 interface Widget {
   widget_key: string;
@@ -51,7 +52,7 @@ export default function DashboardPage() {
     'challenge_card',
     'level_tip',
     'profile_header',
-    'manifestation_reminder', // <-- RET TIL DENNE
+    'followup_thoughts', // <-- TILFØJET HER
   ];
 
   useEffect(() => {
@@ -94,7 +95,8 @@ export default function DashboardPage() {
     return null;
   }
 
-  console.log('DashboardPage: widgets', widgets);
+  // HOVED-log: her ser du det endelige widgets-array
+  console.log('DashboardPage: widgets array', widgets);
 
   return (
     <BucketProvider>
@@ -102,7 +104,7 @@ export default function DashboardPage() {
         {widgets
           .sort((a, b) => a.order - b.order)
           .map(widget => {
-            console.log('DashboardPage: renderer widget', widget.widget_key);
+            console.log('DashboardPage: renderer widget', widget.widget_key, widget);
             return (
               <div
                 key={widget.widget_key}
@@ -121,6 +123,10 @@ export default function DashboardPage() {
             );
           })}
       </div>
+      {/* 
+      // Test: Sæt denne direkte ind for at sikre, at widgetten altid vises – kun til fejlsøgning!
+      // <FollowUpReminderWidget />
+      */}
     </BucketProvider>
   );
 }

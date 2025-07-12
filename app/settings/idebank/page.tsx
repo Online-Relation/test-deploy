@@ -27,6 +27,8 @@ export default function IdebankPage() {
   const [pages, setPages] = useState<PageEntry[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+
   // Form state
   const [form, setForm] = useState({
     title: '',
@@ -45,7 +47,8 @@ export default function IdebankPage() {
 
   // Hent sider fra Supabase
   const fetchPages = async () => {
-    const { data } = await supabase.from('idea_pages').select('*').order('name');
+    const { data, error } = await supabase.from('idea_pages').select('*').order('name');
+    console.log('idebank: fetchPages()', { data, error });
     setPages(data || []);
     // Default vælg første hovedside hvis form.page er tom
     const mains = (data || []).filter((p: PageEntry) => !p.parent_id);
@@ -59,6 +62,7 @@ export default function IdebankPage() {
       .from('idea_bank')
       .select('*')
       .order('created_at', { ascending: false });
+    console.log('idebank: fetchIdeas()', { data, error });
     if (!error && data) setIdeas(data as IdeaEntry[]);
     setLoading(false);
   };
@@ -69,7 +73,16 @@ export default function IdebankPage() {
   const handleAddPage = async () => {
     const name = newPage.trim();
     if (!name) return;
-    await supabase.from('idea_pages').insert([{ name }]);
+    const exists = pages.some(p => !p.parent_id && p.name.toLowerCase() === name.toLowerCase());
+    console.log('idebank: handleAddPage()', { name, exists });
+    if (exists) {
+      setStatusMsg({ type: 'error', msg: 'Der findes allerede en hovedside med dette navn.' });
+      return;
+    }
+    const { error } = await supabase.from('idea_pages').insert([{ name }]);
+    console.log('idebank: handleAddPage insert', { name, error });
+    if (!error) setStatusMsg({ type: 'success', msg: 'Hovedside tilføjet!' });
+    else setStatusMsg({ type: 'error', msg: 'Kunne ikke tilføje hovedside.' });
     setNewPage('');
     fetchPages();
   };
@@ -78,7 +91,16 @@ export default function IdebankPage() {
   const handleAddSubpage = async () => {
     const name = newSubpage.trim();
     if (!name || !parentForSubpage) return;
-    await supabase.from('idea_pages').insert([{ name, parent_id: parentForSubpage }]);
+    const exists = pages.some(p => p.parent_id === parentForSubpage && p.name.toLowerCase() === name.toLowerCase());
+    console.log('idebank: handleAddSubpage()', { name, parentForSubpage, exists });
+    if (exists) {
+      setStatusMsg({ type: 'error', msg: 'Der findes allerede et underpunkt med dette navn under denne hovedside.' });
+      return;
+    }
+    const { error } = await supabase.from('idea_pages').insert([{ name, parent_id: parentForSubpage }]);
+    console.log('idebank: handleAddSubpage insert', { name, parentForSubpage, error });
+    if (!error) setStatusMsg({ type: 'success', msg: 'Underpunkt tilføjet!' });
+    else setStatusMsg({ type: 'error', msg: 'Kunne ikke tilføje underpunkt.' });
     setNewSubpage('');
     setParentForSubpage('');
     fetchPages();
@@ -115,7 +137,7 @@ export default function IdebankPage() {
         }]);
       }
     } catch (err) {
-      console.error("Fejl i handleSave:", err);
+      console.error("idebank: Fejl i handleSave:", err);
     }
     setForm({
       title: '',
@@ -157,11 +179,9 @@ export default function IdebankPage() {
 
   // --- FILTER/SEARCH LOGIK ---
   let filteredIdeas = ideas;
-  // importance filter
   if (importanceFilter !== 'Alle') {
     filteredIdeas = filteredIdeas.filter(i => i.importance === importanceFilter);
   }
-  // HOVEDSIDE dropdown filter (inkl. underpunkter)
   if (mainPageDropdown !== 'Alle') {
     const mainName = pages.find(p => p.id === mainPageDropdown)?.name;
     const subNames = pages.filter(p => p.parent_id === mainPageDropdown).map(p => p.name);
@@ -170,7 +190,6 @@ export default function IdebankPage() {
       (subNames.length > 0 && subNames.includes(i.subpage || ''))
     );
   }
-  // SØGNING
   const lowerSearch = search.toLowerCase();
   const searchedIdeas = filteredIdeas.filter(idea =>
     idea.title.toLowerCase().includes(lowerSearch) ||
@@ -182,6 +201,14 @@ export default function IdebankPage() {
   return (
     <div className="max-w-2xl mx-auto p-4 sm:p-8">
       <h1 className="text-2xl font-bold mb-4">💡 Idebank</h1>
+
+      {statusMsg && (
+        <div className={`mb-4 px-4 py-2 rounded font-semibold ${
+          statusMsg.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+        }`}>
+          {statusMsg.msg}
+        </div>
+      )}
 
       {/* Tilføj ny hovedside */}
       <div className="flex flex-col sm:flex-row gap-2 mb-3">

@@ -99,6 +99,7 @@ export const accessHierarchy: AccessEntry[] = [
     children: [
       { key: 'data/sex', label: 'Sex', href: '/data/sex', children: [] },
       { key: 'data/hverdag', label: 'Hverdag', href: '/data/hverdag', children: [] },
+      { key: 'data/tanker', label: 'Tanker', href: '/data/tanker', children: [] },
     ],
   },
   { key: 'profile', label: 'Profil', href: '/profile', children: [] },
