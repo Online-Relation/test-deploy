@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { createClient } from '@supabase/supabase-js';
 
-// HUSK: brug dine egne env keys eller supabaseClient hvis du har den
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -27,6 +26,9 @@ type Entry = {
 export default function TankerDataPage() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editText, setEditText] = useState<string>('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     async function fetchEntries() {
@@ -40,6 +42,23 @@ export default function TankerDataPage() {
     }
     fetchEntries();
   }, []);
+
+  // Gem løsning
+  async function handleSave(entryId: string) {
+    setSaving(true);
+    const { error } = await supabase
+      .from('tanker_entries')
+      .update({ followup_resolution_text: editText })
+      .eq('id', entryId);
+
+    if (!error) {
+      setEntries(prev => prev.map(e =>
+        e.id === entryId ? { ...e, followup_resolution_text: editText } : e
+      ));
+      setEditId(null);
+    }
+    setSaving(false);
+  }
 
   return (
     <div className="max-w-3xl mx-auto py-10 px-4">
@@ -84,8 +103,44 @@ export default function TankerDataPage() {
               )}
               {/* Løsningsforklaring, hvis lukket */}
               {entry.followup_resolution_text && (
-                <div className="mt-2 text-xs text-green-700 italic">
-                  Løsning: {entry.followup_resolution_text}
+                <div className="mt-2 text-xs text-green-700 italic flex flex-col gap-1">
+                  {editId === entry.id ? (
+                    <>
+                      <textarea
+                        className="border rounded p-2 text-xs w-full mb-1"
+                        rows={2}
+                        value={editText}
+                        onChange={e => setEditText(e.target.value)}
+                        disabled={saving}
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700"
+                          onClick={() => handleSave(entry.id)}
+                          disabled={saving || !editText.trim()}
+                        >
+                          Gem
+                        </button>
+                        <button
+                          className="bg-gray-300 text-xs px-3 py-1 rounded"
+                          onClick={() => setEditId(null)}
+                          disabled={saving}
+                        >
+                          Annuller
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      Løsning: {entry.followup_resolution_text}
+                      <button
+                        className="ml-2 text-blue-700 underline text-xs"
+                        onClick={() => { setEditId(entry.id); setEditText(entry.followup_resolution_text || ''); }}
+                      >
+                        Rediger
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </li>
