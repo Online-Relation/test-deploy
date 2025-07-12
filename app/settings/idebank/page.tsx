@@ -48,9 +48,7 @@ export default function IdebankPage() {
   // Hent sider fra Supabase
   const fetchPages = async () => {
     const { data, error } = await supabase.from('idea_pages').select('*').order('name');
-    console.log('idebank: fetchPages()', { data, error });
     setPages(data || []);
-    // Default vælg første hovedside hvis form.page er tom
     const mains = (data || []).filter((p: PageEntry) => !p.parent_id);
     if (mains.length && !form.page) setForm(f => ({ ...f, page: mains[0].id, subpage: '' }));
   };
@@ -62,7 +60,6 @@ export default function IdebankPage() {
       .from('idea_bank')
       .select('*')
       .order('created_at', { ascending: false });
-    console.log('idebank: fetchIdeas()', { data, error });
     if (!error && data) setIdeas(data as IdeaEntry[]);
     setLoading(false);
   };
@@ -74,13 +71,11 @@ export default function IdebankPage() {
     const name = newPage.trim();
     if (!name) return;
     const exists = pages.some(p => !p.parent_id && p.name.toLowerCase() === name.toLowerCase());
-    console.log('idebank: handleAddPage()', { name, exists });
     if (exists) {
       setStatusMsg({ type: 'error', msg: 'Der findes allerede en hovedside med dette navn.' });
       return;
     }
     const { error } = await supabase.from('idea_pages').insert([{ name }]);
-    console.log('idebank: handleAddPage insert', { name, error });
     if (!error) setStatusMsg({ type: 'success', msg: 'Hovedside tilføjet!' });
     else setStatusMsg({ type: 'error', msg: 'Kunne ikke tilføje hovedside.' });
     setNewPage('');
@@ -92,13 +87,11 @@ export default function IdebankPage() {
     const name = newSubpage.trim();
     if (!name || !parentForSubpage) return;
     const exists = pages.some(p => p.parent_id === parentForSubpage && p.name.toLowerCase() === name.toLowerCase());
-    console.log('idebank: handleAddSubpage()', { name, parentForSubpage, exists });
     if (exists) {
       setStatusMsg({ type: 'error', msg: 'Der findes allerede et underpunkt med dette navn under denne hovedside.' });
       return;
     }
     const { error } = await supabase.from('idea_pages').insert([{ name, parent_id: parentForSubpage }]);
-    console.log('idebank: handleAddSubpage insert', { name, parentForSubpage, error });
     if (!error) setStatusMsg({ type: 'success', msg: 'Underpunkt tilføjet!' });
     else setStatusMsg({ type: 'error', msg: 'Kunne ikke tilføje underpunkt.' });
     setNewSubpage('');
@@ -153,6 +146,15 @@ export default function IdebankPage() {
   // Slet idé
   const handleDelete = async (id: string) => {
     if (!window.confirm('Slet denne idé?')) return;
+    setLoading(true);
+    await supabase.from('idea_bank').delete().eq('id', id);
+    fetchIdeas();
+    setLoading(false);
+  };
+
+  // Marker idé som løst - sletter idéen
+  const handleMarkAsSolved = async (id: string) => {
+    if (!window.confirm('Markér denne idé som løst? Den vil blive fjernet fra listen.')) return;
     setLoading(true);
     await supabase.from('idea_bank').delete().eq('id', id);
     fetchIdeas();
@@ -423,6 +425,13 @@ export default function IdebankPage() {
                 disabled={loading}
               >
                 Slet
+              </button>
+              <button
+                onClick={() => handleMarkAsSolved(idea.id)}
+                className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700"
+                disabled={loading}
+              >
+                Løst
               </button>
             </div>
           </li>

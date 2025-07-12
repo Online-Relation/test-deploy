@@ -136,6 +136,15 @@ export default function ErrorLogPage() {
     setLoading(false);
   };
 
+  // Marker fejl som løst - sletter fejlen
+  const handleMarkAsSolved = async (id: string) => {
+    if (!window.confirm('Markér denne fejl som løst? Den vil blive fjernet fra listen.')) return;
+    setLoading(true);
+    await supabase.from('error_log').delete().eq('id', id);
+    fetchErrors();
+    setLoading(false);
+  };
+
   // Start redigering
   const handleEdit = (entry: ErrorEntry) => {
     const main = pages.find(p => p.name === entry.page && !p.parent_id);
@@ -156,11 +165,9 @@ export default function ErrorLogPage() {
 
   // --- FILTER/SEARCH LOGIK ---
   let filteredErrors = errors;
-  // category filter
   if (categoryFilter !== 'Alle') {
     filteredErrors = filteredErrors.filter(i => i.category === categoryFilter);
   }
-  // HOVEDSIDE dropdown filter (inkl. underpunkter)
   if (mainPageDropdown !== 'Alle') {
     const mainName = pages.find(p => p.id === mainPageDropdown)?.name;
     const subNames = pages.filter(p => p.parent_id === mainPageDropdown).map(p => p.name);
@@ -169,7 +176,6 @@ export default function ErrorLogPage() {
       (subNames.length > 0 && subNames.includes(i.subpage || ''))
     );
   }
-  // SØGNING
   const lowerSearch = search.toLowerCase();
   const searchedErrors = filteredErrors.filter(error =>
     error.title.toLowerCase().includes(lowerSearch) ||
@@ -392,6 +398,13 @@ export default function ErrorLogPage() {
                 disabled={loading}
               >
                 Slet
+              </button>
+              <button
+                onClick={() => handleMarkAsSolved(error.id)}
+                className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700"
+                disabled={loading}
+              >
+                Løst
               </button>
             </div>
           </li>

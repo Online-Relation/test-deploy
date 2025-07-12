@@ -6,6 +6,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import CheckinForm from "@/components/hverdag/CheckinForm";
 import LatestRegistrations from "@/components/hverdag/LatestRegistrations";
+import { useUserContext } from "@/context/UserContext";
 
 const CHIP_CATEGORIES_INIT = [
   {
@@ -47,13 +48,15 @@ function flattenChips(categories: typeof CHIP_CATEGORIES_INIT) {
 }
 
 export default function IndtjekningHverdag() {
+  const { user } = useUserContext();
+
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [wasTogether, setWasTogether] = useState("");
   const [conflict, setConflict] = useState("");
   const [conflictText, setConflictText] = useState("");
   const [mood, setMood] = useState(3);
 
-  const [ilyWho, setIlyWho] = useState(""); // '' | 'partner_first' | 'me_first' | 'partner_only' | 'me_only'
+  const [ilyWho, setIlyWho] = useState("");
 
   const [chipCategories, setChipCategories] = useState(CHIP_CATEGORIES_INIT);
   const [customTags, setCustomTags] = useState<string[]>([]);
@@ -233,6 +236,17 @@ export default function IndtjekningHverdag() {
     }
     const { error } = result;
 
+    // --- NYT: Hvis blomster er ja, indsæt i flowers_log ---
+    if (!error && flowers === "ja" && user?.id) {
+      const now = new Date().toISOString();
+      const { error: flowerError } = await supabase
+        .from("flowers_log")
+        .insert([{ user_id: user.id, given_at: now }]);
+      if (flowerError) {
+        console.error("Fejl ved indsættelse i flowers_log:", flowerError.message);
+      }
+    }
+
     setLoading(false);
     if (!error) {
       setDone(true);
@@ -319,7 +333,6 @@ export default function IndtjekningHverdag() {
         onSubmit={handleSubmit}
         onCancelEdit={handleCancelEdit}
 
-        // NYE FELTER
         honestyTalk={honestyTalk}
         setHonestyTalk={setHonestyTalk}
         honestyTopic={honestyTopic}

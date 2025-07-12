@@ -21,7 +21,8 @@ const allWidgets = [
   { key: 'level_tip', label: 'Tip til næste level' },
   { key: 'profile_header', label: 'Profilheader' },
   { key: 'manifestation_reminder', label: 'Manifestation Reminder' },
-  { key: 'followup_thoughts', label: 'Opfølgning' }, // <-- tilføjet her!
+  { key: 'followup_thoughts', label: 'Opfølgning' },
+  { key: 'flowers', label: 'Blomster Reminder' },
 ];
 
 

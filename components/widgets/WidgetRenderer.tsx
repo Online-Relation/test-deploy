@@ -1,4 +1,4 @@
-// WidgetRenderer.tsx
+// components/WidgetRenderer.tsx
 
 'use client';
 
@@ -12,8 +12,10 @@ import ActivityOverviewWidget from './ActivityOverviewWidget';
 import ChallengeCardWidget from './ChallengeCardWidget';
 import LevelTipWidget from './LevelTipWidget';
 import DashboardUserWidget from './DashboardUserWidget';
-import ManifestReminderWidget from './ManifestReminderWidget'; // <-- korrekt navn
+import ManifestReminderWidget from './ManifestReminderWidget';
 import FollowUpThoughtsWidget from "@/components/widgets/FollowUpThoughtsWidget";
+import FlowersWidget from "@/components/widgets/Flowers"; // <-- Importér her
+
 import { useUserContext } from '@/context/UserContext';
 
 interface Widget {
@@ -25,7 +27,6 @@ interface Widget {
 export default function WidgetRenderer({ widget }: { widget: Widget }) {
   const { user } = useUserContext();
 
-  // Debug log: Hvilket widget renderes netop nu?
   console.log('WidgetRenderer: widget_key', widget?.widget_key, widget);
 
   if (!widget) {
@@ -84,6 +85,13 @@ export default function WidgetRenderer({ widget }: { widget: Widget }) {
     case 'followup_thoughts':
       console.log('WidgetRenderer: Render FollowUpThoughtsWidget');
       return <FollowUpThoughtsWidget />;
+    case 'flowers':  // <-- Ny case for blomster widget
+      if (!user?.id) {
+        console.log('WidgetRenderer: FlowersWidget no user.id, return null');
+        return null;
+      }
+      console.log('WidgetRenderer: Render FlowersWidget');
+      return <FlowersWidget currentUserId={user.id} />; // <-- Rigtig prop navn
     default:
       console.log('WidgetRenderer: Unknown widget_key', widget.widget_key);
       return null;

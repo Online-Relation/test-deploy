@@ -53,7 +53,8 @@ export default function DashboardPage() {
     'level_tip',
     'profile_header',
     'manifestation_reminder',
-    'followup_thoughts', // <-- TILFØJET HER
+    'followup_thoughts',
+    'flowers',
   ];
 
   useEffect(() => {
