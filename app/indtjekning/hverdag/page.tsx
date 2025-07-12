@@ -1,12 +1,12 @@
+// app/indtjekning/hverdag/page.tsx
+
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { DayPicker } from "react-day-picker";
-import { da } from "react-day-picker/locale";
-import "react-day-picker/dist/style.css";
 import { supabase } from "@/lib/supabaseClient";
+import CheckinForm from "@/components/hverdag/CheckinForm";
+import LatestRegistrations from "@/components/hverdag/LatestRegistrations";
 
-// Kategoriserede chips
 const CHIP_CATEGORIES_INIT = [
   {
     name: "Positive",
@@ -46,22 +46,6 @@ function flattenChips(categories: typeof CHIP_CATEGORIES_INIT) {
   return categories.flatMap(cat => cat.chips);
 }
 
-const moodOptions = [
-  { value: 1, label: "Frost", color: "bg-blue-200 border-blue-400 text-blue-900" },
-  { value: 2, label: "Kølig", color: "bg-cyan-200 border-cyan-400 text-cyan-900" },
-  { value: 3, label: "Neutral", color: "bg-gray-200 border-gray-400 text-gray-900" },
-  { value: 4, label: "Lun", color: "bg-orange-200 border-orange-400 text-orange-900" },
-  { value: 5, label: "Hed", color: "bg-red-200 border-red-400 text-red-900" },
-];
-
-function isSameDay(a: Date, b: Date) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
-
 export default function IndtjekningHverdag() {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [wasTogether, setWasTogether] = useState("");
@@ -69,10 +53,8 @@ export default function IndtjekningHverdag() {
   const [conflictText, setConflictText] = useState("");
   const [mood, setMood] = useState(3);
 
-  // Felt: Hvem sagde "jeg elsker dig"?
-  const [ilyWho, setIlyWho] = useState(""); // '' | 'mig' | 'partner' | 'begge'
+  const [ilyWho, setIlyWho] = useState(""); // '' | 'partner_first' | 'me_first' | 'partner_only' | 'me_only'
 
-  // Kategorier og egne/tilføjede
   const [chipCategories, setChipCategories] = useState(CHIP_CATEGORIES_INIT);
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -87,6 +69,14 @@ export default function IndtjekningHverdag() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // NYE FELTER:
+  const [honestyTalk, setHonestyTalk] = useState("nej");
+  const [honestyTopic, setHonestyTopic] = useState("");
+  const [gift, setGift] = useState("nej");
+  const [gifts, setGifts] = useState([{ giftWhat: "", giftCost: "" }]);
+  const [flowers, setFlowers] = useState("nej");
+  const [alcohol, setAlcohol] = useState("nej");
 
   const baseChips = flattenChips(CHIP_CATEGORIES_INIT);
 
@@ -131,10 +121,6 @@ export default function IndtjekningHverdag() {
     fetchData();
   }, [done]);
 
-  function matcher(day: Date) {
-    return registeredDates.some((reg) => isSameDay(day, reg));
-  }
-
   const handleToggleTag = (tag: string) => {
     setSelectedTags(selected =>
       selected.includes(tag)
@@ -143,7 +129,6 @@ export default function IndtjekningHverdag() {
     );
   };
 
-  // Opdater handleAddTag så den tilføjer chip til valgt kategori
   const handleAddTag = () => {
     const tag = newTag.trim();
     if (!tag) return;
@@ -154,7 +139,6 @@ export default function IndtjekningHverdag() {
       newTagCategory &&
       chipCategories.find(c => c.name === newTagCategory)
     ) {
-      // Tilføj til valgt kategori
       setChipCategories(categories =>
         categories.map(cat =>
           cat.name === newTagCategory && !cat.chips.includes(tag)
@@ -167,7 +151,6 @@ export default function IndtjekningHverdag() {
       !customTags.includes(tag) &&
       (!newTagCategory || newTagCategory === "Egne følelser/tanker")
     ) {
-      // Tilføj som egen chip
       setCustomTags([...customTags, tag]);
     }
     if (!selectedTags.includes(tag)) setSelectedTags([...selectedTags, tag]);
@@ -184,6 +167,15 @@ export default function IndtjekningHverdag() {
     setMood(item.mood);
     setSelectedTags(item.tags || []);
     setIlyWho(item.ily_who || "");
+
+    // NYT - load felter fra item:
+    setHonestyTalk(item.honesty_talk ? "ja" : "nej");
+    setHonestyTopic(item.honesty_topic || "");
+    setGift(item.gift ? "ja" : "nej");
+    setGifts(item.gifts && Array.isArray(item.gifts) && item.gift ? item.gifts : [{ giftWhat: "", giftCost: "" }]);
+    setFlowers(item.flowers ? "ja" : "nej");
+    setAlcohol(item.alcohol ? "ja" : "nej");
+
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -200,7 +192,6 @@ export default function IndtjekningHverdag() {
 
     let result;
     if (editingId) {
-      // Update
       result = await supabase
         .from("daily_checkin")
         .update({
@@ -211,10 +202,16 @@ export default function IndtjekningHverdag() {
           mood,
           tags: selectedTags,
           ily_who: ilyWho || null,
+
+          honesty_talk: honestyTalk === "ja",
+          honesty_topic: honestyTalk === "ja" ? honestyTopic : null,
+          gift: gift === "ja",
+          gifts: gift === "ja" ? gifts : null,
+          flowers: flowers === "ja",
+          alcohol: alcohol === "ja",
         })
         .eq("id", editingId);
     } else {
-      // Insert
       result = await supabase
         .from("daily_checkin")
         .insert({
@@ -225,6 +222,13 @@ export default function IndtjekningHverdag() {
           mood,
           tags: selectedTags,
           ily_who: ilyWho || null,
+
+          honesty_talk: honestyTalk === "ja",
+          honesty_topic: honestyTalk === "ja" ? honestyTopic : null,
+          gift: gift === "ja",
+          gifts: gift === "ja" ? gifts : null,
+          flowers: flowers === "ja",
+          alcohol: alcohol === "ja",
         });
     }
     const { error } = result;
@@ -236,6 +240,14 @@ export default function IndtjekningHverdag() {
       setSelectedTags([]);
       setIlyWho("");
       setEditingId(null);
+
+      // NULSTIL nye felter:
+      setHonestyTalk("nej");
+      setHonestyTopic("");
+      setGift("nej");
+      setGifts([{ giftWhat: "", giftCost: "" }]);
+      setFlowers("nej");
+      setAlcohol("nej");
     } else {
       alert("Der opstod en fejl! Prøv igen.");
     }
@@ -250,6 +262,14 @@ export default function IndtjekningHverdag() {
     setMood(3);
     setSelectedTags([]);
     setIlyWho("");
+
+    // NULSTIL nye felter:
+    setHonestyTalk("nej");
+    setHonestyTopic("");
+    setGift("nej");
+    setGifts([{ giftWhat: "", giftCost: "" }]);
+    setFlowers("nej");
+    setAlcohol("nej");
   }
 
   if (done) {
@@ -271,288 +291,49 @@ export default function IndtjekningHverdag() {
 
   return (
     <div className="max-w-md mx-auto py-6 px-4">
-      <form onSubmit={handleSubmit}>
-        <div className="rounded-2xl shadow-lg bg-white p-4 mb-6">
-          <h2 className="text-xl font-semibold mb-4">
-            {editingId ? "Rediger indtjekning" : "Indtjekning – Hverdag"}
-          </h2>
+      <CheckinForm
+        date={date}
+        setDate={setDate}
+        registeredDates={registeredDates}
+        wasTogether={wasTogether}
+        setWasTogether={setWasTogether}
+        conflict={conflict}
+        conflictText={conflictText}
+        setConflict={setConflict}
+        setConflictText={setConflictText}
+        mood={mood}
+        setMood={setMood}
+        chipCategories={chipCategories}
+        customTags={customTags}
+        selectedTags={selectedTags}
+        newTag={newTag}
+        newTagCategory={newTagCategory}
+        onToggleTag={handleToggleTag}
+        onAddTag={handleAddTag}
+        setNewTag={setNewTag}
+        setNewTagCategory={setNewTagCategory}
+        ilyWho={ilyWho}
+        setIlyWho={setIlyWho}
+        loading={loading}
+        editingId={editingId}
+        onSubmit={handleSubmit}
+        onCancelEdit={handleCancelEdit}
 
-          {/* Kalender-vælger med markerede dage */}
-          <div className="mb-4">
-            <label className="block font-medium mb-1">Dato</label>
-            <DayPicker
-              mode="single"
-              selected={date}
-              onSelect={setDate}
-              modifiers={{
-                registered: matcher
-              }}
-              modifiersClassNames={{
-                registered: "rdp-day_registered"
-              }}
-              showOutsideDays
-              locale={da}
-              weekStartsOn={1}
-            />
-          </div>
-
-          {/* Var I sammen i dag */}
-          <div className="mb-4">
-            <label className="block font-medium mb-1">Var I sammen i dag?</label>
-            <select
-              value={wasTogether}
-              onChange={(e) => setWasTogether(e.target.value)}
-              className="border rounded-xl px-3 py-2 w-full"
-              required
-            >
-              <option value="">Vælg...</option>
-              <option value="ja">Ja</option>
-              <option value="nej">Nej</option>
-            </select>
-          </div>
-
-          {/* Konflikt */}
-          <div className="mb-4">
-            <label className="block font-medium mb-1">Var der konflikt?</label>
-            <select
-              value={conflict}
-              onChange={(e) => {
-                setConflict(e.target.value);
-                if (e.target.value !== "ja") setConflictText("");
-              }}
-              className="border rounded-xl px-3 py-2 w-full"
-              required
-            >
-              <option value="">Vælg...</option>
-              <option value="ja">Ja</option>
-              <option value="nej">Nej</option>
-            </select>
-          </div>
-
-          {/* Konflikt-beskrivelse, kun hvis valgt ja */}
-          {conflict === "ja" && (
-            <div className="mb-4">
-              <label className="block font-medium mb-1">Beskriv konflikten (valgfrit)</label>
-              <textarea
-                className="border rounded-xl px-3 py-2 w-full"
-                rows={2}
-                value={conflictText}
-                onChange={(e) => setConflictText(e.target.value)}
-                placeholder="Skriv kort hvad konflikten handlede om..."
-              />
-            </div>
-          )}
-
-          {/* NYT FELT: Sagde nogen "jeg elsker dig"? */}
-          <div className="mb-4">
-            <label className="block font-medium mb-1">Hvem sagde "jeg elsker dig" i dag?</label>
-            <select
-              value={ilyWho}
-              onChange={(e) => setIlyWho(e.target.value)}
-              className="border rounded-xl px-3 py-2 w-full"
-            >
-              <option value="">Ingen</option>
-              <option value="mig">Kun mig</option>
-              <option value="partner">Kun min kæreste</option>
-              <option value="begge">Begge</option>
-            </select>
-          </div>
-
-          {/* Stemning barometer */}
-          <div className="mb-4">
-            <label className="block font-medium mb-1">Humør for dagen</label>
-            <div className="flex items-center gap-3 justify-between">
-              {moodOptions.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setMood(opt.value)}
-                  className={`rounded-full w-16 h-16 flex items-center justify-center border-2 font-medium text-xs
-                    ${opt.color}
-                    ${mood === opt.value ? "scale-110 border-black shadow" : "opacity-80"}
-                    transition-all`}
-                  aria-label={opt.label}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            <div className="mt-3 text-center text-base font-medium" style={{ minHeight: 24 }}>
-              {moodOptions.find((opt) => opt.value === mood)?.label}
-            </div>
-          </div>
-
-          {/* Følelser/tanker (tags) med kategorier */}
-          <div className="mb-4">
-            <label className="block font-medium mb-1">Dagens følelser / tanker</label>
-            <div className="flex flex-col gap-3 mb-2">
-              {chipCategories.map(cat => (
-                <div key={cat.name}>
-                  <div className="font-semibold text-xs mb-1 text-gray-600">{cat.name}</div>
-                  <div className="flex flex-wrap gap-2">
-                    {cat.chips.map(tag => (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => handleToggleTag(tag)}
-                        className={`px-3 py-1 rounded-full border text-sm transition ${
-                          selectedTags.includes(tag)
-                            ? "bg-indigo-600 text-white border-indigo-600 shadow"
-                            : "bg-gray-100 text-gray-700 border-gray-300"
-                        }`}
-                        tabIndex={-1}
-                      >
-                        {tag}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-
-              {/* Egne/tilføjede tags */}
-              {customTags.length > 0 && (
-                <div>
-                  <div className="font-semibold text-xs mb-1 text-gray-600">Egne følelser/tanker</div>
-                  <div className="flex flex-wrap gap-2">
-                    {customTags.map(tag => (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => handleToggleTag(tag)}
-                        className={`px-3 py-1 rounded-full border text-sm transition ${
-                          selectedTags.includes(tag)
-                            ? "bg-indigo-600 text-white border-indigo-600 shadow"
-                            : "bg-gray-100 text-gray-700 border-gray-300"
-                        }`}
-                        tabIndex={-1}
-                      >
-                        {tag}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="flex gap-2 mt-2">
-              <input
-                type="text"
-                value={newTag}
-                onChange={(e) => setNewTag(e.target.value)}
-                placeholder="Tilføj følelse/tanke…"
-                className="flex-1 px-3 py-2 border rounded"
-                maxLength={32}
-                onKeyDown={e => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddTag();
-                  }
-                }}
-              />
-              <select
-                value={newTagCategory}
-                onChange={e => setNewTagCategory(e.target.value)}
-                className="border rounded-xl px-2 py-2"
-                style={{ minWidth: 120 }}
-              >
-                <option value="">Vælg kategori</option>
-                {chipCategories.map(cat => (
-                  <option key={cat.name} value={cat.name}>{cat.name}</option>
-                ))}
-                <option value="Egne følelser/tanker">Egne følelser/tanker</option>
-              </select>
-              <button
-                type="button"
-                disabled={!newTag.trim()}
-                onClick={handleAddTag}
-                className="px-3 py-2 rounded bg-green-600 text-white font-semibold"
-              >
-                Tilføj
-              </button>
-            </div>
-          </div>
-
-          {/* Submit & Cancel */}
-          <div className="flex gap-3 mt-4">
-            <button
-              className="btn-primary flex-1 shadow"
-              type="submit"
-              disabled={loading}
-            >
-              {loading
-                ? "Gemmer..."
-                : editingId
-                ? "Opdater indtjekning"
-                : "Gem"}
-            </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={handleCancelEdit}
-                className="flex-1 rounded bg-gray-200 border border-gray-400 text-gray-800 font-semibold shadow"
-              >
-                Annuller redigering
-              </button>
-            )}
-          </div>
-        </div>
-      </form>
+        // NYE FELTER
+        honestyTalk={honestyTalk}
+        setHonestyTalk={setHonestyTalk}
+        honestyTopic={honestyTopic}
+        setHonestyTopic={setHonestyTopic}
+        gift={gift}
+        setGift={setGift}
+        gifts={gifts}
+        setGifts={setGifts}
+        flowers={flowers}
+        setFlowers={setFlowers}
+        alcohol={alcohol}
+        setAlcohol={setAlcohol}
+      />
       <LatestRegistrations latest={latest} fetching={fetching} errorMsg={errorMsg} onEdit={loadForEdit} />
-    </div>
-  );
-}
-
-function LatestRegistrations({ latest, fetching, errorMsg, onEdit }: { latest: any[], fetching: boolean, errorMsg?: string | null, onEdit: (item: any) => void }) {
-  const moodOptions = [
-    { value: 1, label: "Frost", color: "bg-blue-200 border-blue-400 text-blue-900" },
-    { value: 2, label: "Kølig", color: "bg-cyan-200 border-cyan-400 text-cyan-900" },
-    { value: 3, label: "Neutral", color: "bg-gray-200 border-gray-400 text-gray-900" },
-    { value: 4, label: "Lun", color: "bg-orange-200 border-orange-400 text-orange-900" },
-    { value: 5, label: "Hed", color: "bg-red-200 border-red-400 text-red-900" },
-  ];
-
-  return (
-    <div className="rounded-2xl shadow bg-white p-4 mt-6">
-      <h3 className="font-semibold mb-3 text-lg">Seneste indtjekninger</h3>
-      {errorMsg ? (
-        <div className="text-center text-red-500 break-all">{typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg)}</div>
-      ) : fetching ? (
-        <div className="text-center text-gray-500">Henter...</div>
-      ) : latest.length === 0 ? (
-        <div className="text-center text-gray-400">Ingen registreringer endnu.</div>
-      ) : (
-        <ul className="space-y-2">
-          {latest.map((item) => {
-            const mood = moodOptions.find((m) => m.value === item.mood);
-            return (
-              <li key={item.id} className="flex items-center justify-between border-b pb-1 last:border-b-0 gap-1 flex-wrap">
-                <span className="text-sm">{item.checkin_date}</span>
-                <span className={`rounded-full px-3 py-1 text-xs font-medium ${mood?.color}`}>
-                  {mood?.label}
-                </span>
-                <span className="text-xs">
-                  {item.was_together ? "Sammen" : "Ikke sammen"}
-                </span>
-                <span className="text-xs">
-                  {item.conflict ? "Konflikt" : ""}
-                </span>
-                <span className="text-xs">
-                  {item.ily_who === "mig" && "Jeg sagde det"}
-                  {item.ily_who === "partner" && "Min kæreste sagde det"}
-                  {item.ily_who === "begge" && "Begge sagde det"}
-                  {!item.ily_who && ""}
-                </span>
-                <button
-                  className="ml-2 px-2 py-1 text-xs rounded bg-yellow-300"
-                  onClick={() => onEdit(item)}
-                  type="button"
-                >
-                  Rediger
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
     </div>
   );
 }
