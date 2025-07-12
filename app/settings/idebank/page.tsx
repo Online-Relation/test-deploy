@@ -39,8 +39,9 @@ export default function IdebankPage() {
   const [newPage, setNewPage] = useState('');
   const [newSubpage, setNewSubpage] = useState('');
   const [parentForSubpage, setParentForSubpage] = useState<string>('');
-  const [pageFilter, setPageFilter] = useState<'Alle' | string>('Alle');
   const [importanceFilter, setImportanceFilter] = useState<'Alle' | IdeaEntry['importance']>('Alle');
+  const [search, setSearch] = useState('');
+  const [mainPageDropdown, setMainPageDropdown] = useState<string>('Alle');
 
   // Hent sider fra Supabase
   const fetchPages = async () => {
@@ -91,26 +92,30 @@ export default function IdebankPage() {
     const mainPage = pages.find(p => p.id === form.page);
     const subPage = form.subpage ? pages.find(p => p.id === form.subpage) : undefined;
 
-    if (editId) {
-      await supabase
-        .from('idea_bank')
-        .update({
+    try {
+      if (editId) {
+        await supabase
+          .from('idea_bank')
+          .update({
+            title: form.title.trim(),
+            description: form.description.trim(),
+            page: mainPage?.name,
+            subpage: subPage?.name || null,
+            importance: form.importance,
+          })
+          .eq('id', editId);
+        setEditId(null);
+      } else {
+        await supabase.from('idea_bank').insert([{
           title: form.title.trim(),
           description: form.description.trim(),
           page: mainPage?.name,
           subpage: subPage?.name || null,
           importance: form.importance,
-        })
-        .eq('id', editId);
-      setEditId(null);
-    } else {
-      await supabase.from('idea_bank').insert([{
-        title: form.title.trim(),
-        description: form.description.trim(),
-        page: mainPage?.name,
-        subpage: subPage?.name || null,
-        importance: form.importance,
-      }]);
+        }]);
+      }
+    } catch (err) {
+      console.error("Fejl i handleSave:", err);
     }
     setForm({
       title: '',
@@ -134,7 +139,6 @@ export default function IdebankPage() {
 
   // Start redigering
   const handleEdit = (entry: IdeaEntry) => {
-    // Find id på hovedside og underside
     const main = pages.find(p => p.name === entry.page && !p.parent_id);
     const sub = pages.find(p => p.name === entry.subpage && p.parent_id === main?.id);
     setEditId(entry.id);
@@ -151,42 +155,57 @@ export default function IdebankPage() {
   const mainPages = pages.filter(p => !p.parent_id);
   const subPages = pages.filter(p => p.parent_id === form.page);
 
-  // Filterede ideer
+  // --- FILTER/SEARCH LOGIK ---
   let filteredIdeas = ideas;
-  if (pageFilter !== 'Alle') {
-    filteredIdeas = filteredIdeas.filter(i => i.page === pages.find(pg => pg.id === pageFilter)?.name);
-  }
+  // importance filter
   if (importanceFilter !== 'Alle') {
     filteredIdeas = filteredIdeas.filter(i => i.importance === importanceFilter);
   }
+  // HOVEDSIDE dropdown filter (inkl. underpunkter)
+  if (mainPageDropdown !== 'Alle') {
+    const mainName = pages.find(p => p.id === mainPageDropdown)?.name;
+    const subNames = pages.filter(p => p.parent_id === mainPageDropdown).map(p => p.name);
+    filteredIdeas = filteredIdeas.filter(i =>
+      (i.page === mainName) ||
+      (subNames.length > 0 && subNames.includes(i.subpage || ''))
+    );
+  }
+  // SØGNING
+  const lowerSearch = search.toLowerCase();
+  const searchedIdeas = filteredIdeas.filter(idea =>
+    idea.title.toLowerCase().includes(lowerSearch) ||
+    idea.description.toLowerCase().includes(lowerSearch) ||
+    (idea.page || '').toLowerCase().includes(lowerSearch) ||
+    (idea.subpage || '').toLowerCase().includes(lowerSearch)
+  );
 
   return (
-    <div className="max-w-2xl mx-auto p-8">
+    <div className="max-w-2xl mx-auto p-4 sm:p-8">
       <h1 className="text-2xl font-bold mb-4">💡 Idebank</h1>
 
       {/* Tilføj ny hovedside */}
-      <div className="flex gap-2 mb-3">
+      <div className="flex flex-col sm:flex-row gap-2 mb-3">
         <input
           type="text"
           placeholder="Tilføj ny hovedside..."
           value={newPage}
           onChange={e => setNewPage(e.target.value)}
-          className="border p-2 rounded"
+          className="border p-2 rounded w-full"
         />
         <button
           onClick={handleAddPage}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full sm:w-auto"
         >
           Tilføj hovedside
         </button>
       </div>
 
       {/* Tilføj underpunkt */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex flex-col sm:flex-row gap-2 mb-6">
         <select
           value={parentForSubpage}
           onChange={e => setParentForSubpage(e.target.value)}
-          className="border p-2 rounded"
+          className="border p-2 rounded w-full"
         >
           <option value="">Vælg hovedside…</option>
           {mainPages.map(mp => (
@@ -198,17 +217,63 @@ export default function IdebankPage() {
           placeholder="Tilføj underpunkt…"
           value={newSubpage}
           onChange={e => setNewSubpage(e.target.value)}
-          className="border p-2 rounded"
+          className="border p-2 rounded w-full"
         />
         <button
           onClick={handleAddSubpage}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full sm:w-auto"
         >
           Tilføj underpunkt
         </button>
       </div>
 
-     
+      {/* Filter (vigtighed) */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <span className="text-sm font-semibold mr-2 mt-1">Vis kun:</span>
+        <button
+          className={`px-3 py-1 rounded ${importanceFilter === 'Alle' ? 'bg-gray-800 text-white' : 'bg-gray-200'}`}
+          onClick={() => setImportanceFilter('Alle')}
+        >Alle vigtigheder</button>
+        {importanceLevels.map(lvl => (
+          <button
+            key={lvl}
+            className={`px-3 py-1 rounded ${
+              importanceFilter === lvl
+                ? lvl === 'Meget vigtigt'
+                  ? 'bg-red-600 text-white'
+                  : lvl === 'Vigtigt'
+                  ? 'bg-yellow-500 text-white'
+                  : 'bg-gray-500 text-white'
+                : 'bg-gray-200'
+            }`}
+            onClick={() => setImportanceFilter(lvl)}
+          >
+            {lvl}
+          </button>
+        ))}
+      </div>
+
+      {/* --- SØGEFELT + HOVEDSIDE-DROPDOWN --- */}
+      <div className="flex flex-col sm:flex-row gap-2 mb-6">
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Søg efter titel, beskrivelse, side…"
+          className="border p-2 rounded w-full"
+        />
+        <select
+          value={mainPageDropdown}
+          onChange={e => setMainPageDropdown(e.target.value)}
+          className="border p-2 rounded w-full sm:w-auto"
+        >
+          <option value="Alle">Alle hovedsider</option>
+          {mainPages.map(mp => (
+            <option key={mp.id} value={mp.id}>{mp.name}</option>
+          ))}
+        </select>
+      </div>
+      {/* ------------------------------ */}
 
       {/* Tilføj/rediger idé */}
       <div className="mb-6 p-4 border rounded-lg bg-gray-50">
@@ -285,37 +350,10 @@ export default function IdebankPage() {
         </div>
       </div>
 
-      {/* --- VIGTIGHED (IMPORTANCE) FILTER CHIPS --- */}
-      <div className="flex gap-2 mb-8 flex-wrap">
-        <span className="text-sm font-semibold mr-2 mt-1">Vis kun:</span>
-        <button
-          className={`px-3 py-1 rounded ${importanceFilter === 'Alle' ? 'bg-gray-800 text-white' : 'bg-gray-200'}`}
-          onClick={() => setImportanceFilter('Alle')}
-        >Alle vigtigheder</button>
-        {importanceLevels.map(lvl => (
-          <button
-            key={lvl}
-            className={`px-3 py-1 rounded ${
-              importanceFilter === lvl
-                ? lvl === 'Meget vigtigt'
-                  ? 'bg-red-600 text-white'
-                  : lvl === 'Vigtigt'
-                  ? 'bg-yellow-500 text-white'
-                  : 'bg-gray-500 text-white'
-                : 'bg-gray-200'
-            }`}
-            onClick={() => setImportanceFilter(lvl)}
-          >
-            {lvl}
-          </button>
-        ))}
-      </div>
-      {/* ------------------------------------------ */}
-
       {/* Idélisten */}
       <ul className="space-y-4">
-        {filteredIdeas.length === 0 && <li className="text-gray-400">Ingen ideer i denne kategori.</li>}
-        {filteredIdeas.map(idea => (
+        {searchedIdeas.length === 0 && <li className="text-gray-400">Ingen ideer i denne kategori.</li>}
+        {searchedIdeas.map(idea => (
           <li
             key={idea.id}
             className="border rounded-lg p-4 flex flex-col gap-1 bg-blue-50 border-blue-400"
