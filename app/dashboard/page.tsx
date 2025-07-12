@@ -52,6 +52,7 @@ export default function DashboardPage() {
     'challenge_card',
     'level_tip',
     'profile_header',
+    'manifestation_reminder',
     'followup_thoughts', // <-- TILFØJET HER
   ];
 

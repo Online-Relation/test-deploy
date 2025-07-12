@@ -58,7 +58,7 @@ function ManifestationCard({
         <img
           src={card.image_url}
           alt={card.title}
-          className="w-full h-36 object-cover rounded-t-xl"
+          className="w-full h-70 object-cover rounded-t-xl"
         />
       ) : (
         <div className="w-full h-36 bg-gray-200 rounded-t-xl" />
@@ -93,7 +93,6 @@ function ManifestationCard({
               </li>
             ))}
           </ul>
-          {/* Progress bar og afsluttet kun hvis der er delmål */}
           {totalCount > 0 && (
             <>
               <ProgressBar value={doneCount} max={totalCount} />
@@ -122,16 +121,18 @@ function ManifestationModal({
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(card?.title || '');
   const [editDesc, setEditDesc] = useState(card?.description || '');
+  const [editImage, setEditImage] = useState<File | null>(null);
+  const [subgoals, setSubgoals] = useState<Subgoal[]>([]);
   const [newSubgoal, setNewSubgoal] = useState('');
   const [newSubgoalDeadline, setNewSubgoalDeadline] = useState('');
-  const [subgoals, setSubgoals] = useState<Subgoal[]>([]);
   const [editingDeadlines, setEditingDeadlines] = useState<{ [id: string]: string }>({});
-  
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!card) return;
     setEditTitle(card.title);
     setEditDesc(card.description);
+    setEditImage(null);
     setEditing(false);
     setEditingDeadlines({});
     fetchSubgoals();
@@ -149,13 +150,41 @@ function ManifestationModal({
   }
 
   const handleSave = async () => {
-    await supabase
+    setUploading(true);
+    let imageUrl = card?.image_url || '';
+
+    if (editImage) {
+      const fileExt = editImage.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase
+        .storage
+        .from('manifestation-images')
+        .upload(fileName, editImage, { upsert: true });
+      if (uploadError) {
+        alert('Fejl ved billedupload: ' + uploadError.message);
+        setUploading(false);
+        return;
+      }
+      const { data } = supabase.storage.from('manifestation-images').getPublicUrl(fileName);
+      imageUrl = data?.publicUrl || imageUrl;
+    }
+
+    const { error } = await supabase
       .from('manifestations')
-      .update({ title: editTitle, description: editDesc })
+      .update({ title: editTitle, description: editDesc, image_url: imageUrl })
       .eq('id', card!.id);
+
+    if (error) {
+      alert('Fejl ved opdatering: ' + error.message);
+      setUploading(false);
+      return;
+    }
+
     setEditing(false);
+    setEditImage(null);
     onClose();
     onEdited();
+    setUploading(false);
   };
 
   const handleAddSubgoal = async () => {
@@ -218,13 +247,15 @@ function ManifestationModal({
         >
           ×
         </button>
-        {card.image_url && (
+
+        {card.image_url && !editing && (
           <img
             src={card.image_url}
             alt={card.title}
             className="w-full h-40 object-cover rounded mb-4"
           />
         )}
+
         {editing ? (
           <>
             <input
@@ -232,6 +263,13 @@ function ManifestationModal({
               className="w-full border rounded px-2 py-1 mb-2"
               value={editTitle}
               onChange={e => setEditTitle(e.target.value)}
+            />
+            <input
+              type="file"
+              accept="image/*"
+              onChange={e => setEditImage(e.target.files?.[0] || null)}
+              className="border rounded px-3 py-2 mb-3 w-full"
+              disabled={uploading}
             />
             <RichTextEditor
               value={editDesc}
@@ -292,12 +330,14 @@ function ManifestationModal({
               <button
                 onClick={handleSave}
                 className="btn btn-primary"
+                disabled={uploading}
               >
-                Gem ændringer
+                {uploading ? 'Uploader...' : 'Gem ændringer'}
               </button>
               <button
                 onClick={() => setEditing(false)}
                 className="btn btn-outline"
+                disabled={uploading}
               >
                 Annuller
               </button>
@@ -385,66 +425,64 @@ export default function ManifestationBoard() {
     await fetchManifestations();
   };
 
-async function handleCreateManifestation() {
-  let imageUrl = '';
-  if (newImage) {
-    const fileExt = newImage.name.split('.').pop();
-    const fileName = `${Date.now()}.${fileExt}`;
-    const { error: uploadError } = await supabase
-      .storage
-      .from('manifestation-images')
-      .upload(fileName, newImage, { upsert: true });
-    if (uploadError) {
-      alert('Fejl ved billedupload: ' + uploadError.message);
-      return;
+  async function handleCreateManifestation() {
+    let imageUrl = '';
+    if (newImage) {
+      const fileExt = newImage.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase
+        .storage
+        .from('manifestation-images')
+        .upload(fileName, newImage, { upsert: true });
+      if (uploadError) {
+        alert('Fejl ved billedupload: ' + uploadError.message);
+        return;
+      }
+      const { data } = supabase.storage.from('manifestation-images').getPublicUrl(fileName);
+      imageUrl = data?.publicUrl || '';
     }
-    const { publicUrl } = supabase.storage.from('manifestation-images').getPublicUrl(fileName).data;
-    imageUrl = publicUrl;
-  }
 
-  const { data, error } = await supabase
-    .from('manifestations')
-    .insert([
-      {
-        title: newTitle,
-        description: newDesc,
-        image_url: imageUrl,
-      },
-    ])
-    .select()
-    .single();
-
-  if (error) {
-    alert('Fejl ved oprettelse: ' + error.message);
-    return;
-  }
-
-  // --- NYT: indsæt tilsvarende i manifestation_points tabel ---
-  if (data) {
-    const { error: mpError } = await supabase
-      .from('manifestation_points')
+    const { data, error } = await supabase
+      .from('manifestations')
       .insert([
         {
-          manifestation_id: data.id,
           title: newTitle,
-          content: newDesc,
-          remind_me: true, // eller false efter behov
+          description: newDesc,
+          image_url: imageUrl,
         },
-      ]);
+      ])
+      .select()
+      .single();
 
-    if (mpError) {
-      console.error('Fejl ved indsættelse i manifestation_points:', mpError);
-      // evt. vis alert her
+    if (error) {
+      alert('Fejl ved oprettelse: ' + error.message);
+      return;
     }
+
+    // --- NYT: indsæt tilsvarende i manifestation_points tabel ---
+    if (data) {
+      const { error: mpError } = await supabase
+        .from('manifestation_points')
+        .insert([
+          {
+            manifestation_id: data.id,
+            title: newTitle,
+            content: newDesc,
+            remind_me: true,
+          },
+        ]);
+
+      if (mpError) {
+        console.error('Fejl ved indsættelse i manifestation_points:', mpError);
+      }
+    }
+
+    await fetchManifestations();
+    setNewTitle('');
+    setNewDesc('');
+    setNewImage(null);
+    setCreateOpen(false);
   }
-
-  await fetchManifestations();
-  setNewTitle('');
-  setNewDesc('');
-  setNewImage(null);
-  setCreateOpen(false);
-}
-
 
   return (
     <div className="w-full mx-auto px-0 sm:px-4 py-6" style={{ paddingLeft: '0px', paddingRight: '0px' }}>
@@ -460,7 +498,6 @@ async function handleCreateManifestation() {
             onToggleSubgoal={handleToggleSubgoal}
           />
         ))}
-        {/* Tilføj-nyt kort */}
         <div
           onClick={() => setCreateOpen(true)}
           className="flex items-center justify-center border-2 border-dashed rounded-xl p-6 cursor-pointer hover:border-gray-400 transition bg-white text-gray-500 font-bold"
@@ -469,7 +506,6 @@ async function handleCreateManifestation() {
         </div>
       </div>
 
-      {/* Modal til visning/redigering */}
       <ManifestationModal
         card={modalCard}
         open={!!modalCard}
@@ -477,7 +513,6 @@ async function handleCreateManifestation() {
         onEdited={fetchManifestations}
       />
 
-      {/* Modal til oprettelse */}
       {createOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative">
