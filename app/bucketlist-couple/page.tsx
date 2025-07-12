@@ -7,6 +7,7 @@ import BucketCard from '@/components/BucketCard';
 import BucketTimeline from '@/components/BucketTimeline';
 import { BucketProvider, useBucket } from '@/context/BucketContext';
 import { supabase } from '@/lib/supabaseClient';
+import BucketNotes from '@/components/BucketNotes';
 
 type ViewMode = 'timeline' | 'board';
 
@@ -231,6 +232,13 @@ function BucketGrid() {
         <p className="text-muted-foreground whitespace-pre-wrap">{newBucketDesc}</p>
         <p className="text-sm text-muted-foreground">Kategori: {categories.find(c => c.id === newBucketCat)?.name || 'Ukendt'}</p>
         <p className="text-sm text-muted-foreground">Deadline: {newBucketDeadline || 'Ingen'}</p>
+        
+        {/* ---------- Her indsætter du BucketNotes ---------- */}
+        {activeBucketId && (
+          <BucketNotes bucketId={activeBucketId} />
+        )}
+        {/* -------------------------------------------------- */}
+
         <div className="flex justify-end">
           <button onClick={() => setEditMode(true)} className="btn btn-outline">Rediger</button>
         </div>
@@ -238,6 +246,7 @@ function BucketGrid() {
     )}
   </Dialog.Panel>
 </Dialog>
+
 
     </div>
   );

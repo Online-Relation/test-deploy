@@ -1,4 +1,5 @@
 // app/settings/rewards/page.tsx
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -15,6 +16,13 @@ type Reward = {
   type: string;
   redeemed: boolean;
   redeemed_at?: string;
+};
+
+type Wish = {
+  id: string;
+  description: string;
+  user_id: string;
+  // profile_name?: string; // Kan tilføjes senere hvis du vil vise navn
 };
 
 export default function RewardsPage() {
@@ -34,6 +42,9 @@ export default function RewardsPage() {
   const [levelLength, setLevelLength] = useState<number>(100);
   const [levelSettingId, setLevelSettingId] = useState<number | null>(null);
 
+  // NYT: Wishes fra profiler
+  const [profileWishes, setProfileWishes] = useState<Wish[]>([]);
+
   const user = useUser();
 
   useEffect(() => {
@@ -42,9 +53,10 @@ export default function RewardsPage() {
     fetchTypes();
     fetchCategories();
     fetchLevelLength();
+    fetchProfileWishes(); // NYT: Hent ønsker fra profiler
   }, [user]);
 
-  // NYT: Hent og opdatér level-længde
+  // Hent og opdatér level-længde
   const fetchLevelLength = async () => {
     const { data, error } = await supabase
       .from('xp_settings')
@@ -67,7 +79,6 @@ export default function RewardsPage() {
       .eq('id', levelSettingId);
   };
 
-  // Eksisterende kode fortsætter...
   const fetchRewards = async () => {
     if (!user) return;
     const { data, error } = await supabase
@@ -102,6 +113,32 @@ export default function RewardsPage() {
       if (names.length > 0) setCategory(names[0]);
     }
   };
+
+  // NYT: Hent ønsker fra profiler, bruger user_id
+  const fetchProfileWishes = async () => {
+      console.log("fetchProfileWishes CALLED!");
+    const { data, error } = await supabase
+      .from('wishes')
+      .select('*'); // Hent alt råt
+
+    console.log("fetchProfileWishes | RAW data:", data);
+    console.log("fetchProfileWishes | error:", error);
+
+    if (!error && data) {
+      const wishesMapped = data.map((w: any) => ({
+        id: w.id,
+        description: w.description,
+        user_id: w.user_id,
+      }));
+      setProfileWishes(wishesMapped);
+    } else {
+      setProfileWishes([]);
+      console.error('Fejl ved hentning af ønsker:', error);
+    }
+  };
+
+  // Debug output udenfor return (KORREKT!)
+  console.log("profileWishes in render:", profileWishes);
 
   const startEdit = (reward: Reward) => {
     setEditingReward(reward);
@@ -222,7 +259,7 @@ export default function RewardsPage() {
       </ul>
 
       <h2 className="text-xl font-semibold mb-2">🎉 Indløste gaver</h2>
-      <ul className="space-y-4">
+      <ul className="space-y-4 mb-8">
         {redeemedRewards.map((reward) => (
           <li key={reward.id} className="border p-4 rounded shadow bg-gray-50">
             <div className="font-semibold">{reward.title}</div>
@@ -232,6 +269,23 @@ export default function RewardsPage() {
             <div className="text-sm text-gray-500">Kategori: {reward.category}</div>
             <div className="text-sm text-gray-400 italic">Type: {reward.type}</div>
             {reward.redeemed_at && <div className="text-xs text-gray-400 mt-1">Indløst: {new Date(reward.redeemed_at).toLocaleDateString()}</div>}
+          </li>
+        ))}
+      </ul>
+
+      {/* NY SEKTION: Ønsker fra profiler */}
+      <h2 className="text-xl font-semibold mb-2">💡 Ønsker fra profiler</h2>
+      <ul className="space-y-2">
+        {profileWishes.length === 0 && (
+          <li className="text-gray-500 italic">Ingen ønsker fra profiler endnu.</li>
+        )}
+        {profileWishes.map(wish => (
+          <li key={wish.id} className="border p-3 rounded bg-yellow-50 flex justify-between items-center">
+            <div>
+              <div className="font-medium">{wish.description}</div>
+              <div className="text-xs text-gray-500">Fra bruger-id: {wish.user_id}</div>
+            </div>
+            {/* Knap til at konvertere til reward kan tilføjes senere */}
           </li>
         ))}
       </ul>
