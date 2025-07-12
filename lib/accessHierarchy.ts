@@ -119,6 +119,10 @@ export const accessHierarchy: AccessEntry[] = [
       { key: 'settings/couple-background', label: 'Baggrund', href: '/settings/couple-background', children: [] },
       { key: 'settings/tables', label: 'Tables', href: '/settings/tables', children: [] },
       { key: 'settings/notifications', label: 'Notifikationer', href: '/settings/notifications', children: [] },
+      { key: '/settings/error-log', label: 'Error-log', href: '/settings/error-log', children: [] },
+      { key: '/settings/idebank', label: 'Idebank', href: '/settings/idebank', children: [] },
+
+      
       
       { key: 'settings/activity', label: 'Activity', href: '/settings/activity', children: [] },
       {
