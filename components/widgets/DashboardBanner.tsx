@@ -4,6 +4,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { uploadImageToSupabase } from '@/lib/uploadImageToSupabase';
 import { supabase } from '@/lib/supabaseClient';
 import { useUserContext } from '@/context/UserContext';
+import ImageCropModal from '../ImageCropModal';
 
 const DashboardBanner = () => {
   const { user } = useUserContext();
@@ -11,11 +12,16 @@ const DashboardBanner = () => {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Cropping state
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [rawImage, setRawImage] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+
   // Hent billede fra DB ved første load
   useEffect(() => {
     const fetchBanner = async () => {
       if (!user?.id) return;
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('dashboard_images')
         .select('image_url')
         .eq('user_id', user.id)
@@ -37,12 +43,25 @@ const DashboardBanner = () => {
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user?.id) return;
+    if (!file) return;
+    // Åbn crop-modal
+    setRawImage(URL.createObjectURL(file));
+    setPendingFile(file);
+    setCropModalOpen(true);
+  };
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    if (!user?.id) return;
     setUploading(true);
+    setCropModalOpen(false);
+
+    // Konverter blob til File for upload
+    const croppedFile = new File([croppedBlob], pendingFile?.name || 'cropped.jpg', { type: 'image/jpeg' });
+
     try {
-      const url = await uploadImageToSupabase(file, user.id);
+      const url = await uploadImageToSupabase(croppedFile, user.id);
       setImageUrl(url);
-      // Gem billede i DB
+      // Gem i DB
       await supabase.from('dashboard_images').insert([
         {
           user_id: user.id,
@@ -54,11 +73,20 @@ const DashboardBanner = () => {
       alert('Upload fejlede');
     } finally {
       setUploading(false);
+      setRawImage(null);
+      setPendingFile(null);
     }
   };
 
+  const handleCropCancel = () => {
+    setCropModalOpen(false);
+    setRawImage(null);
+    setPendingFile(null);
+  };
+
   return (
-    <div className="w-full max-w-2xl mx-auto rounded-2xl shadow-md overflow-hidden mb-6 relative aspect-[3/1] bg-gradient-to-tr from-purple-100 to-orange-100 flex items-center justify-center">
+   <div className="w-full rounded-2xl shadow-md overflow-hidden mb-6 relative aspect-[3/1] bg-gradient-to-tr from-purple-100 to-orange-100 flex items-center justify-center">
+
       <input
         type="file"
         accept="image/*"
@@ -92,6 +120,13 @@ const DashboardBanner = () => {
           </svg>
         </button>
       )}
+      <ImageCropModal
+        open={cropModalOpen}
+        imageSrc={rawImage || ''}
+        onCancel={handleCropCancel}
+        onCropComplete={handleCropComplete}
+        aspect={3 / 1}
+      />
     </div>
   );
 };
