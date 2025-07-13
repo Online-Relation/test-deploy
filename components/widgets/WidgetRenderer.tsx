@@ -14,7 +14,8 @@ import LevelTipWidget from './LevelTipWidget';
 import DashboardUserWidget from './DashboardUserWidget';
 import ManifestReminderWidget from './ManifestReminderWidget';
 import FollowUpThoughtsWidget from "@/components/widgets/FollowUpThoughtsWidget";
-import FlowersWidget from "@/components/widgets/Flowers"; // <-- Importér her
+import FlowersWidget from "@/components/widgets/Flowers";
+import DashboardBanner from '@/components/widgets/DashboardBanner'; // <-- Importér banneret
 
 import { useUserContext } from '@/context/UserContext';
 
@@ -79,19 +80,23 @@ export default function WidgetRenderer({ widget }: { widget: Widget }) {
           userId={user.id}
         />
       );
+    case 'dashboard_banner': // <-- Tilføj banneret her
+      console.log('WidgetRenderer: Render DashboardBanner');
+      // Her skal vi tilføje props senere, når vi kobler upload/data på
+      return <DashboardBanner />;
     case 'manifestation_reminder':
       console.log('WidgetRenderer: Render ManifestReminderWidget');
       return <ManifestReminderWidget />;
     case 'followup_thoughts':
       console.log('WidgetRenderer: Render FollowUpThoughtsWidget');
       return <FollowUpThoughtsWidget />;
-    case 'flowers':  // <-- Ny case for blomster widget
+    case 'flowers':
       if (!user?.id) {
         console.log('WidgetRenderer: FlowersWidget no user.id, return null');
         return null;
       }
       console.log('WidgetRenderer: Render FlowersWidget');
-      return <FlowersWidget currentUserId={user.id} />; // <-- Rigtig prop navn
+      return <FlowersWidget currentUserId={user.id} />;
     default:
       console.log('WidgetRenderer: Unknown widget_key', widget.widget_key);
       return null;

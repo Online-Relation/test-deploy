@@ -1,5 +1,8 @@
-import DateIdeasBoard from '@/components/DateIdeasBoard';
+// app/dates/page.tsx
+'use client';
 
-export default function Page() {
-  return <DateIdeasBoard />;
+import DateBoard from '@/components/DateBoard';
+
+export default function DatesPage() {
+  return <DateBoard />;
 }

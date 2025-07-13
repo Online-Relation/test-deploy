@@ -23,6 +23,8 @@ const allWidgets = [
   { key: 'manifestation_reminder', label: 'Manifestation Reminder' },
   { key: 'followup_thoughts', label: 'Opfølgning' },
   { key: 'flowers', label: 'Blomster Reminder' },
+  { key: 'dashboard_banner', label: 'Forsidebillede' },
+
 ];
 
 

@@ -9,7 +9,6 @@ const supabase = createClient(
 );
 
 const defaultCategories = ["Parforhold", "Privat", "Arbejde"];
-const initialTags = ["taknemmelig", "udfordring", "mål"];
 
 type Entry = {
   id: string;
@@ -31,6 +30,8 @@ const RichTextEditor = dynamic(() => import('@/components/ui/RichTextEditor'), {
 
 export default function TankerPage() {
   const [categories, setCategories] = useState<string[]>(defaultCategories);
+  const [allTags, setAllTags] = useState<string[]>([]);
+
   const [newCategory, setNewCategory] = useState("");
   const [entries, setEntries] = useState<Entry[]>([]);
   const [title, setTitle] = useState("");
@@ -58,22 +59,66 @@ export default function TankerPage() {
   const [bannerImageUrl, setBannerImageUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  useEffect(() => {
-    async function fetchEntries() {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('tanker_entries')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (!error && data) setEntries(data as Entry[]);
-      setLoading(false);
+useEffect(() => {
+  async function fetchEntries() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('tanker_entries')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (!error && data) {
+      setEntries(data as Entry[]);
+      const tagsSet = new Set<string>();
+  (data as Entry[]).forEach(entry => {
+    entry.tags.forEach(tag => tagsSet.add(tag));
+  });
+  setAllTags(Array.from(tagsSet));
+      // Hvis der ingen entries er, nulstil streak
+      if (data.length === 0) {
+        setStreak(0);
+        localStorage.removeItem("tanker_streak");
+      } else {
+        // Beregn streak ud fra seneste entry created_at
+        updateStreakFromEntries(data as Entry[]);
+      }
     }
-    fetchEntries();
-    const cat = localStorage.getItem("tanker_categories");
-    if (cat) setCategories(JSON.parse(cat));
-    const s = localStorage.getItem("tanker_streak");
-    if (s) setStreak(Number(s));
-  }, []);
+    setLoading(false);
+  }
+  fetchEntries();
+
+  const cat = localStorage.getItem("tanker_categories");
+  if (cat) setCategories(JSON.parse(cat));
+}, []);
+
+// Funktion der opdaterer streak baseret på databasen entries (seneste created_at)
+function updateStreakFromEntries(entries: Entry[]) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const latestDateStr = entries[0]?.created_at?.split("T")[0];
+  if (!latestDateStr) return;
+
+  const latestDate = new Date(latestDateStr);
+  latestDate.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.floor((today.getTime() - latestDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) {
+    // Hvis sidste entry er i dag, behold streak
+    const storedStreak = localStorage.getItem("tanker_streak");
+    setStreak(storedStreak ? Number(storedStreak) : 1);
+  } else if (diffDays === 1) {
+    // Hvis sidste entry var i går, fortsæt streak
+    const storedStreak = localStorage.getItem("tanker_streak");
+    const currentStreak = storedStreak ? Number(storedStreak) : 1;
+    setStreak(currentStreak);
+  } else {
+    // Hvis der er gået mere end 1 dag, nulstil streak
+    setStreak(0);
+    localStorage.removeItem("tanker_streak");
+  }
+}
+
 
   useEffect(() => {
     localStorage.setItem("tanker_categories", JSON.stringify(categories));
@@ -212,19 +257,19 @@ export default function TankerPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-white via-blue-50 to-blue-100">
-      {/* Sidebar */}
-      <aside className="w-64 p-4 border-r bg-white/90 flex flex-col gap-6">
+  <div className="min-h-screen bg-gradient-to-br from-white via-blue-50 to-blue-100 p-4">
+    {/* Mobilvenlig topbar med filtrering */}
+    <div className="flex flex-col sm:flex-row sm:gap-6 bg-white/90 rounded shadow p-4 mb-6">
+      {/* Kategorier */}
+      <div className="flex flex-wrap gap-2 flex-1 min-w-[200px]">
         <div>
           <h3 className="font-semibold text-lg mb-2">Kategorier</h3>
-          <ul>
+          <ul className="flex flex-wrap gap-2">
             {categories.map((cat) => (
               <li key={cat}>
                 <button
                   className={`block px-2 py-1 rounded ${selectedCategory === cat ? "bg-blue-200 font-bold" : "hover:bg-blue-100"}`}
-                  onClick={() =>
-                    setSelectedCategory(selectedCategory === cat ? null : cat)
-                  }
+                  onClick={() => setSelectedCategory(selectedCategory === cat ? null : cat)}
                 >
                   {cat}
                 </button>
@@ -250,194 +295,218 @@ export default function TankerPage() {
             </button>
           </form>
         </div>
+      </div>
+
+      {/* Tags */}
+      <div className="flex flex-wrap gap-2 flex-1 min-w-[200px]">
         <div>
           <h3 className="font-semibold text-lg mb-2">Tags</h3>
           <ul className="flex flex-wrap gap-2">
-            {initialTags.map((tag) => (
-              <li key={tag}>
-                <button
-                  className={`px-2 py-1 rounded text-sm ${selectedTag === tag ? "bg-green-200 font-bold" : "hover:bg-green-100"}`}
-                  onClick={() =>
-                    setSelectedTag(selectedTag === tag ? null : tag)
-                  }
-                >
-                  #{tag}
-                </button>
-              </li>
-            ))}
+            {allTags.length === 0 ? (
+              <li className="text-gray-400 italic">Ingen tags tilgængelige</li>
+            ) : (
+              allTags.map((tag) => (
+                <li key={tag}>
+                  <button
+                    className={`px-2 py-1 rounded text-sm ${selectedTag === tag ? "bg-green-200 font-bold" : "hover:bg-green-100"}`}
+                    onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                  >
+                    #{tag}
+                  </button>
+                </li>
+              ))
+            )}
           </ul>
         </div>
-        <div className="mt-6">
-          <span className="inline-block bg-purple-100 text-purple-700 px-3 py-1 rounded-xl font-bold">
-            🔥 {streak} dages streak
-          </span>
-        </div>
-        <div className="mt-6">
+      </div>
+
+      {/* Streak */}
+      <div className="flex items-center justify-center sm:justify-start flex-1 min-w-[100px]">
+        <span className="inline-block bg-purple-100 text-purple-700 px-3 py-1 rounded-xl font-bold">
+          🔥 {streak} dages streak
+        </span>
+      </div>
+
+      {/* Søg */}
+      <div className="flex flex-1 min-w-[200px]">
+        <input
+          type="text"
+          placeholder="Søg tanker…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full px-2 py-1 rounded border"
+        />
+      </div>
+    </div>
+
+    {/* Hovedsektion */}
+    <main className="flex-1 p-0 sm:p-10">
+      {/* Editor */}
+      <section className="max-w-2xl mx-auto bg-white/70 p-8 rounded-2xl shadow mb-8">
+        <h2 className="text-xl font-bold mb-3">Hvad vil du skrive om i dag?</h2>
+        <input
+          className="w-full border-b mb-3 p-2 text-lg bg-transparent"
+          placeholder="Overskrift (valgfri)"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+
+        <div className="flex gap-4 mb-3">
+          <select
+            className="border px-2 py-1 rounded"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            {categories.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
           <input
             type="text"
-            placeholder="Søg tanker…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-2 py-1 rounded border"
+            className="border px-2 py-1 rounded flex-1"
+            placeholder="Tilføj tags (komma-adskilt)"
+            value={tags.join(",")}
+            onChange={(e) =>
+              setTags(
+                e.target.value
+                  .split(",")
+                  .map((t) => t.trim())
+                  .filter(Boolean)
+              )
+            }
           />
         </div>
-      </aside>
 
-      {/* Hovedsektion */}
-      <main className="flex-1 p-10">
-        {/* Editor */}
-        <section className="max-w-2xl mx-auto bg-white/70 p-8 rounded-2xl shadow mb-8">
-          <h2 className="text-xl font-bold mb-3">Hvad vil du skrive om i dag?</h2>
-          <input
-            className="w-full border-b mb-3 p-2 text-lg bg-transparent"
-            placeholder="Overskrift (valgfri)"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
+        <div className="mb-3">
+          <RichTextEditor value={text} onChange={setText} />
+        </div>
 
-          <div className="flex gap-4 mb-3">
-            <select
-              className="border px-2 py-1 rounded"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
+        <input
+          className="w-full border-b mb-3 p-2"
+          placeholder="Dagens læring eller taknemmelighed…"
+          value={reflection}
+          onChange={(e) => setReflection(e.target.value)}
+        />
+
+        <input
+          className="w-full border-b mb-3 p-2"
+          placeholder="Opfølgning (problem du vil følge op på…)"
+          value={followup}
+          onChange={(e) => setFollowup(e.target.value)}
+        />
+
+        <div className="mb-3">
+          <label className="block mb-1 font-semibold">Bannerbillede (valgfrit)</label>
+          <input type="file" onChange={onFileChange} disabled={uploading} />
+          {bannerImageUrl && (
+            <img
+              src={bannerImageUrl}
+              alt="Banner"
+              className="mt-2 w-full h-48 object-cover rounded"
+            />
+          )}
+        </div>
+
+        <button
+          onClick={handleAddEntry}
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold shadow hover:bg-blue-700"
+          disabled={!text}
+        >
+          Tilføj indlæg
+        </button>
+      </section>
+
+      {/* Blogvisning */}
+      <section className="max-w-2xl mx-auto">
+        {loading ? (
+          <div className="text-center text-gray-500">Indlæser…</div>
+        ) : displayedEntries.length === 0 ? (
+          <div className="text-center text-gray-400">Ingen tanker endnu…</div>
+        ) : (
+          displayedEntries.map((entry) => (
+            <article
+              key={entry.id}
+              className="mb-8 p-6 rounded-xl bg-white/90 border shadow flex flex-col gap-2"
             >
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-            <input
-              type="text"
-              className="border px-2 py-1 rounded flex-1"
-              placeholder="Tilføj tags (komma-adskilt)"
-              value={tags.join(",")}
-              onChange={(e) =>
-                setTags(
-                  e.target.value
-                    .split(",")
-                    .map((t) => t.trim())
-                    .filter(Boolean)
-                )
-              }
-            />
-          </div>
+              {/* Banner billede */}
+              {entry.banner_image_url && (
+                <img
+                  src={entry.banner_image_url}
+                  alt="Banner"
+                  className="w-full h-48 object-cover rounded mb-4"
+                />
+              )}
 
-          <div className="mb-3">
-            <RichTextEditor
-              value={text}
-              onChange={setText}
-            />
-          </div>
-
-          <input
-            className="w-full border-b mb-3 p-2"
-            placeholder="Dagens læring eller taknemmelighed…"
-            value={reflection}
-            onChange={(e) => setReflection(e.target.value)}
-          />
-
-          <input
-            className="w-full border-b mb-3 p-2"
-            placeholder="Opfølgning (problem du vil følge op på…)"
-            value={followup}
-            onChange={(e) => setFollowup(e.target.value)}
-          />
-
-          <div className="mb-3">
-            <label className="block mb-1 font-semibold">Bannerbillede (valgfrit)</label>
-            <input type="file" onChange={onFileChange} disabled={uploading} />
-            {bannerImageUrl && (
-              <img
-                src={bannerImageUrl}
-                alt="Banner"
-                className="mt-2 w-full h-48 object-cover rounded"
-              />
-            )}
-          </div>
-
-          <button
-            onClick={handleAddEntry}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold shadow hover:bg-blue-700"
-            disabled={!text}
-          >
-            Tilføj indlæg
-          </button>
-        </section>
-
-        {/* Blogvisning */}
-        <section className="max-w-2xl mx-auto">
-          {loading ? (
-            <div className="text-center text-gray-500">Indlæser…</div>
-          ) : displayedEntries.length === 0 ? (
-            <div className="text-center text-gray-400">Ingen tanker endnu…</div>
-          ) : (
-            displayedEntries.map((entry) => (
-              <article
-                key={entry.id}
-                className="mb-8 p-6 rounded-xl bg-white/90 border shadow flex flex-col gap-2"
-              >
-                {/* Banner billede */}
-                {entry.banner_image_url && (
-                  <img
-                    src={entry.banner_image_url}
-                    alt="Banner"
-                    className="w-full h-48 object-cover rounded mb-4"
-                  />
-                )}
-
-                <div className="flex items-center justify-between">
-                  {editId === entry.id ? (
-                    <input
-                      className="text-gray-500 border-b px-1 py-0.5 text-sm w-48"
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      disabled={saving}
-                    />
-                  ) : (
-                    <span className="text-gray-500">{entry.created_at?.split("T")[0]}</span>
-                  )}
-
-                  {editId !== entry.id && (
-                    <span className="px-2 py-1 bg-blue-50 rounded text-blue-700 text-xs">
-                      {entry.category}
-                    </span>
-                  )}
-                </div>
-
+              <div className="flex items-center justify-between">
                 {editId === entry.id ? (
-                  <>
-                    <RichTextEditor
-                      value={editText}
-                      onChange={setEditText}
-                    />
-                    <div className="mt-3">
-                      <label className="block mb-1 font-semibold">Bannerbillede (valgfrit)</label>
-                      <input type="file" onChange={onEditFileChange} disabled={saving || uploading} />
-                      {editBannerUrl && (
-                        <img
-                          src={editBannerUrl}
-                          alt="Banner"
-                          className="mt-2 w-full h-48 object-cover rounded"
-                        />
-                      )}
-                      {editBannerUrl && (
-                        <button
-                          className="mt-2 px-4 py-1 bg-red-600 text-white rounded"
-                          onClick={() => setEditBannerUrl(null)}
-                          disabled={saving}
-                        >
-                          Fjern billede
-                        </button>
-                      )}
-                    </div>
-                  </>
+                  <input
+                    className="text-gray-500 border-b px-1 py-0.5 text-sm w-48"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    disabled={saving}
+                  />
                 ) : (
-                  <h3 className="text-xl font-bold" dangerouslySetInnerHTML={{ __html: entry.title }} />
+                  <span className="text-gray-500">{entry.created_at?.split("T")[0]}</span>
                 )}
 
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {entry.tags && entry.tags.map((tag) => (
+                {editId !== entry.id && (
+                  <span className="px-2 py-1 bg-blue-50 rounded text-blue-700 text-xs">
+                    {entry.category}
+                  </span>
+                )}
+              </div>
+
+              {editId === entry.id ? (
+                <>
+                  <RichTextEditor value={editText} onChange={setEditText} />
+                  <div className="mt-3">
+                    <label className="block mb-1 font-semibold">Bannerbillede (valgfrit)</label>
+                    <input
+                      type="file"
+                      onChange={onEditFileChange}
+                      disabled={saving || uploading}
+                    />
+                    {editBannerUrl && (
+                      <img
+                        src={editBannerUrl}
+                        alt="Banner"
+                        className="mt-2 w-full h-48 object-cover rounded"
+                      />
+                    )}
+                    {editBannerUrl && (
+                      <button
+                        className="mt-2 px-4 py-1 bg-red-600 text-white rounded"
+                        onClick={() => setEditBannerUrl(null)}
+                        disabled={saving}
+                      >
+                        Fjern billede
+                      </button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3
+                    className="text-xl font-bold"
+                    dangerouslySetInnerHTML={{ __html: entry.title }}
+                  />
+                  <p
+                    className="text-gray-700 mt-2 whitespace-pre-wrap"
+                    dangerouslySetInnerHTML={{
+                      __html:
+                        entry.text.length > 300
+                          ? entry.text.slice(0, 300) + "..."
+                          : entry.text,
+                    }}
+                  />
+                </>
+              )}
+
+              <div className="flex flex-wrap gap-2 mt-2">
+                {entry.tags &&
+                  entry.tags.map((tag) => (
                     <span
                       key={tag}
                       className="bg-green-50 text-green-700 px-2 py-1 rounded text-xs"
@@ -445,78 +514,78 @@ export default function TankerPage() {
                       #{tag}
                     </span>
                   ))}
-                </div>
+              </div>
 
-                {editId === entry.id ? (
-                  <input
-                    className="w-full border-b mb-3 p-2"
-                    placeholder="Dagens læring eller taknemmelighed…"
-                    value={editReflection}
-                    onChange={(e) => setEditReflection(e.target.value)}
-                    disabled={saving}
-                  />
-                ) : (
-                  entry.reflection && (
-                    <div className="border-t pt-2 mt-2 text-sm text-purple-700 italic">
-                      {entry.reflection}
-                    </div>
-                  )
-                )}
-
-                {editId === entry.id ? (
-                  <input
-                    className="w-full border-b mb-3 p-2"
-                    placeholder="Opfølgning (problem du vil følge op på…)"
-                    value={editFollowup}
-                    onChange={(e) => setEditFollowup(e.target.value)}
-                    disabled={saving}
-                  />
-                ) : (
-                  entry.followup_question && (
-                    <div className="border-t pt-2 mt-2 text-sm text-blue-700">
-                      <span className="font-semibold">Opfølgning: </span>
-                      {entry.followup_question}
-                    </div>
-                  )
-                )}
-
-                {editId === entry.id ? (
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      className="bg-blue-600 text-white px-4 py-1 rounded"
-                      onClick={() => handleSaveEdit(entry.id)}
-                      disabled={saving || !editText.trim()}
-                    >
-                      Gem
-                    </button>
-                    <button
-                      className="bg-gray-300 px-4 py-1 rounded"
-                      onClick={() => setEditId(null)}
-                      disabled={saving}
-                    >
-                      Annullér
-                    </button>
+              {editId === entry.id ? (
+                <input
+                  className="w-full border-b mb-3 p-2"
+                  placeholder="Dagens læring eller taknemmelighed…"
+                  value={editReflection}
+                  onChange={(e) => setEditReflection(e.target.value)}
+                  disabled={saving}
+                />
+              ) : (
+                entry.reflection && (
+                  <div className="border-t pt-2 mt-2 text-sm text-purple-700 italic">
+                    {entry.reflection}
                   </div>
-                ) : (
+                )
+              )}
+
+              {editId === entry.id ? (
+                <input
+                  className="w-full border-b mb-3 p-2"
+                  placeholder="Opfølgning (problem du vil følge op på…)"
+                  value={editFollowup}
+                  onChange={(e) => setEditFollowup(e.target.value)}
+                  disabled={saving}
+                />
+              ) : (
+                entry.followup_question && (
+                  <div className="border-t pt-2 mt-2 text-sm text-blue-700">
+                    <span className="font-semibold">Opfølgning: </span>
+                    {entry.followup_question}
+                  </div>
+                )
+              )}
+
+              {editId === entry.id ? (
+                <div className="flex gap-2 mt-2">
                   <button
-                    className="mt-2 text-xs text-blue-700 underline"
-                    onClick={() => {
-                      setEditId(entry.id);
-                      setEditTitle(entry.title);
-                      setEditText(entry.text);
-                      setEditReflection(entry.reflection);
-                      setEditFollowup(entry.followup_question || '');
-                      setEditBannerUrl(entry.banner_image_url || null);
-                    }}
+                    className="bg-blue-600 text-white px-4 py-1 rounded"
+                    onClick={() => handleSaveEdit(entry.id)}
+                    disabled={saving || !editText.trim()}
                   >
-                    Rediger
+                    Gem
                   </button>
-                )}
-              </article>
-            ))
-          )}
-        </section>
-      </main>
-    </div>
-  );
+                  <button
+                    className="bg-gray-300 px-4 py-1 rounded"
+                    onClick={() => setEditId(null)}
+                    disabled={saving}
+                  >
+                    Annullér
+                  </button>
+                </div>
+              ) : (
+                <button
+                  className="mt-2 text-xs text-blue-700 underline"
+                  onClick={() => {
+                    setEditId(entry.id);
+                    setEditTitle(entry.title);
+                    setEditText(entry.text);
+                    setEditReflection(entry.reflection);
+                    setEditFollowup(entry.followup_question || '');
+                    setEditBannerUrl(entry.banner_image_url || null);
+                  }}
+                >
+                  Rediger
+                </button>
+              )}
+            </article>
+          ))
+        )}
+      </section>
+    </main>
+  </div>
+);
 }

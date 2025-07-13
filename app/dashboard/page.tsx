@@ -55,6 +55,8 @@ export default function DashboardPage() {
     'manifestation_reminder',
     'followup_thoughts',
     'flowers',
+    'dashboard_banner'
+
   ];
 
   useEffect(() => {
