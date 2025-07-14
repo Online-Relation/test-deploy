@@ -8,14 +8,8 @@ interface Profile {
   username: string;
 }
 
-interface Reward {
-  id: string;
-  title: string;
-}
-
 export default function CreateBetForm() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [rewards, setRewards] = useState<Reward[]>([]);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     title: "",
@@ -24,8 +18,8 @@ export default function CreateBetForm() {
     end_at: "",
     participant_1: "",
     participant_2: "",
-    reward_id_1: "",
-    reward_id_2: "",
+    gift_1: "",         // <-- Nyt felt
+    gift_2: "",         // <-- Nyt felt
     template: false,
     template_name: "",
     guess_1_min: "",
@@ -34,18 +28,13 @@ export default function CreateBetForm() {
     guess_2_max: "",
   });
 
-  // Hent profiler og præmier fra Supabase
+  // Hent profiler fra Supabase
   useEffect(() => {
     (async () => {
       const { data: profileData } = await supabase
         .from("profiles")
         .select("id, username");
       setProfiles(profileData || []);
-
-      const { data: rewardData } = await supabase
-        .from("rewards")
-        .select("id, title");
-      setRewards(rewardData || []);
     })();
   }, []);
 
@@ -95,8 +84,8 @@ export default function CreateBetForm() {
         end_at: "",
         participant_1: "",
         participant_2: "",
-        reward_id_1: "",
-        reward_id_2: "",
+        gift_1: "",
+        gift_2: "",
         template: false,
         template_name: "",
         guess_1_min: "",
@@ -172,24 +161,27 @@ export default function CreateBetForm() {
           </select>
         </div>
       </div>
+      {/* Gave tekstfelter i stedet for dropdown */}
       <div className="flex gap-2">
         <div className="flex-1">
-          <label className="block text-sm">Præmie til deltager 1</label>
-          <select name="reward_id_1" value={form.reward_id_1} onChange={handleChange} className="w-full p-2 rounded border">
-            <option value="">Vælg præmie</option>
-            {rewards.map((r) => (
-              <option key={r.id} value={r.id}>{r.title}</option>
-            ))}
-          </select>
+          <label className="block text-sm">Gave til deltager 1</label>
+          <input
+            name="gift_1"
+            placeholder="Gave til deltager 1"
+            value={form.gift_1}
+            onChange={handleChange}
+            className="w-full p-2 rounded border"
+          />
         </div>
         <div className="flex-1">
-          <label className="block text-sm">Præmie til deltager 2</label>
-          <select name="reward_id_2" value={form.reward_id_2} onChange={handleChange} className="w-full p-2 rounded border">
-            <option value="">Vælg præmie</option>
-            {rewards.map((r) => (
-              <option key={r.id} value={r.id}>{r.title}</option>
-            ))}
-          </select>
+          <label className="block text-sm">Gave til deltager 2</label>
+          <input
+            name="gift_2"
+            placeholder="Gave til deltager 2"
+            value={form.gift_2}
+            onChange={handleChange}
+            className="w-full p-2 rounded border"
+          />
         </div>
       </div>
       {/* Gæt som interval */}
@@ -248,7 +240,6 @@ export default function CreateBetForm() {
         />
         Gem som skabelon
       </label>
-
       {form.template && (
         <input
           name="template_name"
@@ -259,7 +250,6 @@ export default function CreateBetForm() {
           className="w-full p-2 rounded border mt-2"
         />
       )}
-
       <button type="submit" disabled={loading} className="w-full p-2 mt-2 rounded-xl bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition">
         {loading ? "Opretter..." : "Opret væddemål"}
       </button>

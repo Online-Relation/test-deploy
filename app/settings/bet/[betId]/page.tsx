@@ -12,11 +12,6 @@ interface Profile {
   username: string;
 }
 
-interface Reward {
-  id: string;
-  title: string;
-}
-
 interface Bet {
   id: string;
   title: string;
@@ -25,8 +20,8 @@ interface Bet {
   end_at: string;
   participant_1: string;
   participant_2: string;
-  reward_id_1: string;
-  reward_id_2: string;
+  gift_1: string;
+  gift_2: string;
   template: boolean;
   template_name: string;
   guess_1_min: number | null;
@@ -42,7 +37,6 @@ export default function BetDetailPage() {
 
   const [bet, setBet] = useState<Bet | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [rewards, setRewards] = useState<Reward[]>([]);
   const [loading, setLoading] = useState(true);
   const [deactivating, setDeactivating] = useState(false);
 
@@ -53,11 +47,7 @@ export default function BetDetailPage() {
         .select("id, username");
       setProfiles(profileData || []);
 
-      const { data: rewardData } = await supabase
-        .from("rewards")
-        .select("id, title");
-      setRewards(rewardData || []);
-
+      // Fetch bet including gave-felter
       const { data: betData } = await supabase
         .from("bets")
         .select("*")
@@ -69,7 +59,6 @@ export default function BetDetailPage() {
   }, [betId]);
 
   const getProfileName = (id: string) => profiles.find((p) => p.id === id)?.username || "Ukendt";
-  const getRewardTitle = (id: string) => rewards.find((r) => r.id === id)?.title || "";
 
   const handleDeactivate = async () => {
     if (!bet) return;
@@ -83,7 +72,6 @@ export default function BetDetailPage() {
     if (!error) {
       alert("Væddemål deaktiveret.");
       router.refresh();
-      // router.push("/settings/bet"); // hvis du vil redirecte
     } else {
       alert("Fejl: " + error.message);
     }
@@ -133,12 +121,13 @@ export default function BetDetailPage() {
             : "-"}
         </div>
       </div>
+      {/* Gaver i stedet for præmie-dropdown */}
       <div className="flex gap-4 mb-2">
         <div>
-          <strong>Præmie (Deltager 1):</strong> {getRewardTitle(bet.reward_id_1)}
+          <strong>Gave til deltager 1:</strong> {bet.gift_1 || "-"}
         </div>
         <div>
-          <strong>Præmie (Deltager 2):</strong> {getRewardTitle(bet.reward_id_2)}
+          <strong>Gave til deltager 2:</strong> {bet.gift_2 || "-"}
         </div>
       </div>
       <div className="mb-2">

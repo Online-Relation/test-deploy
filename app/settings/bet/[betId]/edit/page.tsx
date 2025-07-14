@@ -11,11 +11,6 @@ interface Profile {
   username: string;
 }
 
-interface Reward {
-  id: string;
-  title: string;
-}
-
 interface Bet {
   id: string;
   title: string;
@@ -24,8 +19,8 @@ interface Bet {
   end_at: string;
   participant_1: string;
   participant_2: string;
-  reward_id_1: string;
-  reward_id_2: string;
+  gift_1: string;
+  gift_2: string;
   template: boolean;
   template_name: string;
   guess_1_min: string;
@@ -40,7 +35,6 @@ export default function EditBetPage() {
   const router = useRouter();
 
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [rewards, setRewards] = useState<Reward[]>([]);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<Bet | null>(null);
 
@@ -50,11 +44,6 @@ export default function EditBetPage() {
         .from("profiles")
         .select("id, username");
       setProfiles(profileData || []);
-
-      const { data: rewardData } = await supabase
-        .from("rewards")
-        .select("id, title");
-      setRewards(rewardData || []);
 
       const { data: betData } = await supabase
         .from("bets")
@@ -177,24 +166,27 @@ export default function EditBetPage() {
           </select>
         </div>
       </div>
+      {/* Gavefelter */}
       <div className="flex gap-2">
         <div className="flex-1">
-          <label className="block text-sm">Præmie til deltager 1</label>
-          <select name="reward_id_1" value={form.reward_id_1} onChange={handleChange} className="w-full p-2 rounded border">
-            <option value="">Vælg præmie</option>
-            {rewards.map((r) => (
-              <option key={r.id} value={r.id}>{r.title}</option>
-            ))}
-          </select>
+          <label className="block text-sm">Gave til deltager 1</label>
+          <input
+            name="gift_1"
+            placeholder="F.eks. Massageaften"
+            value={form.gift_1 || ""}
+            onChange={handleChange}
+            className="w-full p-2 rounded border"
+          />
         </div>
         <div className="flex-1">
-          <label className="block text-sm">Præmie til deltager 2</label>
-          <select name="reward_id_2" value={form.reward_id_2} onChange={handleChange} className="w-full p-2 rounded border">
-            <option value="">Vælg præmie</option>
-            {rewards.map((r) => (
-              <option key={r.id} value={r.id}>{r.title}</option>
-            ))}
-          </select>
+          <label className="block text-sm">Gave til deltager 2</label>
+          <input
+            name="gift_2"
+            placeholder="F.eks. Vælg film"
+            value={form.gift_2 || ""}
+            onChange={handleChange}
+            className="w-full p-2 rounded border"
+          />
         </div>
       </div>
       {/* Gæt som interval */}
