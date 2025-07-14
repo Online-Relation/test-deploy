@@ -25,22 +25,12 @@ export default function MemoriesPage() {
         <h1 className="text-3xl font-bold mb-6 text-center">Minde-galleri</h1>
         <MemoriesGallery onMemoryClick={handleMemoryClick} />
 
-        <button
-          onClick={() => {
-            console.log("Test: Åbner modal manuelt");
-            setModalOpen(true);
-          }}
-          className="mt-4 px-4 py-2 bg-purple-600 text-white rounded"
-        >
-          Test: Åben modal manuelt
-        </button>
-
         <GlobalModal
           open={modalOpen}
           onClose={handleCloseModal}
           title={selectedMemory?.title || "Detaljer"}
         >
-          {selectedMemory && (
+          {selectedMemory ? (
             <div className="flex flex-col items-center">
               <img
                 src={selectedMemory.image_url}
@@ -52,10 +42,13 @@ export default function MemoriesPage() {
               )}
               {selectedMemory.taken_at && (
                 <div className="text-xs text-gray-500 mb-2">
-                  Dato: {new Date(selectedMemory.taken_at).toLocaleDateString()}
+                  Dato:{" "}
+                  {new Date(selectedMemory.taken_at).toLocaleDateString()}
                 </div>
               )}
             </div>
+          ) : (
+            <div>Intet billede valgt</div>
           )}
         </GlobalModal>
       </div>

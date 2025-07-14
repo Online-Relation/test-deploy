@@ -24,6 +24,7 @@ const allWidgets = [
   { key: 'followup_thoughts', label: 'Opfølgning' },
   { key: 'flowers', label: 'Blomster Reminder' },
   { key: 'dashboard_banner', label: 'Forsidebillede' },
+  { key: 'active_bet', label: 'Aktivt væddemål' },
 
 ];
 

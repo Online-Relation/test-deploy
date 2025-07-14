@@ -19,7 +19,6 @@ type MemoriesGalleryProps = {
 };
 
 const MemoriesGallery = ({ onMemoryClick }: MemoriesGalleryProps) => {
-  console.log("MemoriesGallery render, onMemoryClick eksisterer:", !!onMemoryClick);
   const { user } = useUserContext();
   const [images, setImages] = useState<DashboardImage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -28,12 +27,17 @@ const MemoriesGallery = ({ onMemoryClick }: MemoriesGalleryProps) => {
     const fetchImages = async () => {
       if (!user?.id) return;
       setLoading(true);
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("dashboard_images")
         .select("*")
         .eq("user_id", user.id)
         .order("taken_at", { ascending: false })
         .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Fejl ved hentning af billeder:", error);
+      }
+
       setImages(data || []);
       setLoading(false);
     };
@@ -49,10 +53,7 @@ const MemoriesGallery = ({ onMemoryClick }: MemoriesGalleryProps) => {
           <div
             key={img.id}
             className="rounded-xl shadow bg-white cursor-pointer overflow-hidden group relative"
-            onClick={() => {
-              console.log("Klik på billede:", img);
-              onMemoryClick?.(img);
-            }}
+            onClick={() => onMemoryClick?.(img)}
           >
             <img
               src={img.image_url}

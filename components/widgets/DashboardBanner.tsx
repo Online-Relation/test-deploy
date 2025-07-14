@@ -16,11 +16,6 @@ const DashboardBanner = () => {
   // Uploaderens navn
   const [uploaderName, setUploaderName] = useState<string>("");
 
-  // Citater
-  const [quotes, setQuotes] = useState<string[]>([]);
-  const [quoteIndex, setQuoteIndex] = useState<number>(0);
-  const [activeQuote, setActiveQuote] = useState<string>("");
-
   // Cropping & metadata state
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [rawImage, setRawImage] = useState<string | null>(null);
@@ -63,72 +58,6 @@ const DashboardBanner = () => {
     fetchLatestBanner();
   }, []);
 
-  // Hent alle quotes fra Supabase
-  useEffect(() => {
-    const fetchQuotes = async () => {
-      const { data, error } = await supabase
-        .from("banner_image_quotes")
-        .select("text")
-        .order("id", { ascending: true });
-
-      if (error) {
-        console.error("Fejl ved hentning af citater:", error);
-        return;
-      }
-      if (data) {
-        const allQuotes = data.map((row: { text: string }) => row.text);
-        setQuotes(allQuotes);
-      }
-    };
-    fetchQuotes();
-  }, []);
-
-  // Opdater aktivt citat ud fra quoteIndex
-  useEffect(() => {
-    if (quotes.length === 0) {
-      setActiveQuote("");
-      return;
-    }
-
-    if (quoteIndex >= quotes.length) {
-      setActiveQuote("Er der virkelig ikke mere inspirations citater til flere oplevelser?");
-    } else {
-      setActiveQuote(quotes[quoteIndex]);
-    }
-  }, [quoteIndex, quotes]);
-
-  // Funktion til at skifte citat til næste index (med stop efter sidste)
-  const advanceQuoteIndex = () => {
-    setQuoteIndex((current) => {
-      if (quotes.length === 0) return 0;
-      if (current + 1 >= quotes.length) return quotes.length; // beyond last index => fallback text
-      return current + 1;
-    });
-  };
-
-  // Skift citat dagligt kl 01:00
-  useEffect(() => {
-    const now = new Date();
-    const nextOneAM = new Date(now);
-    nextOneAM.setHours(1, 0, 0, 0);
-    if (now >= nextOneAM) {
-      nextOneAM.setDate(nextOneAM.getDate() + 1);
-    }
-    const msUntilNextOneAM = nextOneAM.getTime() - now.getTime();
-
-    const timerId = setTimeout(() => {
-      advanceQuoteIndex();
-
-      const intervalId = setInterval(() => {
-        advanceQuoteIndex();
-      }, 24 * 60 * 60 * 1000);
-
-      return () => clearInterval(intervalId);
-    }, msUntilNextOneAM);
-
-    return () => clearTimeout(timerId);
-  }, [quotes]);
-
   const handleUploadClick = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -140,7 +69,7 @@ const DashboardBanner = () => {
     let file = e.target.files?.[0];
     if (!file) return;
 
-    // EXIF-læsning
+    // EXIF-læsning for at hente metadata som f.eks. taget dato og GPS
     let meta: any = {};
     try {
       meta = await exifr.parse(file);
@@ -163,7 +92,7 @@ const DashboardBanner = () => {
       longitude: meta.longitude,
     });
 
-    // Konverter HEIC til JPEG hvis nødvendigt
+    // Hvis billedet er i HEIC-format, konverter til JPEG (som understøttes bredere)
     if (
       file.type === "image/heic" ||
       file.name.endsWith(".heic") ||
@@ -240,8 +169,7 @@ const DashboardBanner = () => {
     setPendingMeta({});
   };
 
-return (
-  <>
+  return (
     <div className="w-full rounded-2xl shadow-md overflow-hidden mb-6 relative bg-white bg-opacity-90 flex flex-col items-center p-4 space-y-4">
       {/* Overskrift med uploaderens navn */}
       {uploaderName && (
@@ -299,25 +227,8 @@ return (
           </button>
         )}
       </div>
-
-      {/* Citat */}
-      <div className="w-full rounded-lg bg-white bg-opacity-80 p-4 text-center font-semibold italic text-gray-600 shadow">
-        {activeQuote}
-      </div>
     </div>
-
-    <ImageCropModal
-      open={cropModalOpen}
-      imageSrc={rawImage || ""}
-      onCancel={handleCropCancel}
-      onCropComplete={handleCropComplete}
-      aspect={3 / 1}
-    />
-  </>
-);
-
-
-
+  );
 };
 
 export default DashboardBanner;

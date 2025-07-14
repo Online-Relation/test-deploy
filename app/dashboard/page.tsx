@@ -9,6 +9,7 @@ import DashboardUserWidget from '@/components/widgets/DashboardUserWidget';
 import { BucketProvider } from '@/context/BucketContext';
 import ChallengeCardWidget from '@/components/widgets/ChallengeCardWidget';
 import { logUserActivity } from '@/lib/logUserActivity';
+import ActiveBetWidget from "@/components/widgets/ActiveBetWidget";
 
 
 interface Widget {
@@ -55,8 +56,8 @@ export default function DashboardPage() {
     'manifestation_reminder',
     'followup_thoughts',
     'flowers',
-    'dashboard_banner'
-
+    'dashboard_banner',
+    'active_bet',
   ];
 
   useEffect(() => {

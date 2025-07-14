@@ -1,5 +1,3 @@
-// components/WidgetRenderer.tsx
-
 'use client';
 
 import KomplimentReminder from './KomplimentReminder';
@@ -15,7 +13,8 @@ import DashboardUserWidget from './DashboardUserWidget';
 import ManifestReminderWidget from './ManifestReminderWidget';
 import FollowUpThoughtsWidget from "@/components/widgets/FollowUpThoughtsWidget";
 import FlowersWidget from "@/components/widgets/Flowers";
-import DashboardBanner from '@/components/widgets/DashboardBanner'; // <-- Importér banneret
+import DashboardBanner from '@/components/widgets/DashboardBanner';
+import ActiveBetWidget from "@/components/widgets/ActiveBetWidget";
 
 import { useUserContext } from '@/context/UserContext';
 
@@ -80,9 +79,8 @@ export default function WidgetRenderer({ widget }: { widget: Widget }) {
           userId={user.id}
         />
       );
-    case 'dashboard_banner': // <-- Tilføj banneret her
+    case 'dashboard_banner':
       console.log('WidgetRenderer: Render DashboardBanner');
-      // Her skal vi tilføje props senere, når vi kobler upload/data på
       return <DashboardBanner />;
     case 'manifestation_reminder':
       console.log('WidgetRenderer: Render ManifestReminderWidget');
@@ -97,8 +95,12 @@ export default function WidgetRenderer({ widget }: { widget: Widget }) {
       }
       console.log('WidgetRenderer: Render FlowersWidget');
       return <FlowersWidget currentUserId={user.id} />;
+    case 'active_bet':
+      console.log('WidgetRenderer: Render ActiveBetWidget');
+      return <ActiveBetWidget />;
     default:
       console.log('WidgetRenderer: Unknown widget_key', widget.widget_key);
       return null;
   }
 }
+
