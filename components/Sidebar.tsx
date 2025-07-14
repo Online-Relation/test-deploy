@@ -11,7 +11,7 @@ import { useUserContext } from '@/context/UserContext';
 import { supabase } from '@/lib/supabaseClient';
 import { DatabaseZap } from 'lucide-react';
 import {
-  LayoutDashboard, ListTodo, Sparkles, Backpack, HeartHandshake, Briefcase, Settings, ChevronDown, ChevronRight, Menu, X, BrainCircuit, Globe, UserCircle, Heart,CalendarDays,ClipboardCheck,MessageSquareQuote,User
+  LayoutDashboard, ListTodo, Sparkles, Backpack, HeartHandshake, Briefcase, Settings, ChevronDown, ChevronRight, Menu, X, BrainCircuit, Globe, UserCircle, Heart,CalendarDays,ClipboardCheck,MessageSquareQuote,User,Image
 } from 'lucide-react';
 
 import { accessHierarchy } from '@/lib/accessHierarchy'; // <-- brug denne!
@@ -22,7 +22,6 @@ const iconMap: Record<string, ReactNode> = {
   'online-relation': <Globe size={20} />,
   'tasks-couple': <ListTodo size={20} />,
   fantasy: <Sparkles size={20} />,
-
   'bucketlist-couple': <Backpack size={20} />,
   checkin: <HeartHandshake size={20} />,
   manifestation: <BrainCircuit size={20} />,
@@ -35,8 +34,8 @@ const iconMap: Record<string, ReactNode> = {
   kommunikation: <Sparkles size={20} />,
   spil: <ListTodo size={20} />,
   data: <DatabaseZap size={20} />,
-  intim: <Heart size={20} />, // Ikon til Intimitet
-
+  intim: <Heart size={20} />,
+  memories: <Image size={20} />,
   kalender: <CalendarDays size={20} />,
 
 };

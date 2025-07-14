@@ -73,6 +73,8 @@ export const accessHierarchy: AccessEntry[] = [
       { key: '/spil/knob', label: 'Min knap', href: '/spil/knob', children: [] },
     ],
   },
+   { key: 'memories', label: 'Minder', href: '/memories', children: [] },
+
   {
     key: 'kommunikation',
     label: 'Kommunikation',
