@@ -1,3 +1,5 @@
+// /components/memories/MemoriesGallery.tsx
+
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -25,12 +27,12 @@ const MemoriesGallery = ({ onMemoryClick }: MemoriesGalleryProps) => {
 
   useEffect(() => {
     const fetchImages = async () => {
-      if (!user?.id) return;
+      if (!user?.id || !user?.partner_id) return;
       setLoading(true);
       const { data, error } = await supabase
         .from("dashboard_images")
         .select("*")
-        .eq("user_id", user.id)
+        .in("user_id", [user.id, user.partner_id]) // HENT BILLEDER FOR BEGGE
         .order("taken_at", { ascending: false })
         .order("created_at", { ascending: false });
 

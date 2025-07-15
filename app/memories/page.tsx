@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import MemoriesGallery from "@/components/memories/MemoriesGallery";
-import GlobalModal from "@/components/ui/GlobalModal";
+import GlobalModal from "@/components/ui/globalmodal/GlobalModal";
 
 export default function MemoriesPage() {
   const [modalOpen, setModalOpen] = useState(false);
