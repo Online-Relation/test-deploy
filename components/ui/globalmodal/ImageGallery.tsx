@@ -1,3 +1,4 @@
+// /components/ui/globalmodal/ImageGallery.tsx
 "use client";
 import React, { useState, useRef, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Upload } from "lucide-react";
@@ -16,7 +17,7 @@ type GalleryImage = {
 
 type ImageGalleryProps = {
   images: GalleryImage[];
-  onImagesChange: (images: GalleryImage[]) => void; // Callback ved opdatering
+  onImagesChange: (images: GalleryImage[]) => void;
   canUpload?: boolean;
 };
 
@@ -30,7 +31,6 @@ export default function ImageGallery({
   const [uploading, setUploading] = useState(false);
   const { user } = useUserContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const [transitioning, setTransitioning] = useState(false);
 
   const handleNext = () => {
@@ -57,6 +57,12 @@ export default function ImageGallery({
     setCurrent(i);
   };
 
+  const handleDeleteImage = (id: string) => {
+    const updatedImages = images.filter(img => img.id !== id);
+    onImagesChange(updatedImages);
+    setCurrent(prev => (prev > 0 ? prev - 1 : 0));
+  };
+
   useEffect(() => {
     if (scrollRef.current) {
       const thumb = scrollRef.current.querySelectorAll(".gallery-thumb")[current] as HTMLElement;
@@ -64,7 +70,7 @@ export default function ImageGallery({
         thumb.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
       }
     }
-  }, [current]);
+  }, [current, images.length]);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -78,7 +84,6 @@ export default function ImageGallery({
     setUploading(true);
     try {
       const url = await uploadImageToSupabase(file, user.id);
-
       const newImage: GalleryImage = {
         id: String(Date.now()),
         url,
@@ -86,9 +91,10 @@ export default function ImageGallery({
         uploadedBy: user.display_name || user.email || "Bruger",
         uploadedAt: new Date().toISOString(),
       };
-
-      onImagesChange([...images, newImage]);
-      setCurrent(images.length); // Skift til nyt billede
+      const newImages = [...images, newImage];
+      console.log("ImageGallery > handleFileChange > onImagesChange", newImages);
+      onImagesChange(newImages);
+      setCurrent(newImages.length - 1); // Skift til det nye billede
     } catch (error) {
       alert("Upload fejlede");
       console.error(error);
@@ -111,7 +117,7 @@ export default function ImageGallery({
               onChange={handleFileChange}
               className="hidden"
             />
-            <button className="btn btn-primary" onClick={handleUploadClick} disabled={uploading}>
+            <button type="button" className="btn btn-primary" onClick={handleUploadClick} disabled={uploading}>
               <Upload className="w-5 h-5 mr-2" /> {uploading ? "Uploader..." : "Upload billede"}
             </button>
           </>
@@ -126,6 +132,7 @@ export default function ImageGallery({
     <div className="w-full flex flex-col items-center relative">
       <div className="relative w-full flex items-center justify-center" style={{ minHeight: 240 }}>
         <button
+          type="button"
           className={clsx(
             "absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white/80 rounded-full p-2 shadow transition hover:scale-110",
             { "opacity-0 pointer-events-none": current === 0 }
@@ -152,6 +159,7 @@ export default function ImageGallery({
         </div>
 
         <button
+          type="button"
           className={clsx(
             "absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white/80 rounded-full p-2 shadow transition hover:scale-110",
             { "opacity-0 pointer-events-none": current === images.length - 1 }
@@ -163,6 +171,20 @@ export default function ImageGallery({
         </button>
       </div>
 
+      {/* Slet billede knap under hovedbilledet hvis redigering */}
+      {canUpload && (
+        <button
+          type="button"
+          className="mt-2 text-xs text-red-500 hover:text-red-700"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDeleteImage(currentImg.id);
+          }}
+        >
+          Slet billede
+        </button>
+      )}
+
       <div
         className="w-full flex items-center gap-2 overflow-x-auto mt-2 pb-1 px-1"
         ref={scrollRef}
@@ -170,6 +192,7 @@ export default function ImageGallery({
       >
         {images.map((img, i) => (
           <button
+            type="button"
             key={img.id}
             className={clsx(
               "gallery-thumb rounded-lg border-2 transition shadow-sm",
@@ -178,7 +201,10 @@ export default function ImageGallery({
                 : "border-white hover:border-gray-300"
             )}
             style={{ minWidth: 48, width: 48, height: 48, overflow: "hidden", background: "#fff" }}
-            onClick={() => handleThumbClick(i)}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleThumbClick(i);
+            }}
             aria-label={`Se billede ${i + 1}`}
           >
             <img
@@ -200,6 +226,7 @@ export default function ImageGallery({
               className="hidden"
             />
             <button
+              type="button"
               className="gallery-thumb ml-2 rounded-lg border-2 border-dashed border-primary/70 bg-primary/10 flex items-center justify-center transition hover:bg-primary/20"
               style={{ minWidth: 48, width: 48, height: 48 }}
               onClick={handleUploadClick}

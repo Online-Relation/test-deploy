@@ -1,11 +1,11 @@
-// /components/ui/GlobalModal.tsx
+// /components/ui/globalmodal/GlobalModal.tsx
 "use client";
 import { ReactNode, useState } from "react";
 import { X } from "lucide-react";
-import Badge from "@/components/ui/CategoryBadge";
+import Badge from "@/components/ui/globalmodal/CategoryBadge";
 import ImageGallery from "../globalmodal/ImageGallery";
 import GlobalModalEditForm from "../globalmodal/GlobalModalEditForm";
-import SaveButton from "@/components/ui/globalmodal/SaveButton";
+import { Category, GalleryImage } from "@/components/ui/globalmodal/types";
 
 type GlobalModalProps = {
   open: boolean;
@@ -13,24 +13,21 @@ type GlobalModalProps = {
   title?: string;
   imageUrl?: string;
   children: ReactNode;
-  categories?: string[];
+  categories?: Category[];
   footer?: ReactNode;
-  galleryImages?: Array<{
-    id: string;
-    url: string;
-    alt?: string;
-  }>;
+  galleryImages?: GalleryImage[];
   canUploadGallery?: boolean;
-  onUploadGalleryClick?: (newImages: Array<{ id: string; url: string; alt?: string }>) => void;
   onSave?: (data: {
     title?: string;
     imageUrl?: string;
-    galleryImages?: Array<{ id: string; url: string; alt?: string }>;
-    categories?: string[];
-    description?: string; // NYT
+    galleryImages?: GalleryImage[];
+    categories?: Category[];
+    description?: string;
+    type?: string;
   }) => void;
-  description?: string;      // NYT
-  setDescription?: (desc: string) => void; // NYT
+  description?: string;
+  setDescription?: (desc: string) => void;
+  typeId?: string;
 };
 
 export default function GlobalModal({
@@ -39,35 +36,39 @@ export default function GlobalModal({
   title,
   imageUrl,
   children,
-  categories,
+  categories = [],
   footer,
   galleryImages = [],
   canUploadGallery = false,
-  onUploadGalleryClick,
   onSave,
   description,
   setDescription,
+  typeId,
 }: GlobalModalProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const typeLabel = typeId ? typeId.charAt(0).toUpperCase() + typeId.slice(1) : "";
 
   if (!open) return null;
 
   function handleSave(updatedData: {
     title?: string;
     imageUrl?: string;
-    galleryImages?: Array<{ id: string; url: string; alt?: string }>;
-    categories?: string[];
+    galleryImages?: GalleryImage[];
+    categories?: Category[];
     description?: string;
+    type?: string;
   }) {
-    setIsEditing(false);
+    console.log("GlobalModal > handleSave kaldt med data:", updatedData);
     if (onSave) onSave(updatedData);
+    setIsEditing(false); // Luk modal KUN her - kun ved Gem
   }
 
   function handleCancel() {
+    console.log("GlobalModal > handleCancel (annuller redigering)");
     setIsEditing(false);
   }
 
-  const onGalleryChange = onUploadGalleryClick ?? (() => {});
+  const initialType = typeId ? { id: typeId, label: typeLabel } : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-white/20 p-4">
@@ -75,7 +76,6 @@ export default function GlobalModal({
         className="bg-white rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden relative flex flex-col"
         style={{ maxHeight: "90vh" }}
       >
-        {/* Close button */}
         <button
           onClick={onClose}
           className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 z-20"
@@ -90,7 +90,6 @@ export default function GlobalModal({
           <X size={28} />
         </button>
 
-        {/* Modal Content */}
         <div
           className="px-8 pt-6 pb-4 flex flex-col text-left overflow-y-auto"
           style={{ flexGrow: 1, minHeight: 0 }}
@@ -100,22 +99,24 @@ export default function GlobalModal({
               initialTitle={title}
               initialImageUrl={imageUrl}
               initialGalleryImages={galleryImages}
-              initialCategories={categories ?? []}
-              initialDescription={description ?? ""}       // NYT
+              initialCategories={categories}
+              initialDescription={description ?? ""}
+              initialType={initialType}
               onCancel={handleCancel}
               onSave={handleSave}
-              onGalleryImagesChange={onGalleryChange}
-              setDescription={setDescription}             // NYT
+              setDescription={setDescription}
+              canUploadGallery={canUploadGallery}
             />
           ) : (
             <>
-              {/* Gallery or fallback image */}
+              
+
               {galleryImages.length > 0 ? (
                 <div className="mb-4 rounded-2xl overflow-hidden w-full max-w-full" style={{ height: "14rem" }}>
                   <ImageGallery
                     images={galleryImages}
-                    canUpload={canUploadGallery}
-                    onImagesChange={onGalleryChange}
+                    canUpload={false}
+                    onImagesChange={() => {}}
                   />
                 </div>
               ) : imageUrl ? (
@@ -130,48 +131,56 @@ export default function GlobalModal({
                 <div className="mb-4 text-gray-500">No image available</div>
               )}
 
-              {/* Extra gallery under the banner */}
               {galleryImages.length > 0 && (
                 <div className="mb-6 w-full max-w-full">
                   <ImageGallery
                     images={galleryImages}
-                    canUpload={canUploadGallery}
-                    onImagesChange={onGalleryChange}
+                    canUpload={false}
+                    onImagesChange={() => {}}
                   />
                 </div>
               )}
 
-              {/* Title */}
               {title && <h2 className="text-2xl font-bold mb-2">{title}</h2>}
 
-              {/* Content (RichText) */}
               {description && (
                 <div className="prose prose-sm text-gray-700 mb-3" dangerouslySetInnerHTML={{ __html: description }} />
               )}
 
               {children}
 
-              {/* Divider */}
               <div className="border-b border-gray-300 w-full my-4" />
 
-              {/* Categories */}
-              {categories && categories.length > 0 && (
+              {categories.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {categories.map((cat) => (
-                    <Badge key={cat}>{cat}</Badge>
-                  ))}
+                  {categories.map((cat) => {
+                    const validColors = ["orange", "blue", "green", "purple", "gray"] as const;
+                    let color = validColors.includes(cat.color as any) ? cat.color : "gray";
+                    return (
+                      <Badge color={color} key={cat.id}>
+                        {cat.label}
+                      </Badge>
+                    );
+                  })}
                 </div>
               )}
+              {typeLabel && (
+  <span className="inline-block mb-3 bg-gray-100 text-gray-800 text-xs font-semibold px-3 py-1 rounded-full">
+    Type: {typeLabel}
+  </span>
+)}
             </>
           )}
         </div>
 
-        {/* Footer in view-mode, NOT in edit mode */}
         {!isEditing && (
           <div className="border-t px-8 py-5 flex justify-between flex-shrink-0">
             <button
               className="btn btn-primary"
-              onClick={() => setIsEditing(true)}
+              onClick={() => {
+                console.log("GlobalModal > Edit knap klikket");
+                setIsEditing(true);
+              }}
             >
               Edit
             </button>

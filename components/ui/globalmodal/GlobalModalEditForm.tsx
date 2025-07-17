@@ -1,33 +1,34 @@
-// components/ui/globalmodal/GlobalModalEditForm.tsx
+// /components/ui/globalmodal/GlobalModalEditForm.tsx
 "use client";
-
 import React, { useState, useEffect } from "react";
-import Badge from "@/components/ui/CategoryBadge";
 import ImageGallery from "./ImageGallery";
 import SaveButton from "@/components/ui/globalmodal/SaveButton";
-import { GalleryImage } from "./types";
-import heic2any from "heic2any";
+import { Category, GalleryImage } from "./types";
 import { uploadImageToSupabase } from "@/lib/uploadImageToSupabase";
 import { useUserContext } from "@/context/UserContext";
-import RichTextEditor from "@/components/ui/RichTextEditor"; // IMPORT
+import RichTextEditor from "@/components/ui/RichTextEditor";
+import CategorySelect from "@/components/ui/globalmodal/CategorySelect";
+import TypeSelect from "@/components/ui/globalmodal/TypeSelect";
 
 type GlobalModalEditFormProps = {
   initialTitle?: string;
   initialImageUrl?: string;
-  initialCategories?: string[];
+  initialCategories?: Category[];
   initialGalleryImages?: GalleryImage[];
-  initialDescription?: string; // NYT
+  initialDescription?: string;
+  initialType?: { id: string; label: string } | null;
   canUploadGallery?: boolean;
   onSave: (data: {
     title: string;
     imageUrl: string;
-    categories: string[];
+    categories: Category[];
     galleryImages: GalleryImage[];
-    description: string;      // NYT
+    description: string;
+    type: string;
   }) => void;
   onCancel: () => void;
-  onGalleryImagesChange: (newImages: GalleryImage[]) => void;
-  setDescription?: (desc: string) => void; // NYT
+  setDescription?: (desc: string) => void;
+  categoryType?: string;
 };
 
 export default function GlobalModalEditForm({
@@ -36,44 +37,35 @@ export default function GlobalModalEditForm({
   initialCategories = [],
   initialGalleryImages = [],
   initialDescription = "",
+  initialType = null,
   canUploadGallery = false,
   onSave,
   onCancel,
-  onGalleryImagesChange,
   setDescription,
+  categoryType = "all",
 }: GlobalModalEditFormProps) {
-  const { user, loading } = useUserContext();
+  const { user } = useUserContext();
+  const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [title, setTitle] = useState(initialTitle);
   const [imageUrl, setImageUrl] = useState(initialImageUrl);
-  const [categories, setCategories] = useState(initialCategories);
-  const [galleryImages, setGalleryImages] = useState(initialGalleryImages);
-  const [newCategory, setNewCategory] = useState("");
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>(initialGalleryImages);
   const [isSaving, setIsSaving] = useState(false);
-
   const [description, _setDescription] = useState(initialDescription);
+  const [type, setType] = useState<{ id: string; label: string } | null>(initialType);
+  const [typeError, setTypeError] = useState<string | null>(null);
 
-  // Synk med parent hvis løftet state gives
+  // DEBUG LOG
+  useEffect(() => {
+    console.log("EditForm > state", { title, imageUrl, galleryImages, description, type, categories });
+  }, [title, imageUrl, galleryImages, description, type, categories]);
+
   useEffect(() => {
     if (setDescription) setDescription(description);
   }, [description, setDescription]);
 
-  useEffect(() => {
-    onGalleryImagesChange(galleryImages);
-  }, [galleryImages, onGalleryImagesChange]);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(initialImageUrl || null);
 
-  const handleAddCategory = () => {
-    const trimmed = newCategory.trim();
-    if (trimmed && !categories.includes(trimmed)) {
-      setCategories([...categories, trimmed]);
-      setNewCategory("");
-    }
-  };
-
-  const handleRemoveCategory = (cat: string) => {
-    setCategories(categories.filter((c) => c !== cat));
-  };
-
-  // Banner billede upload & HEIC-konvertering
   async function handleBannerChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -87,6 +79,7 @@ export default function GlobalModalEditForm({
         });
         setBannerFile(jpgFile);
         setBannerPreview(URL.createObjectURL(jpgFile));
+        console.log("Banner valgt (konverteret fra HEIC)", jpgFile);
       } catch (err) {
         alert("Kunne ikke konvertere HEIC-billede. Prøv et andet format.");
         setBannerFile(null);
@@ -95,22 +88,24 @@ export default function GlobalModalEditForm({
     } else {
       setBannerFile(file);
       setBannerPreview(URL.createObjectURL(file));
+      console.log("Banner valgt", file);
     }
   }
 
-  // Banner-billede upload states
-  const [bannerFile, setBannerFile] = useState<File | null>(null);
-  const [bannerPreview, setBannerPreview] = useState<string | null>(initialImageUrl || null);
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!type) {
+      setTypeError("Du skal vælge eller oprette en type.");
+      return;
+    }
+    setTypeError(null);
     setIsSaving(true);
 
     let uploadedUrl = imageUrl;
-
     if (bannerFile && user?.id) {
       try {
         uploadedUrl = await uploadImageToSupabase(bannerFile, user.id, "global-images");
+        console.log("Banner uploaded til Supabase", uploadedUrl);
       } catch (err) {
         alert("Kunne ikke uploade billede. Prøv igen.");
         setIsSaving(false);
@@ -118,14 +113,24 @@ export default function GlobalModalEditForm({
       }
     }
 
-    onSave({
+    const savePayload = {
       title,
       imageUrl: uploadedUrl,
       categories,
       galleryImages,
-      description,   // NYT
-    });
+      description,
+      type: type.id,
+    };
+    console.log("EditForm > handleSubmit > onSave kald med payload:", savePayload);
+
+    onSave(savePayload);
     setIsSaving(false);
+  }
+
+  function handleGalleryChange(newImages: GalleryImage[]) {
+    console.log("EditForm > handleGalleryChange kaldt med", newImages);
+    setGalleryImages(newImages);
+    // VIGTIGT: Ingen onSave her, modal skal ikke lukkes ved galleri upload
   }
 
   return (
@@ -135,9 +140,24 @@ export default function GlobalModalEditForm({
         <input
           type="text"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            console.log("EditForm > Titel ændret", e.target.value);
+          }}
           className="border rounded px-3 py-2"
         />
+      </label>
+
+      <label className="flex flex-col">
+        <span className="font-semibold mb-1">Type</span>
+        <TypeSelect
+          value={type}
+          onChange={(t) => {
+            setType(t);
+            console.log("EditForm > Type ændret", t);
+          }}
+        />
+        {typeError && <span className="text-red-500 text-xs mt-1">{typeError}</span>}
       </label>
 
       <label className="flex flex-col">
@@ -149,71 +169,51 @@ export default function GlobalModalEditForm({
             className="w-full h-40 object-cover rounded-xl mb-2"
           />
         ) : null}
-        <input
-          type="file"
-          accept="image/*,.heic"
-          onChange={handleBannerChange}
-          className="mb-2"
-        />
+        <input type="file" accept="image/*,.heic" onChange={handleBannerChange} className="mb-2" />
         <span className="text-xs text-gray-500">Du kan uploade jpg, png, webp eller heic fra iPhone.</span>
       </label>
-
-      <div>
-        <span className="font-semibold mb-1 block">Kategorier</span>
-        <div className="flex flex-wrap gap-2 mb-2">
-          {categories.map((cat) => (
-            <Badge key={cat}>
-              {cat}{" "}
-              <button
-                type="button"
-                onClick={() => handleRemoveCategory(cat)}
-                className="ml-1 text-red-600 font-bold"
-                aria-label={`Fjern kategori ${cat}`}
-              >
-                &times;
-              </button>
-            </Badge>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value)}
-            placeholder="Tilføj kategori"
-            className="border rounded px-3 py-2 flex-grow"
-          />
-          <button
-            type="button"
-            onClick={handleAddCategory}
-            className="btn btn-primary"
-          >
-            Tilføj
-          </button>
-        </div>
-      </div>
 
       <div>
         <span className="font-semibold mb-2 block">Galleri</span>
         <ImageGallery
           images={galleryImages}
           canUpload={canUploadGallery}
-          onImagesChange={setGalleryImages}
+          onImagesChange={handleGalleryChange}
         />
       </div>
 
-      {/* RichText editor */}
       <div>
         <span className="font-semibold mb-1 block">Beskrivelse</span>
         <div className="border rounded p-2 min-h-[120px] bg-gray-50">
-          <RichTextEditor value={description} onChange={_setDescription} />
+          <RichTextEditor
+            value={description}
+            onChange={(val) => {
+              _setDescription(val);
+              console.log("EditForm > Beskrivelse ændret", val);
+            }}
+          />
         </div>
+      </div>
+
+      <div>
+        <span className="font-semibold mb-1 block">Kategorier</span>
+        <CategorySelect
+          value={categories}
+          onChange={(c) => {
+            setCategories(c);
+            console.log("EditForm > Kategorier ændret", c);
+          }}
+          categoryType={type?.id || "global"}
+        />
       </div>
 
       <div className="flex justify-end gap-4 pt-4 border-t">
         <button
           type="button"
-          onClick={onCancel}
+          onClick={() => {
+            onCancel();
+            console.log("EditForm > Annuller klik");
+          }}
           className="btn btn-secondary"
         >
           Annuller

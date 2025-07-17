@@ -10,15 +10,18 @@ type SaveButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 export default function SaveButton({ loading, children, ...props }: SaveButtonProps) {
   return (
     <button
-      type="submit"
-      className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition flex items-center gap-2 disabled:opacity-50"
+      type={props.type || "submit"}
+      className={`btn btn-primary flex items-center gap-2 disabled:opacity-50${props.className ? " " + props.className : ""}`}
       disabled={loading || props.disabled}
       {...props}
     >
-      {loading ? (
-        <span className="animate-spin mr-2 w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-      ) : null}
-      {children || "Gem"}
+      {loading && (
+        <span
+          className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+          style={{ display: "inline-block" }}
+        />
+      )}
+      <span>{children || "Gem"}</span>
     </button>
   );
 }
