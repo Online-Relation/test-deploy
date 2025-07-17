@@ -1,8 +1,12 @@
-// app/dates/page.tsx
-'use client';
-
-import DateBoard from '@/components/DateBoard';
+// /app/dates/page.tsx
+"use client";
+import DateIdeasBoard from "@/components/dates/DateIdeasBoard";
 
 export default function DatesPage() {
-  return <DateBoard />;
+  return (
+    <div className="p-4 md:p-8 max-w-6xl mx-auto">
+      <h1 className="text-2xl font-bold mb-6">Date Ideas Board</h1>
+      <DateIdeasBoard />
+    </div>
+  );
 }

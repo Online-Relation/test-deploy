@@ -24,10 +24,13 @@ type GlobalModalProps = {
     categories?: Category[];
     description?: string;
     type?: string;
+    planned_date?: string | null; // <-- NYT FELT!
   }) => void;
   description?: string;
   setDescription?: (desc: string) => void;
   typeId?: string;
+  modalId?: string;
+  initialPlannedDate?: string; // <-- NYT PROP!
 };
 
 export default function GlobalModal({
@@ -44,6 +47,8 @@ export default function GlobalModal({
   description,
   setDescription,
   typeId,
+  modalId,
+  initialPlannedDate = "", // <-- NYT PROP!
 }: GlobalModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const typeLabel = typeId ? typeId.charAt(0).toUpperCase() + typeId.slice(1) : "";
@@ -57,6 +62,7 @@ export default function GlobalModal({
     categories?: Category[];
     description?: string;
     type?: string;
+    planned_date?: string | null;
   }) {
     console.log("GlobalModal > handleSave kaldt med data:", updatedData);
     if (onSave) onSave(updatedData);
@@ -95,42 +101,49 @@ export default function GlobalModal({
           style={{ flexGrow: 1, minHeight: 0 }}
         >
           {isEditing ? (
-            <GlobalModalEditForm
-              initialTitle={title}
-              initialImageUrl={imageUrl}
-              initialGalleryImages={galleryImages}
-              initialCategories={categories}
-              initialDescription={description ?? ""}
-              initialType={initialType}
-              onCancel={handleCancel}
-              onSave={handleSave}
-              setDescription={setDescription}
-              canUploadGallery={canUploadGallery}
-            />
+            <>
+              <GlobalModalEditForm
+                initialTitle={title}
+                initialImageUrl={imageUrl}
+                initialGalleryImages={galleryImages}
+                initialCategories={categories}
+                initialDescription={description ?? ""}
+                initialType={initialType}
+                onCancel={handleCancel}
+                onSave={handleSave}
+                setDescription={setDescription}
+                canUploadGallery={canUploadGallery}
+                initialPlannedDate={initialPlannedDate || ""}
+              />
+              {modalId && (
+                <div className="text-xs text-gray-500 text-right mt-4 select-all">
+                  Modal ID: {modalId}
+                </div>
+              )}
+            </>
           ) : (
             <>
-              
-
-              {galleryImages.length > 0 ? (
-                <div className="mb-4 rounded-2xl overflow-hidden w-full max-w-full" style={{ height: "14rem" }}>
-                  <ImageGallery
-                    images={galleryImages}
-                    canUpload={false}
-                    onImagesChange={() => {}}
-                  />
-                </div>
-              ) : imageUrl ? (
-                <div className="mb-4 w-full max-w-full">
+              {/* Bannerbillede vises altid hvis det findes */}
+              {imageUrl && (
+                <div className="mb-4 w-full flex justify-center items-center max-w-full bg-gray-100 rounded-2xl overflow-hidden">
                   <img
                     src={imageUrl}
-                    alt="Modal image"
-                    className="w-full h-56 object-cover rounded-2xl max-w-full"
+                    alt="Banner"
+                    className="max-w-full max-h-[380px] object-contain"
+                    style={{ display: "block" }}
                   />
                 </div>
-              ) : (
-                <div className="mb-4 text-gray-500">No image available</div>
               )}
 
+              {/* Titel */}
+              {title && <h2 className="text-2xl font-bold mb-2">{title}</h2>}
+
+              {/* Description */}
+              {description && (
+                <div className="prose prose-sm text-gray-700 mb-3" dangerouslySetInnerHTML={{ __html: description }} />
+              )}
+
+              {/* Galleri vises under description */}
               {galleryImages.length > 0 && (
                 <div className="mb-6 w-full max-w-full">
                   <ImageGallery
@@ -139,12 +152,6 @@ export default function GlobalModal({
                     onImagesChange={() => {}}
                   />
                 </div>
-              )}
-
-              {title && <h2 className="text-2xl font-bold mb-2">{title}</h2>}
-
-              {description && (
-                <div className="prose prose-sm text-gray-700 mb-3" dangerouslySetInnerHTML={{ __html: description }} />
               )}
 
               {children}
@@ -165,10 +172,10 @@ export default function GlobalModal({
                 </div>
               )}
               {typeLabel && (
-  <span className="inline-block mb-3 bg-gray-100 text-gray-800 text-xs font-semibold px-3 py-1 rounded-full">
-    Type: {typeLabel}
-  </span>
-)}
+                <span className="inline-block mb-3 bg-gray-100 text-gray-800 text-xs font-semibold px-3 py-1 rounded-full">
+                  Type: {typeLabel}
+                </span>
+              )}
             </>
           )}
         </div>

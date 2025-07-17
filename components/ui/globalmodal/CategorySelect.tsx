@@ -9,7 +9,7 @@ import { Category } from "./types";
 type CategorySelectProps = {
   value: Category[];
   onChange: (newCategories: Category[]) => void;
-  categoryType?: string; // <-- NY: angiv kategori-type fx "fantasy"
+  categoryType?: string;
 };
 
 const CATEGORY_COLORS: Category["color"][] = [
@@ -23,58 +23,50 @@ const CATEGORY_COLORS: Category["color"][] = [
 export default function CategorySelect({
   value,
   onChange,
-  categoryType = "global", // <-- default til "global" hvis intet angives
+  categoryType = "global",
 }: CategorySelectProps) {
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [query, setQuery] = useState("");
   const [filtered, setFiltered] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Hent kun kategorier for den angivne type
   useEffect(() => {
-  setIsLoading(true);
-  supabase
-    .from("modal_categories")
-    .select("*")
-    .eq("type", categoryType)
-    .then(({ data }) => {
-      console.log("Fetched categories for type", categoryType, data); // <-- LOG
-      if (data) {
-        setAllCategories(
-          (data as any[]).map((cat) => ({
-            ...cat,
-            color: CATEGORY_COLORS.includes(cat.color)
-              ? cat.color
-              : "gray",
-          }))
-        );
-      }
-      setIsLoading(false);
-    });
-}, [categoryType]);
+    setIsLoading(true);
+    supabase
+      .from("modal_categories")
+      .select("*")
+      .eq("type", categoryType)
+      .then(({ data }) => {
+        if (data) {
+          setAllCategories(
+            (data as any[]).map((cat) => ({
+              ...cat,
+              color: CATEGORY_COLORS.includes(cat.color)
+                ? cat.color
+                : "gray",
+            }))
+          );
+        }
+        setIsLoading(false);
+      });
+  }, [categoryType]);
 
+  useEffect(() => {
+    const lower = query.toLowerCase();
+    const filteredResult = allCategories.filter(
+      (cat) =>
+        cat.label.toLowerCase().includes(lower) &&
+        !value.find((v) => v.id === cat.id)
+    );
+    setFiltered(filteredResult);
+  }, [query, allCategories, value]);
 
-  // Filtrer på søgning og undgå allerede valgte
- useEffect(() => {
-  const lower = query.toLowerCase();
-  const filteredResult = allCategories.filter(
-    (cat) =>
-      cat.label.toLowerCase().includes(lower) &&
-      !value.find((v) => v.id === cat.id)
-  );
-  console.log("Query:", query, "All:", allCategories, "Filtered:", filteredResult, "Value:", value);
-  setFiltered(filteredResult);
-}, [query, allCategories, value]);
-
-
-  // Tilføj eksisterende kategori
   function handleSelect(cat: Category) {
     onChange([...value, cat]);
-    setQuery("");           // <-- Ryd søgefeltet
-    setFiltered([]);        // <-- Ryd forslag
+    setQuery("");
+    setFiltered([]);
   }
 
-  // Tilføj ny kategori (opretter i Supabase)
   async function handleAddNew() {
     const label = query.trim();
     if (!label) return;
@@ -102,12 +94,11 @@ export default function CategorySelect({
       };
       onChange([...value, cat]);
       setAllCategories((prev) => [...prev, cat]);
-      setQuery("");        // <-- Ryd søgefeltet
-      setFiltered([]);     // <-- Ryd forslag
+      setQuery("");
+      setFiltered([]);
     }
   }
 
-  // Fjern kategori
   function handleRemove(cat: Category) {
     onChange(value.filter((c) => c.id !== cat.id));
   }
@@ -130,7 +121,7 @@ export default function CategorySelect({
         ))}
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2 w-full">
         <input
           type="text"
           value={query}
@@ -156,7 +147,7 @@ export default function CategorySelect({
         />
         <button
           type="button"
-          className="btn btn-primary"
+          className="btn btn-primary w-full sm:w-auto"
           onClick={handleAddNew}
           disabled={
             !query.trim() ||

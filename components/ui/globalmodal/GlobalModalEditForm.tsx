@@ -25,10 +25,12 @@ type GlobalModalEditFormProps = {
     galleryImages: GalleryImage[];
     description: string;
     type: string;
+    planned_date?: string | null; // <-- NYT FELT!
   }) => void;
   onCancel: () => void;
   setDescription?: (desc: string) => void;
   categoryType?: string;
+  initialPlannedDate?: string; // <-- NYT PROP
 };
 
 export default function GlobalModalEditForm({
@@ -43,6 +45,7 @@ export default function GlobalModalEditForm({
   onCancel,
   setDescription,
   categoryType = "all",
+  initialPlannedDate = "",
 }: GlobalModalEditFormProps) {
   const { user } = useUserContext();
   const [categories, setCategories] = useState<Category[]>(initialCategories);
@@ -54,10 +57,12 @@ export default function GlobalModalEditForm({
   const [type, setType] = useState<{ id: string; label: string } | null>(initialType);
   const [typeError, setTypeError] = useState<string | null>(null);
 
+  const [plannedDate, setPlannedDate] = useState(initialPlannedDate || ""); // <-- NY STATE
+
   // DEBUG LOG
   useEffect(() => {
-    console.log("EditForm > state", { title, imageUrl, galleryImages, description, type, categories });
-  }, [title, imageUrl, galleryImages, description, type, categories]);
+    console.log("EditForm > state", { title, imageUrl, galleryImages, description, type, categories, plannedDate });
+  }, [title, imageUrl, galleryImages, description, type, categories, plannedDate]);
 
   useEffect(() => {
     if (setDescription) setDescription(description);
@@ -120,6 +125,7 @@ export default function GlobalModalEditForm({
       galleryImages,
       description,
       type: type.id,
+      planned_date: type.id === "date-idea" && plannedDate ? plannedDate : null, // <-- GEMMER KUN FOR DATE-IDEA
     };
     console.log("EditForm > handleSubmit > onSave kald med payload:", savePayload);
 
@@ -172,6 +178,19 @@ export default function GlobalModalEditForm({
         <input type="file" accept="image/*,.heic" onChange={handleBannerChange} className="mb-2" />
         <span className="text-xs text-gray-500">Du kan uploade jpg, png, webp eller heic fra iPhone.</span>
       </label>
+
+      {/* PLANLAGT DATO KUN FOR DATE-IDEA */}
+      {type?.id === "date-idea" && (
+        <label className="flex flex-col">
+          <span className="font-semibold mb-1">Planlagt dato</span>
+          <input
+            type="date"
+            value={plannedDate}
+            onChange={e => setPlannedDate(e.target.value)}
+            className="border rounded px-3 py-2"
+          />
+        </label>
+      )}
 
       <div>
         <span className="font-semibold mb-2 block">Galleri</span>

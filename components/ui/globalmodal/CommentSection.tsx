@@ -40,7 +40,10 @@ export default function CommentSection({ modalId }: Props) {
 
   return (
     <div className="mt-6">
-      <form onSubmit={handleAdd} className="flex gap-2">
+      <form
+        onSubmit={handleAdd}
+        className="flex flex-col sm:flex-row gap-2 w-full"
+      >
         <input
           type="text"
           value={text}
@@ -51,7 +54,7 @@ export default function CommentSection({ modalId }: Props) {
         />
         <button
           type="submit"
-          className="btn btn-primary"
+          className="btn btn-primary w-full sm:w-auto"
           disabled={loading || !text.trim() || !user}
         >
           Send

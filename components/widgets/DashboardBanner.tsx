@@ -22,39 +22,41 @@ const DashboardBanner = () => {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingMeta, setPendingMeta] = useState<{ taken_at?: Date; latitude?: number; longitude?: number }>({});
 
-  // Hent seneste bannerbillede globalt med uploader id
-  useEffect(() => {
-    const fetchLatestBanner = async () => {
-      const { data, error } = await supabase
-        .from("dashboard_images")
-        .select("image_url, user_id")
-        .eq("widget_location", "dashboard_banner")
-        .order("created_at", { ascending: false })
-        .limit(1)
+  // FLYT FETCH FUNKTIONEN UD HER, så du kan genbruge den efter upload
+  const fetchLatestBanner = async () => {
+    const { data, error } = await supabase
+      .from("dashboard_images")
+      .select("image_url, user_id")
+      .eq("widget_location", "dashboard_banner")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error) {
+      console.error("Fejl ved hentning af banner:", error);
+      return;
+    }
+    if (data?.image_url) {
+      setImageUrl(data.image_url);
+
+      // Hent uploaderens display_name
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("id", data.user_id)
         .single();
 
-      if (error) {
-        console.error("Fejl ved hentning af banner:", error);
-        return;
+      if (profileError) {
+        console.error("Fejl ved hentning af uploaderens navn:", profileError);
+        setUploaderName("");
+      } else {
+        setUploaderName(profileData?.display_name || "");
       }
-      if (data?.image_url) {
-        setImageUrl(data.image_url);
+    }
+  };
 
-        // Hent uploaderens display_name
-        const { data: profileData, error: profileError } = await supabase
-          .from("profiles")
-          .select("display_name")
-          .eq("id", data.user_id)
-          .single();
-
-        if (profileError) {
-          console.error("Fejl ved hentning af uploaderens navn:", profileError);
-          setUploaderName("");
-        } else {
-          setUploaderName(profileData?.display_name || "");
-        }
-      }
-    };
+  // Kør kun første gang (og ved reload)
+  useEffect(() => {
     fetchLatestBanner();
   }, []);
 
@@ -138,7 +140,7 @@ const DashboardBanner = () => {
 
     try {
       const url = await uploadImageToSupabase(croppedFile, user.id);
-      setImageUrl(url);
+
       // Gem i DB inkl. metadata
       await supabase.from("dashboard_images").insert([
         {
@@ -152,6 +154,10 @@ const DashboardBanner = () => {
           longitude: pendingMeta.longitude,
         },
       ]);
+
+      // Hent det nyeste billede igen (så du altid ser seneste)
+      await fetchLatestBanner();
+
     } catch (error) {
       alert("Upload fejlede");
     } finally {
@@ -227,6 +233,17 @@ const DashboardBanner = () => {
           </button>
         )}
       </div>
+      {/* Cropping modal */}
+      {cropModalOpen && rawImage && pendingFile && (
+        <ImageCropModal
+  open={cropModalOpen}
+  imageSrc={rawImage}           // ← korrekt!
+  onCancel={handleCropCancel}
+  onCropComplete={handleCropComplete} // brug det navn modal’en forventer!
+  aspect={3 / 1.5}
+/>
+
+      )}
     </div>
   );
 };

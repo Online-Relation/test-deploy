@@ -8,11 +8,18 @@ import CommentSection from "./CommentSection";
 import { ModalObject, updateModalObject } from "@/lib/modalObjects";
 import { Category, GalleryImage } from "./types";
 
+// HJÆLPEFUNKTION: Strip HTML fra description
+function stripHtml(html: string) {
+  if (!html) return "";
+  return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ");
+}
+
 type Props = {
   modal: ModalObject & {
     categories?: Category[];
     gallery_images?: GalleryImage[];
     description?: string;
+    planned_date?: string; // <-- NYT FELT!
   };
   onUpdateModal?: (modal: ModalObject) => void;
 };
@@ -28,6 +35,7 @@ export default function ModalCard({ modal, onUpdateModal }: Props) {
     galleryImages?: GalleryImage[];
     description?: string;
     type?: string;
+    planned_date?: string | null; // <-- NYT FELT!
   }) {
     console.log("ModalCard > handleModalSave kaldt med data:", data);
 
@@ -44,6 +52,7 @@ export default function ModalCard({ modal, onUpdateModal }: Props) {
       categories: categoriesWithType,
       gallery_images: data.galleryImages ?? modalState.gallery_images ?? [],
       type: data.type ?? modalState.type ?? "",
+      planned_date: data.planned_date ?? modalState.planned_date ?? null, // <-- GEMMER NYT FELT!
     };
 
     console.log("ModalCard > updateData der sendes til DB:", updateData);
@@ -78,10 +87,16 @@ export default function ModalCard({ modal, onUpdateModal }: Props) {
               </Badge>
             ))}
           </div>
-          <div
-            className="prose prose-sm text-gray-700 mb-2"
-            dangerouslySetInnerHTML={{ __html: modalState.description || "" }}
-          />
+          {/* VIS PLANLAGT DATO KUN FOR DATE-IDEA */}
+          {modalState.type === "date-idea" && modalState.planned_date && (
+            <div className="text-xs text-gray-500 mb-1">
+              Planlagt dato: {modalState.planned_date}
+            </div>
+          )}
+          <div className="prose prose-sm text-gray-700 mb-2">
+            {stripHtml(modalState.description || "").slice(0, 120)}
+            {stripHtml(modalState.description || "").length > 120 ? "…" : ""}
+          </div>
         </div>
       </div>
 
@@ -96,6 +111,8 @@ export default function ModalCard({ modal, onUpdateModal }: Props) {
         typeId={modalState.type}
         canUploadGallery={true}
         onSave={handleModalSave}
+        modalId={modalState.id}
+        initialPlannedDate={modalState.planned_date || ""} // <-- SENDER VÆRDIEN VIDERE!
       >
         <UserAvatarName userId={modalState.created_by} createdAt={modalState.created_at} className="mt-4" />
         <CommentSection modalId={modalState.id} />
