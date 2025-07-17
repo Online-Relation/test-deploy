@@ -31,6 +31,7 @@ type GlobalModalProps = {
   typeId?: string;
   modalId?: string;
   initialPlannedDate?: string; // <-- NYT PROP!
+  initialCategories?: any[];
 };
 
 export default function GlobalModal({

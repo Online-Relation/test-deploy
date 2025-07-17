@@ -25,12 +25,12 @@ type GlobalModalEditFormProps = {
     galleryImages: GalleryImage[];
     description: string;
     type: string;
-    planned_date?: string | null; // <-- NYT FELT!
+    planned_date?: string | null;
   }) => void;
   onCancel: () => void;
   setDescription?: (desc: string) => void;
   categoryType?: string;
-  initialPlannedDate?: string; // <-- NYT PROP
+  initialPlannedDate?: string;
 };
 
 export default function GlobalModalEditForm({
@@ -57,9 +57,8 @@ export default function GlobalModalEditForm({
   const [type, setType] = useState<{ id: string; label: string } | null>(initialType);
   const [typeError, setTypeError] = useState<string | null>(null);
 
-  const [plannedDate, setPlannedDate] = useState(initialPlannedDate || ""); // <-- NY STATE
+  const [plannedDate, setPlannedDate] = useState(initialPlannedDate || "");
 
-  // DEBUG LOG
   useEffect(() => {
     console.log("EditForm > state", { title, imageUrl, galleryImages, description, type, categories, plannedDate });
   }, [title, imageUrl, galleryImages, description, type, categories, plannedDate]);
@@ -125,7 +124,7 @@ export default function GlobalModalEditForm({
       galleryImages,
       description,
       type: type.id,
-      planned_date: type.id === "date-idea" && plannedDate ? plannedDate : null, // <-- GEMMER KUN FOR DATE-IDEA
+      planned_date: type.id === "date-idea" && plannedDate ? plannedDate : null,
     };
     console.log("EditForm > handleSubmit > onSave kald med payload:", savePayload);
 
@@ -134,9 +133,7 @@ export default function GlobalModalEditForm({
   }
 
   function handleGalleryChange(newImages: GalleryImage[]) {
-    console.log("EditForm > handleGalleryChange kaldt med", newImages);
     setGalleryImages(newImages);
-    // VIGTIGT: Ingen onSave her, modal skal ikke lukkes ved galleri upload
   }
 
   return (
@@ -146,10 +143,7 @@ export default function GlobalModalEditForm({
         <input
           type="text"
           value={title}
-          onChange={(e) => {
-            setTitle(e.target.value);
-            console.log("EditForm > Titel ændret", e.target.value);
-          }}
+          onChange={(e) => setTitle(e.target.value)}
           className="border rounded px-3 py-2"
         />
       </label>
@@ -158,10 +152,7 @@ export default function GlobalModalEditForm({
         <span className="font-semibold mb-1">Type</span>
         <TypeSelect
           value={type}
-          onChange={(t) => {
-            setType(t);
-            console.log("EditForm > Type ændret", t);
-          }}
+          onChange={setType}
         />
         {typeError && <span className="text-red-500 text-xs mt-1">{typeError}</span>}
       </label>
@@ -206,10 +197,7 @@ export default function GlobalModalEditForm({
         <div className="border rounded p-2 min-h-[120px] bg-gray-50">
           <RichTextEditor
             value={description}
-            onChange={(val) => {
-              _setDescription(val);
-              console.log("EditForm > Beskrivelse ændret", val);
-            }}
+            onChange={_setDescription}
           />
         </div>
       </div>
@@ -218,10 +206,7 @@ export default function GlobalModalEditForm({
         <span className="font-semibold mb-1 block">Kategorier</span>
         <CategorySelect
           value={categories}
-          onChange={(c) => {
-            setCategories(c);
-            console.log("EditForm > Kategorier ændret", c);
-          }}
+          onChange={setCategories}
           categoryType={type?.id || "global"}
         />
       </div>
@@ -229,10 +214,7 @@ export default function GlobalModalEditForm({
       <div className="flex justify-end gap-4 pt-4 border-t">
         <button
           type="button"
-          onClick={() => {
-            onCancel();
-            console.log("EditForm > Annuller klik");
-          }}
+          onClick={onCancel}
           className="btn btn-secondary"
         >
           Annuller

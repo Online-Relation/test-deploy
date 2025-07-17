@@ -1,15 +1,18 @@
+// /app/memories/page.tsx
+
 "use client";
 
 import React, { useState } from "react";
 import MemoriesGallery from "@/components/memories/MemoriesGallery";
 import GlobalModal from "@/components/ui/globalmodal/GlobalModal";
+import UserAvatarName from "@/components/ui/globalmodal/UserAvatarName";
+import { updateDashboardImage } from "@/lib/dashboardImages";
 
 export default function MemoriesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedMemory, setSelectedMemory] = useState<any>(null);
 
   const handleMemoryClick = (memory: any) => {
-    console.log("VALGT BILLEDE (side):", memory);
     setSelectedMemory(memory);
     setModalOpen(true);
   };
@@ -17,6 +20,23 @@ export default function MemoriesPage() {
   const handleCloseModal = () => {
     setModalOpen(false);
     setSelectedMemory(null);
+  };
+
+  const handleSaveMemory = async (data: any) => {
+    if (!selectedMemory?.id) return;
+    const updated = await updateDashboardImage(selectedMemory.id, {
+      title: data.title,
+      description: data.description,
+      type: data.type,
+      categories: data.categories, // <-- VIGTIGT!
+    });
+    if (updated) {
+      setSelectedMemory(updated);
+      setModalOpen(false);
+      // Evt. genhent galleri
+    } else {
+      alert("Kunne ikke opdatere minde!");
+    }
   };
 
   return (
@@ -28,28 +48,52 @@ export default function MemoriesPage() {
         <GlobalModal
           open={modalOpen}
           onClose={handleCloseModal}
-          title={selectedMemory?.title || "Detaljer"}
+          title={selectedMemory?.title || ""}
+          description={selectedMemory?.description || ""}
+          onSave={handleSaveMemory}
+          typeId={selectedMemory?.type || "memory"}
+          categories={selectedMemory?.categories || []} // <-- SÅDAN!
         >
-          {selectedMemory ? (
-            <div className="flex flex-col items-center">
-              <img
-                src={selectedMemory.image_url}
-                alt={selectedMemory.title || ""}
-                className="max-h-72 rounded-xl mb-4"
+          <div className="flex flex-col items-center w-full">
+            <img
+              src={selectedMemory?.image_url}
+              alt={selectedMemory?.title || ""}
+              className="max-h-72 rounded-xl mb-4 w-full object-cover"
+            />
+            <div className="flex items-center w-full mb-2">
+              <UserAvatarName
+                userId={selectedMemory?.user_id}
+                createdAt={selectedMemory?.created_at}
+                className="ml-0"
               />
-              {selectedMemory.description && (
-                <div className="mb-2 text-center">{selectedMemory.description}</div>
-              )}
-              {selectedMemory.taken_at && (
-                <div className="text-xs text-gray-500 mb-2">
-                  Dato:{" "}
-                  {new Date(selectedMemory.taken_at).toLocaleDateString()}
-                </div>
-              )}
             </div>
-          ) : (
-            <div>Intet billede valgt</div>
-          )}
+            {selectedMemory?.title && (
+              <div className="font-bold text-lg mb-2 w-full text-left">{selectedMemory.title}</div>
+            )}
+            {selectedMemory?.description && (
+              <div className="mb-2 text-left w-full">{selectedMemory.description}</div>
+            )}
+            <div className="text-xs text-gray-500 mb-1 w-full text-left">
+              Uploadet d.{" "}
+              {selectedMemory?.taken_at
+                ? new Date(selectedMemory.taken_at).toLocaleDateString("da-DK")
+                : selectedMemory?.created_at
+                ? new Date(selectedMemory.created_at).toLocaleDateString("da-DK")
+                : "ukendt"}
+            </div>
+            {selectedMemory?.latitude && selectedMemory?.longitude && (
+              <div className="text-xs text-blue-600 mb-2 w-full text-left">
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${selectedMemory.latitude},${selectedMemory.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  Åbn i Google Maps
+                </a>
+              </div>
+            )}
+          </div>
         </GlobalModal>
       </div>
     </main>

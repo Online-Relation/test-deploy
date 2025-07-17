@@ -6,6 +6,13 @@ import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useUserContext } from "@/context/UserContext";
 
+interface Category {
+  id: string;
+  label: string;
+  color?: string;
+  [key: string]: any;
+}
+
 interface DashboardImage {
   id: string;
   image_url: string;
@@ -14,6 +21,7 @@ interface DashboardImage {
   latitude?: number;
   longitude?: number;
   created_at?: string;
+  categories?: Category[]; // <-- VIGTIGT!
 }
 
 type MemoriesGalleryProps = {
@@ -32,7 +40,7 @@ const MemoriesGallery = ({ onMemoryClick }: MemoriesGalleryProps) => {
       const { data, error } = await supabase
         .from("dashboard_images")
         .select("*")
-        .in("user_id", [user.id, user.partner_id]) // HENT BILLEDER FOR BEGGE
+        .in("user_id", [user.id, user.partner_id])
         .order("taken_at", { ascending: false })
         .order("created_at", { ascending: false });
 
@@ -63,6 +71,7 @@ const MemoriesGallery = ({ onMemoryClick }: MemoriesGalleryProps) => {
               className="w-full h-32 object-cover group-hover:scale-105 transition"
             />
             <div className="p-2 text-xs text-gray-500">
+              {/* Dato */}
               {img.taken_at ? (
                 <span>
                   {new Date(img.taken_at).toLocaleDateString("da-DK", {
@@ -80,10 +89,31 @@ const MemoriesGallery = ({ onMemoryClick }: MemoriesGalleryProps) => {
                   })}
                 </span>
               ) : null}
+              {/* Titel */}
               {img.title && (
                 <span className="block font-medium text-gray-700 truncate">
                   {img.title}
                 </span>
+              )}
+
+              {/* Kategorier */}
+              {img.categories && img.categories.length > 0 && (
+                <div className="flex gap-1 flex-wrap mt-1">
+                  {img.categories.map((cat) => (
+                    <span
+                      key={cat.id}
+                      className="inline-block rounded-full px-2 py-1 text-xs"
+                      style={{
+                        backgroundColor: cat.color || "#eee",
+                        color: "#444",
+                        fontWeight: 500,
+                        border: "1px solid #ddd",
+                      }}
+                    >
+                      {cat.label}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
           </div>
