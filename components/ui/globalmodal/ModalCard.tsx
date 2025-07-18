@@ -1,4 +1,4 @@
-// /components/ui/globalmodal/ModalCard.tsx
+// components/ui/globalmodal/ModalCard.tsx
 "use client";
 import { useState } from "react";
 import GlobalModal from "./GlobalModal";
@@ -14,20 +14,26 @@ function stripHtml(html: string) {
   return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ");
 }
 
+// ExtendedModalObject til brug i boards etc. med nødvendige felter
+export type ExtendedModalObject = ModalObject & {
+  categories?: Category[];
+  gallery_images?: GalleryImage[];
+  description?: string;
+  planned_date?: string;
+  original_image_url?: string;
+  url?: string | null;
+  mission?: string | null;
+  status: "idea" | "planned" | "done";  // Tilføjet status som krævet
+};
+
 type Props = {
-  modal: ModalObject & {
-    categories?: Category[];
-    gallery_images?: GalleryImage[];
-    description?: string;
-    planned_date?: string;
-    original_image_url?: string; // <-- NYT FELT!
-  };
-  onUpdateModal?: (modal: ModalObject) => void;
+  modal: ExtendedModalObject;
+  onUpdateModal?: (modal: ExtendedModalObject) => void;
 };
 
 export default function ModalCard({ modal, onUpdateModal }: Props) {
+  const [modalState, setModalState] = useState<ExtendedModalObject>(modal);
   const [open, setOpen] = useState(false);
-  const [modalState, setModalState] = useState(modal);
 
   async function handleModalSave(data: {
     title?: string;
@@ -37,6 +43,9 @@ export default function ModalCard({ modal, onUpdateModal }: Props) {
     description?: string;
     type?: string;
     planned_date?: string | null;
+    url?: string | null;
+    mission?: string | null;
+    status?: "idea" | "planned" | "done";
   }) {
     const categoriesWithType =
       (data.categories ?? modalState.categories ?? []).map(cat => ({
@@ -51,13 +60,16 @@ export default function ModalCard({ modal, onUpdateModal }: Props) {
       categories: categoriesWithType,
       gallery_images: data.galleryImages ?? modalState.gallery_images ?? [],
       type: data.type ?? modalState.type ?? "",
-      planned_date: data.planned_date ?? modalState.planned_date ?? null,
+      planned_date: data.planned_date ?? modalState.planned_date ?? undefined,
+      url: data.url ?? modalState.url ?? undefined,
+      mission: data.mission ?? modalState.mission ?? undefined,
+      status: data.status ?? modalState.status,  // Sørg for status altid med i update
     };
 
     const updated = await updateModalObject(modal.id, updateData);
     if (updated) {
-      setModalState(updated);
-      if (onUpdateModal) onUpdateModal(updated);
+      setModalState(updated as ExtendedModalObject); // typecast til ExtendedModalObject
+      if (onUpdateModal) onUpdateModal(updated as ExtendedModalObject);
       setOpen(false);
     } else {
       alert("Kunne ikke opdatere modal.");
@@ -70,7 +82,6 @@ export default function ModalCard({ modal, onUpdateModal }: Props) {
         className="bg-white shadow-xl rounded-2xl overflow-hidden cursor-pointer hover:scale-105 transition-transform duration-200 max-w-xs w-full"
         onClick={() => setOpen(true)}
       >
-        {/* Vis beskåret billede i kort */}
         {modalState.image_url && (
           <img src={modalState.image_url} alt="Banner" className="w-full h-40 object-cover" />
         )}
@@ -100,7 +111,7 @@ export default function ModalCard({ modal, onUpdateModal }: Props) {
         open={open}
         onClose={() => setOpen(false)}
         title={modalState.title}
-        imageUrl={modalState.original_image_url || modalState.image_url || undefined} // <-- VIS ALTID ORIGINALBILLEDET I MODAL!
+        imageUrl={modalState.original_image_url || modalState.image_url || undefined}
         categories={modalState.categories || []}
         galleryImages={modalState.gallery_images || []}
         description={modalState.description || ""}
@@ -109,6 +120,8 @@ export default function ModalCard({ modal, onUpdateModal }: Props) {
         onSave={handleModalSave}
         modalId={modalState.id}
         initialPlannedDate={modalState.planned_date || ""}
+        initialUrl={modalState.url || ""}
+        initialMission={modalState.mission || ""}
       >
         <UserAvatarName userId={modalState.created_by} createdAt={modalState.created_at} className="mt-4" />
         <CommentSection modalId={modalState.id} />

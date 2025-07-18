@@ -1,4 +1,3 @@
-// hooks/useDateBoardLogic.ts
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -9,6 +8,30 @@ export interface CategoryEntry {
   name: string;
 }
 
+function toCamelCase(date: any) {
+  return {
+    ...date,
+    imageUrl: date.image_url,
+    extraImages: date.extra_images,
+    plannedDate: date.planned_date,
+    fulfilledDate: date.fulfilled_date,
+    createdDate: date.created_date,
+    // andre konverteringer hvis nødvendigt
+  };
+}
+
+function toSnakeCase(date: any) {
+  return {
+    ...date,
+    image_url: date.imageUrl,
+    extra_images: date.extraImages,
+    planned_date: date.plannedDate,
+    fulfilled_date: date.fulfilledDate,
+    created_date: date.createdDate,
+    // andre konverteringer hvis nødvendigt
+  };
+}
+
 export default function useDateBoardLogic() {
   const [dates, setDates] = useState<any[]>([]);
   const [profileMap, setProfileMap] = useState<Record<string, string>>({});
@@ -16,6 +39,9 @@ export default function useDateBoardLogic() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newDateData, setNewDateData] = useState<any>({
     status: 'idea',
+    imageUrl: '',
+    extraImages: [],
+    // initialiser med camelCase
   });
 
   useEffect(() => {
@@ -28,16 +54,23 @@ export default function useDateBoardLogic() {
       .from('dates')
       .select('*')
       .order('created_date', { ascending: false });
-    if (!error && data) setDates(data);
+    if (!error && data) {
+      // Konverter alle data til camelCase
+      const normalized = data.map(toCamelCase);
+      setDates(normalized);
+    }
   }
 
   async function handleCreateNewDate(date: any) {
+    // Konverter data til snake_case før opslag
+    const insertData = toSnakeCase(date);
     const { data, error } = await supabase
       .from('dates')
-      .insert([{ ...date }])
+      .insert([insertData])
       .select();
     if (!error && data) {
-      setDates((prev) => [data[0], ...prev]);
+      const normalized = data.map(toCamelCase);
+      setDates((prev) => [normalized[0], ...prev]);
       setShowAddModal(false);
     }
   }

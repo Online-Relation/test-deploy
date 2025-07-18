@@ -1,4 +1,4 @@
-// /components/common/KanbanBoard.tsx
+// components/common/KanbanBoard.tsx
 "use client";
 import {
   DragDropContext,
@@ -7,9 +7,15 @@ import {
   DropResult,
 } from "@hello-pangea/dnd";
 import { ReactNode } from "react";
+import { ExtendedModalObject } from "@/components/ui/globalmodal/ModalCard";
+
 
 type Column = { key: string; label: string };
-type KanbanCard = { id: string; status: string; [key: string]: any };
+
+// KanbanCard har nu alle nødvendige felter som ModalCard forventer
+type KanbanCard = ExtendedModalObject & {
+  status: string; // status skal være med
+};
 
 type KanbanBoardProps = {
   columns: Column[];
@@ -39,9 +45,9 @@ export default function KanbanBoard({
           <Droppable droppableId={col.key} key={col.key}>
             {(provided) => (
               <div
-  ref={provided.innerRef}
-  {...provided.droppableProps}
-  className="bg-gray-50 rounded-xl p-4 min-h-[350px] flex flex-col border border-gray-300"
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                className="bg-gray-50 rounded-xl p-4 min-h-[350px] flex flex-col border border-gray-300"
               >
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-bold text-lg">{col.label}</h2>

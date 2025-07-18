@@ -122,7 +122,7 @@ export default function TypeSelect({ value, onChange }: TypeSelectProps) {
         />
         <button
           type="button"
-          className="btn btn-primary"
+          className="btn btn-primary w-full sm:w-auto"
           onClick={handleAddNew}
           disabled={
             !query.trim() ||

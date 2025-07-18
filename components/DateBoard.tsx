@@ -1,10 +1,8 @@
-// components/DateBoard.tsx
-'use client';
-
-import { useCategory } from '@/context/CategoryContext';
-import { supabase } from '@/lib/supabaseClient';
-import { rectIntersection } from '@dnd-kit/core';
-import useDateBoardLogic, { CategoryEntry } from '@/hooks/useDateBoardLogic';
+"use client";
+import { useCategory } from "@/context/CategoryContext";
+import { supabase } from "@/lib/supabaseClient";
+import { rectIntersection } from "@dnd-kit/core";
+import useDateBoardLogic, { CategoryEntry } from "@/hooks/useDateBoardLogic";
 
 import {
   DndContext,
@@ -13,38 +11,42 @@ import {
   useSensor,
   useSensors,
   PointerSensor,
-} from '@dnd-kit/core';
+} from "@dnd-kit/core";
 
-import { Tag, Calendar, AlertCircle, ImageIcon } from 'lucide-react';
-import Modal from '@/components/ui/modal';
-import { TagBadge } from '@/components/ui/TagBadge';
-import { useState } from 'react';
+import { Tag, Calendar, AlertCircle, ImageIcon } from "lucide-react";
+import Modal from "@/components/ui/modal";
+import { TagBadge } from "@/components/ui/TagBadge";
+import { useState, useEffect } from "react";
 
 const dateStatuses = [
-  { key: 'idea', label: 'Ideer' },
-  { key: 'planned', label: 'Planlagt' },
-  { key: 'fulfilled', label: 'Opfyldt' },
+  { key: "idea", label: "Ideer" },
+  { key: "planned", label: "Planlagt" },
+  { key: "fulfilled", label: "Opfyldt" },
 ] as const;
 
-const colorClasses = ['purple', 'blue', 'green', 'yellow', 'pink', 'red'] as const;
-type AllowedColors = typeof colorClasses[number] | 'gray';
+const colorClasses = ["purple", "blue", "green", "yellow", "pink", "red"] as const;
+type AllowedColors = typeof colorClasses[number] | "gray";
 
 function CategoryDropdown({ value, setValue }: { value: string; setValue: (v: string) => void }) {
   const { dateCategories, refreshCategories } = useCategory();
   const [showNewCat, setShowNewCat] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryName, setNewCategoryName] = useState("");
 
   const handleCreateCategory = async () => {
+    console.log("[CategoryDropdown] Opret ny kategori:", newCategoryName);
     if (!newCategoryName.trim()) return;
     const { data, error } = await supabase
-      .from('date_categories')
+      .from("date_categories")
       .insert([{ name: newCategoryName.trim() }])
       .select();
     if (!error && data?.length) {
       await refreshCategories();
       setValue(data[0].name);
       setShowNewCat(false);
-      setNewCategoryName('');
+      setNewCategoryName("");
+      console.log("[CategoryDropdown] Kategori oprettet:", data[0]);
+    } else {
+      console.error("[CategoryDropdown] Fejl ved oprettelse:", error);
     }
   };
 
@@ -54,7 +56,8 @@ function CategoryDropdown({ value, setValue }: { value: string; setValue: (v: st
       <select
         className="w-full p-2 border rounded"
         value={showNewCat ? "__new__" : value || ""}
-        onChange={e => {
+        onChange={(e) => {
+          console.log("[CategoryDropdown] Vælg kategori:", e.target.value);
           if (e.target.value === "__new__") {
             setShowNewCat(true);
           } else {
@@ -64,8 +67,10 @@ function CategoryDropdown({ value, setValue }: { value: string; setValue: (v: st
         }}
       >
         <option value="">Vælg kategori</option>
-        {dateCategories.map(cat => (
-          <option key={cat.id} value={cat.name}>{cat.name}</option>
+        {dateCategories.map((cat) => (
+          <option key={cat.id} value={cat.name}>
+            {cat.name}
+          </option>
         ))}
         <option value="__new__">+ Opret ny kategori</option>
       </select>
@@ -76,20 +81,12 @@ function CategoryDropdown({ value, setValue }: { value: string; setValue: (v: st
             className="flex-1 border rounded p-2"
             placeholder="Ny kategori"
             value={newCategoryName}
-            onChange={e => setNewCategoryName(e.target.value)}
+            onChange={(e) => setNewCategoryName(e.target.value)}
           />
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={handleCreateCategory}
-          >
+          <button type="button" className="btn-primary" onClick={handleCreateCategory}>
             Gem
           </button>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => setShowNewCat(false)}
-          >
+          <button type="button" className="btn-secondary" onClick={() => setShowNewCat(false)}>
             Annuller
           </button>
         </div>
@@ -98,15 +95,18 @@ function CategoryDropdown({ value, setValue }: { value: string; setValue: (v: st
   );
 }
 
-// Modal-indhold: ALT hedder nu date
 function renderModalContent(newDate: any, setNewDate: any) {
+  console.log("[renderModalContent] newDate:", newDate);
   return (
     <>
       <CategoryDropdown
         value={newDate.category || ""}
-        setValue={v => setNewDate((prev: any) => ({ ...prev, category: v }))}
+        setValue={(v) => {
+          console.log("[renderModalContent] setValue:", v);
+          setNewDate((prev: any) => ({ ...prev, category: v }));
+        }}
       />
-      {/* Her kan du placere flere felter: titel, beskrivelse, billeder osv */}
+      {/* Flere felter kan tilføjes her */}
     </>
   );
 }
@@ -130,11 +130,16 @@ export default function DateBoard() {
     handleDragEnd,
   } = useDateBoardLogic();
 
+  useEffect(() => {
+    console.log("[DateBoard] dates updated:", dates);
+  }, [dates]);
+
   const filteredDates = filterCategory
     ? dates.filter((d: any) => d.category === filterCategory)
     : dates;
 
   const onDragEnd = async (event: any) => {
+    console.log("[DateBoard] Drag end event:", event);
     await handleDragEnd(event);
   };
 
@@ -151,13 +156,12 @@ export default function DateBoard() {
     profileMap: any;
     dateCategories: CategoryEntry[];
   }) {
-    const { attributes, listeners, setNodeRef, transform, isDragging } =
-      useDraggable({ id: date.id });
+    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+      id: date.id,
+    });
 
     const style = {
-      transform: transform
-        ? `translate(${transform.x}px, ${transform.y}px)`
-        : undefined,
+      transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
       opacity: isDragging ? 0.5 : 1,
     };
 
@@ -165,36 +169,35 @@ export default function DateBoard() {
       date.category && Array.isArray(dateCategories)
         ? dateCategories.findIndex((cat) => cat.name === date.category)
         : -1;
-    const categoryColor: AllowedColors =
-      idx >= 0 ? colorClasses[idx % colorClasses.length] : 'gray';
+    const categoryColor: AllowedColors = idx >= 0 ? colorClasses[idx % colorClasses.length] : "gray";
 
     const isMissingDescription =
-      !date.description ||
-      date.description.trim() === '' ||
-      date.description === '<p><br></p>';
+      !date.description || date.description.trim() === "" || date.description === "<p><br></p>";
 
     return (
       <div
         ref={setNodeRef}
         style={style}
         className="bg-card text-card-foreground shadow hover:shadow-lg transition mb-4 rounded-xl border border-border relative cursor-pointer"
-        onClick={onView}
+        onClick={() => {
+          console.log("[DraggableCard] Clicked card id:", date.id);
+          onView();
+        }}
       >
         <button
           {...listeners}
           {...attributes}
           className="absolute top-2 right-2 cursor-grab text-muted-foreground hover:text-foreground z-10"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            console.log("[DraggableCard] Drag handle clicked, stopping propagation");
+            e.stopPropagation();
+          }}
         >
           ⠃
         </button>
 
         {date.image_url && (
-          <img
-            src={date.image_url}
-            alt={date.title}
-            className="w-full h-56 object-cover rounded-t-xl"
-          />
+          <img src={date.image_url} alt={date.title} className="w-full h-56 object-cover rounded-t-xl" />
         )}
 
         {isMissingDescription && (
@@ -218,14 +221,10 @@ export default function DateBoard() {
         <div className="p-5 space-y-1">
           <h3 className="font-semibold text-lg text-foreground">{date.title}</h3>
           {date.created_date && (
-            <div className="text-xs text-muted-foreground">
-              Tilføjet: {date.created_date}
-            </div>
+            <div className="text-xs text-muted-foreground">Tilføjet: {date.created_date}</div>
           )}
           {date.planned_date && (
-            <div className="text-xs text-muted-foreground">
-              Planlagt: {date.planned_date}
-            </div>
+            <div className="text-xs text-muted-foreground">Planlagt: {date.planned_date}</div>
           )}
 
           <div
@@ -235,31 +234,66 @@ export default function DateBoard() {
 
           <div className="flex flex-wrap gap-2 text-xs font-medium mt-2">
             {date.category && (
-              <TagBadge
-                label={date.category}
-                icon={<Tag size={14} />}
-                color={categoryColor}
-              />
+              <TagBadge label={date.category} icon={<Tag size={14} />} color={categoryColor} />
             )}
-            {date.date && (
-              <TagBadge
-                label={date.date}
-                icon={<Calendar size={14} />}
-                color="blue"
-              />
-            )}
+            {date.date && <TagBadge label={date.date} icon={<Calendar size={14} />} color="blue" />}
             {date.user_id && profileMap[date.user_id] && (
               <TagBadge label={profileMap[date.user_id]} color="gray" />
             )}
           </div>
 
           {date.fulfilled_date && (
-            <div className="text-xs text-muted-foreground mt-1">
-              Opfyldt: {date.fulfilled_date}
-            </div>
+            <div className="text-xs text-muted-foreground mt-1">Opfyldt: {date.fulfilled_date}</div>
           )}
         </div>
       </div>
+    );
+  }
+
+  function DateModal(props: {
+    title: string;
+    onClose: () => void;
+    date?: any;
+    newDate: any;
+    setNewDate: React.Dispatch<React.SetStateAction<any>>;
+    readOnly?: boolean;
+    children?: React.ReactNode;
+    onEdit?: (updated: any) => Promise<void>;
+    onDelete?: (id: string) => Promise<void>;
+    isCreateMode?: boolean;
+    onCreate?: (date: any) => Promise<void>;
+  }) {
+    const {
+      title,
+      onClose,
+      date,
+      newDate,
+      setNewDate,
+      readOnly,
+      children,
+      onEdit,
+      onDelete,
+      isCreateMode,
+      onCreate,
+    } = props;
+
+    console.log("[DateModal] Render", { title, date, newDate, readOnly, isCreateMode });
+
+    return (
+      <Modal
+        title={title}
+        onClose={onClose}
+        readOnly={readOnly}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        isCreateMode={isCreateMode}
+        onCreate={onCreate}
+        newDate={newDate}
+        setNewDate={setNewDate}
+        date={date}
+      >
+        {children}
+      </Modal>
     );
   }
 
@@ -267,34 +301,33 @@ export default function DateBoard() {
     <div className="max-w-7xl mx-auto mt-10">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">💖 Dates</h1>
-        <button onClick={() => setShowAddModal(true)} className="btn-primary">
+        <button
+          onClick={() => {
+            console.log("[DateBoard] Åbn Tilføj modal");
+            setShowAddModal(true);
+          }}
+          className="btn-primary"
+        >
           ➕ Tilføj
         </button>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-6">
-        {[{ id: 'all', name: 'Alle' }, ...dateCategories].map((cat, idx) => (
+        {[{ id: "all", name: "Alle" }, ...dateCategories].map((cat, idx) => (
           <TagBadge
             key={cat.id ?? `cat-${idx}`}
             label={cat.name}
-            onClick={() =>
-              setFilterCategory(cat.name === 'Alle' ? null : cat.name)
-            }
-            color={
-              filterCategory === (cat.name === 'Alle' ? null : cat.name)
-                ? 'primary'
-                : 'gray'
-            }
+            onClick={() => {
+              console.log("[DateBoard] Filter kategori:", cat.name);
+              setFilterCategory(cat.name === "Alle" ? null : cat.name);
+            }}
+            color={filterCategory === (cat.name === "Alle" ? null : cat.name) ? "primary" : "gray"}
             className="cursor-pointer"
           />
         ))}
       </div>
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={rectIntersection}
-        onDragEnd={onDragEnd}
-      >
+      <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {dateStatuses.map(({ key }) => {
             const { setNodeRef } = useDroppable({ id: key });
@@ -316,7 +349,10 @@ export default function DateBoard() {
                     <DraggableCard
                       key={date.id}
                       date={date}
-                      onView={() => setSelectedDate(date)}
+                      onView={() => {
+                        console.log("[DateBoard] Vis date", date.id);
+                        setSelectedDate(date);
+                      }}
                       profileMap={profileMap}
                       dateCategories={dateCategories}
                     />
@@ -328,39 +364,45 @@ export default function DateBoard() {
       </DndContext>
 
       {selectedDate && (
-        <Modal
+        <DateModal
           title={selectedDate.title}
-          onClose={() => setSelectedDate(null)}
+          onClose={() => {
+            console.log("[DateBoard] Luk modal");
+            setSelectedDate(null);
+          }}
           date={selectedDate}
           newDate={newDateData}
           setNewDate={setNewDateData}
           readOnly={true}
-          children={
-            <button
-              className="btn-primary mt-4"
-              onClick={(e) => {
-                e.stopPropagation();
-                setEditingDate(selectedDate);
-                setSelectedDate(null);
-              }}
-            >
-              Redigér
-            </button>
-          }
-        />
+        >
+          <button
+            className="btn-primary mt-4"
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log("[DateBoard] Skift til redigering af date", selectedDate.id);
+              setEditingDate(selectedDate);
+              setSelectedDate(null);
+            }}
+          >
+            Redigér
+          </button>
+        </DateModal>
       )}
 
       {editingDate && (
-        <Modal
+        <DateModal
           title="Redigér date"
-          onClose={() => setEditingDate(null)}
+          onClose={() => {
+            console.log("[DateBoard] Luk redigeringsmodal");
+            setEditingDate(null);
+          }}
           date={editingDate}
           newDate={newDateData}
           setNewDate={setNewDateData}
-          children={renderModalContent(newDateData, setNewDateData)}
           onEdit={async (updated: any) => {
+            console.log("[DateBoard] Opdater date", updated);
             const { error } = await supabase
-              .from('dates')
+              .from("dates")
               .update({
                 title: updated.title,
                 description: updated.description,
@@ -370,30 +412,40 @@ export default function DateBoard() {
                 status: updated.status,
                 date: updated.date,
               })
-              .eq('id', updated.id);
+              .eq("id", updated.id);
 
             if (error) {
-              console.error('Fejl ved opdatering:', error.message);
+              console.error("[DateBoard] Fejl ved opdatering:", error.message);
             }
             setEditingDate(null);
           }}
           onDelete={async (id: string) => {
+            console.log("[DateBoard] Slet date", id);
             await handleDeleteDate(id);
             setEditingDate(null);
           }}
-        />
+        >
+          {renderModalContent(newDateData, setNewDateData)}
+        </DateModal>
       )}
 
       {showAddModal && (
-        <Modal
+        <DateModal
           isCreateMode
           title="Tilføj ny date"
-          onClose={() => setShowAddModal(false)}
-          onCreate={handleCreateNewDate}
+          onClose={() => {
+            console.log("[DateBoard] Luk tilføj modal");
+            setShowAddModal(false);
+          }}
+          onCreate={async (newDate: any) => {
+            console.log("[DateBoard] Opret ny date", newDate);
+            await handleCreateNewDate(newDate);
+          }}
           newDate={newDateData}
           setNewDate={setNewDateData}
-          children={renderModalContent(newDateData, setNewDateData)}
-        />
+        >
+          {renderModalContent(newDateData, setNewDateData)}
+        </DateModal>
       )}
     </div>
   );

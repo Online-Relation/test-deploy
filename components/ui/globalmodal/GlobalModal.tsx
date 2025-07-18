@@ -1,4 +1,4 @@
-// /components/ui/globalmodal/GlobalModal.tsx
+// components/ui/globalmodal/GlobalModal.tsx
 "use client";
 import { ReactNode, useState, useEffect } from "react";
 import { X } from "lucide-react";
@@ -26,6 +26,8 @@ type GlobalModalProps = {
     description?: string;
     type?: string;
     planned_date?: string | null;
+    url?: string | null;
+    mission?: string | null;
   }) => void;
   description?: string;
   setDescription?: (desc: string) => void;
@@ -34,6 +36,12 @@ type GlobalModalProps = {
   initialPlannedDate?: string;
   initialCategories?: any[];
   onDelete?: () => void;
+  initialUrl?: string;
+  initialMission?: string;
+  date?: any;
+  newDate?: any;
+  setNewDate?: React.Dispatch<any>;
+  readOnly?: boolean;
 };
 
 export default function GlobalModal({
@@ -53,12 +61,17 @@ export default function GlobalModal({
   modalId,
   initialPlannedDate = "",
   onDelete,
+  initialUrl = "",
+  initialMission = "",
+  date,
+  newDate,
+  setNewDate,
+  readOnly = false,
 }: GlobalModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showFullscreen, setShowFullscreen] = useState(false);
   const typeLabel = typeId ? typeId.charAt(0).toUpperCase() + typeId.slice(1) : "";
 
-  // NYT: Nulstil isEditing når modalId/typeId/open ændrer sig (nyt billede)
   useEffect(() => {
     if (open) setIsEditing(false);
   }, [open, modalId, typeId]);
@@ -73,6 +86,8 @@ export default function GlobalModal({
     description?: string;
     type?: string;
     planned_date?: string | null;
+    url?: string | null;
+    mission?: string | null;
   }) {
     if (onSave) onSave(updatedData);
     setIsEditing(false);
@@ -108,7 +123,7 @@ export default function GlobalModal({
           className="px-8 pt-6 pb-4 flex flex-col text-left overflow-y-auto"
           style={{ flexGrow: 1, minHeight: 0 }}
         >
-          {isEditing ? (
+          {isEditing && !readOnly ? (
             <>
               <GlobalModalEditForm
                 initialTitle={title}
@@ -124,6 +139,8 @@ export default function GlobalModal({
                 initialPlannedDate={initialPlannedDate || ""}
                 modalId={modalId}
                 onDelete={onDelete}
+                initialUrl={initialUrl}
+                initialMission={initialMission}
               />
               {modalId && (
                 <div className="text-xs text-gray-500 text-right mt-4 select-all">
@@ -133,7 +150,6 @@ export default function GlobalModal({
             </>
           ) : (
             <>
-              {/* Bannerbillede vises altid hvis det findes */}
               {imageUrl && (
                 <>
                   <div className="mb-4 w-full flex justify-center items-center max-w-full bg-gray-100 rounded-2xl overflow-hidden">
@@ -158,15 +174,15 @@ export default function GlobalModal({
                 </>
               )}
 
-              {/* Titel */}
               {title && <h2 className="text-2xl font-bold mb-2">{title}</h2>}
 
-              {/* Description */}
               {description && (
-                <div className="prose prose-sm text-gray-700 mb-3" dangerouslySetInnerHTML={{ __html: description }} />
+                <div
+                  className="prose prose-sm text-gray-700 mb-3"
+                  dangerouslySetInnerHTML={{ __html: description }}
+                />
               )}
 
-              {/* Galleri vises under description */}
               {galleryImages.length > 0 && (
                 <div className="mb-6 w-full max-w-full">
                   <ImageGallery
@@ -203,7 +219,7 @@ export default function GlobalModal({
           )}
         </div>
 
-        {!isEditing && (
+        {!isEditing && !readOnly && (
           <div className="border-t px-8 py-5 flex justify-between flex-shrink-0">
             <button
               className="btn btn-primary"

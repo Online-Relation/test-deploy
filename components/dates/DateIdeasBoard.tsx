@@ -1,22 +1,17 @@
-// /components/dates/DateIdeasBoard.tsx
 "use client";
 import { useEffect, useState } from "react";
 import KanbanBoard from "@/components/common/KanbanBoard";
 import ModalCard from "@/components/ui/globalmodal/ModalCard";
 import GlobalModal from "@/components/ui/globalmodal/GlobalModal";
 import { supabase } from "@/lib/supabaseClient";
+import { ModalObject } from "@/lib/modalObjects";
 
-type DateIdea = {
-  id: string;
-  title: string;
-  description: string;
-  image_url?: string;
+type DateIdea = ModalObject & {
+  status: "idea" | "planned" | "done";
   gallery_images?: any[];
   categories?: any[];
-  type: string;
-  status: "idea" | "planned" | "done";
-  created_by?: string;
-  created_at?: string;
+  url?: string | null;
+  mission?: string | null;
 };
 
 const columns = [
@@ -25,6 +20,17 @@ const columns = [
   { key: "done", label: "Fuldført" },
 ];
 
+// Helper til at mappe camelCase -> snake_case for relevante felter
+function mapDataToDbFormat(data: any) {
+  return {
+    ...data,
+    image_url: data.imageUrl || "",
+    gallery_images: data.galleryImages || [],
+    url: data.url || null,
+    mission: data.mission || null,
+  };
+}
+
 export default function DateIdeasBoard() {
   const [ideas, setIdeas] = useState<DateIdea[]>([]);
   const [loading, setLoading] = useState(false);
@@ -32,6 +38,7 @@ export default function DateIdeasBoard() {
 
   async function fetchIdeas() {
     setLoading(true);
+    console.log("[DateIdeasBoard] Henter idéer...");
     const { data, error } = await supabase
       .from("modal_objects")
       .select("*")
@@ -40,6 +47,7 @@ export default function DateIdeasBoard() {
     if (error) {
       alert("Fejl ved hentning af idéer: " + error.message);
     } else {
+      console.log("[DateIdeasBoard] Idéer hentet:", data);
       setIdeas(data || []);
     }
     setLoading(false);
@@ -49,54 +57,50 @@ export default function DateIdeasBoard() {
     fetchIdeas();
   }, []);
 
-  async function handleCreateModalSave(data: any) {
+  async function handleCreateModalSave(data: {
+    title?: string;
+    description?: string;
+    imageUrl?: string;
+    galleryImages?: any[];
+    categories?: any[];
+    url?: string | null;
+    mission?: string | null;
+    type?: string;
+    planned_date?: string | null;
+  }) {
     const status = createCol || "idea";
-    const insertData = {
-      title: data.title || "",
-      description: data.description || "",
-      image_url: data.imageUrl || "",
-      gallery_images: data.galleryImages || [],
-      categories: data.categories || [],
+    console.log("[DateIdeasBoard] Opretter ny idé med data:", data);
+
+    const insertData = mapDataToDbFormat({
+      ...data,
       type: "date-idea",
       status,
-    };
+    });
+
     const { data: inserted, error } = await supabase
       .from("modal_objects")
       .insert([insertData])
       .select()
       .single();
+
     if (error) {
       alert("Fejl ved oprettelse: " + error.message);
     } else if (inserted) {
+      console.log("[DateIdeasBoard] Ny idé oprettet:", inserted);
       setIdeas((prev) => [inserted, ...prev]);
       setCreateCol(null);
     }
   }
 
-  function handleUpdateModal(updated: any) {
+  function handleUpdateModal(updated: DateIdea) {
+    console.log("[DateIdeasBoard] Opdaterer idé:", updated);
     setIdeas((prev) =>
-      prev.map((idea) =>
-        idea.id === updated.id
-          ? {
-              ...idea,
-              ...updated,
-              type: updated.type ?? idea.type ?? "date-idea",
-              status: updated.status ?? idea.status ?? "idea",
-              categories: updated.categories ?? idea.categories ?? [],
-              gallery_images: updated.gallery_images ?? idea.gallery_images ?? [],
-              description: updated.description ?? idea.description ?? "",
-              title: updated.title ?? idea.title ?? "",
-              image_url: updated.image_url ?? idea.image_url ?? "",
-              created_by: updated.created_by ?? idea.created_by ?? "",
-              created_at: updated.created_at ?? idea.created_at ?? "",
-            }
-          : idea
-      )
+      prev.map((idea) => (idea.id === updated.id ? { ...idea, ...updated } : idea))
     );
   }
 
-  // Her bruger vi KanbanBoard til drag/drop
   async function handleUpdateStatus(id: string, newStatus: string) {
+    console.log(`[DateIdeasBoard] Opdaterer status for id=${id} til ${newStatus}`);
     const { error } = await supabase
       .from("modal_objects")
       .update({ status: newStatus })
@@ -121,24 +125,10 @@ export default function DateIdeasBoard() {
         onUpdateStatus={handleUpdateStatus}
         onCreateCard={setCreateCol}
         renderCard={(idea) => (
-          <ModalCard
-            modal={{
-              ...idea,
-              type: idea.type ?? "date-idea",
-              categories: idea.categories ?? [],
-              gallery_images: idea.gallery_images ?? [],
-              description: idea.description ?? "",
-              title: idea.title ?? "",
-              image_url: idea.image_url ?? "",
-              created_by: idea.created_by ?? "",
-              created_at: idea.created_at ?? "",
-            }}
-            onUpdateModal={handleUpdateModal}
-          />
+          <ModalCard modal={idea} onUpdateModal={handleUpdateModal} />
         )}
       />
 
-      {/* Modal til opret */}
       <GlobalModal
         open={!!createCol}
         onClose={() => setCreateCol(null)}

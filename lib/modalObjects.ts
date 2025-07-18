@@ -1,3 +1,4 @@
+// lib/api/modalObjects.ts (eller filnavnet du bruger)
 import { supabase } from "@/lib/supabaseClient";
 import { Category } from "@/components/ui/globalmodal/types";
 
@@ -12,19 +13,21 @@ export type ModalObject = {
   categories?: Category[];        // skal være jsonb i Supabase
   gallery_images?: { id: string; url: string; alt?: string }[];
   description?: string;
+  url?: string;           // <-- NYT
+  mission?: string;       // <-- NYT
 };
 
-// Helper til at sikre korrekt serialisering og fallback
 function prepModalData(obj: Partial<ModalObject>) {
   return {
     ...obj,
-    // Fjern undefined/null felter så Supabase ikke fejler
     categories: obj.categories && obj.categories.length > 0 ? obj.categories : null,
     gallery_images: obj.gallery_images && obj.gallery_images.length > 0 ? obj.gallery_images : null,
     description: obj.description || null,
     image_url: obj.image_url || null,
     title: obj.title || null,
     reference_id: obj.reference_id || null,
+    url: obj.url || null,               // <-- NYT
+    mission: obj.mission || null,       // <-- NYT
   };
 }
 
