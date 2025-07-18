@@ -59,6 +59,7 @@ export default function DashboardPage() {
     'dashboard_banner',
     'active_bet',
     'daily_memory',
+    'date_mission',
   ];
 
   useEffect(() => {

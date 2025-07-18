@@ -3,7 +3,6 @@ import { useCategory } from "@/context/CategoryContext";
 import { supabase } from "@/lib/supabaseClient";
 import { rectIntersection } from "@dnd-kit/core";
 import useDateBoardLogic, { CategoryEntry } from "@/hooks/useDateBoardLogic";
-
 import {
   DndContext,
   useDraggable,
@@ -12,7 +11,6 @@ import {
   useSensors,
   PointerSensor,
 } from "@dnd-kit/core";
-
 import { Tag, Calendar, AlertCircle, ImageIcon } from "lucide-react";
 import Modal from "@/components/ui/modal";
 import { TagBadge } from "@/components/ui/TagBadge";
@@ -33,7 +31,6 @@ function CategoryDropdown({ value, setValue }: { value: string; setValue: (v: st
   const [newCategoryName, setNewCategoryName] = useState("");
 
   const handleCreateCategory = async () => {
-    console.log("[CategoryDropdown] Opret ny kategori:", newCategoryName);
     if (!newCategoryName.trim()) return;
     const { data, error } = await supabase
       .from("date_categories")
@@ -44,9 +41,6 @@ function CategoryDropdown({ value, setValue }: { value: string; setValue: (v: st
       setValue(data[0].name);
       setShowNewCat(false);
       setNewCategoryName("");
-      console.log("[CategoryDropdown] Kategori oprettet:", data[0]);
-    } else {
-      console.error("[CategoryDropdown] Fejl ved oprettelse:", error);
     }
   };
 
@@ -57,7 +51,6 @@ function CategoryDropdown({ value, setValue }: { value: string; setValue: (v: st
         className="w-full p-2 border rounded"
         value={showNewCat ? "__new__" : value || ""}
         onChange={(e) => {
-          console.log("[CategoryDropdown] Vælg kategori:", e.target.value);
           if (e.target.value === "__new__") {
             setShowNewCat(true);
           } else {
@@ -95,16 +88,30 @@ function CategoryDropdown({ value, setValue }: { value: string; setValue: (v: st
   );
 }
 
+// -------------------------
+// *** VIGTIGSTE RETTELSE HER: ***
+function toSnakeCase(date: any) {
+  return {
+    title: date.title,
+    description: date.description,
+    category: date.category,
+    image_url: date.imageUrl,
+    extra_images: Array.isArray(date.extra_images) ? date.extra_images : [],
+    gallery_images: Array.isArray(date.gallery_images) ? date.gallery_images : [],
+    planned_date: date.planned_date,
+    fulfilled_date: date.fulfilled_date,
+    created_date: date.created_date,
+    status: date.status,
+  };
+}
+// -------------------------
+
 function renderModalContent(newDate: any, setNewDate: any) {
-  console.log("[renderModalContent] newDate:", newDate);
   return (
     <>
       <CategoryDropdown
         value={newDate.category || ""}
-        setValue={(v) => {
-          console.log("[renderModalContent] setValue:", v);
-          setNewDate((prev: any) => ({ ...prev, category: v }));
-        }}
+        setValue={(v) => setNewDate((prev: any) => ({ ...prev, category: v }))}
       />
       {/* Flere felter kan tilføjes her */}
     </>
@@ -130,8 +137,19 @@ export default function DateBoard() {
     handleDragEnd,
   } = useDateBoardLogic();
 
+  // Sikrer at gallery_images og extra_images ALTID er arrays ved init og ny date!
   useEffect(() => {
-    console.log("[DateBoard] dates updated:", dates);
+    if (showAddModal) {
+      setNewDateData((prev: any) => ({
+        ...prev,
+        gallery_images: prev.gallery_images ?? [],
+        extra_images: prev.extra_images ?? [],
+      }));
+    }
+  }, [showAddModal, setNewDateData]);
+
+  useEffect(() => {
+    // console.log("[DateBoard] dates updated:", dates);
   }, [dates]);
 
   const filteredDates = filterCategory
@@ -139,7 +157,6 @@ export default function DateBoard() {
     : dates;
 
   const onDragEnd = async (event: any) => {
-    console.log("[DateBoard] Drag end event:", event);
     await handleDragEnd(event);
   };
 
@@ -179,19 +196,13 @@ export default function DateBoard() {
         ref={setNodeRef}
         style={style}
         className="bg-card text-card-foreground shadow hover:shadow-lg transition mb-4 rounded-xl border border-border relative cursor-pointer"
-        onClick={() => {
-          console.log("[DraggableCard] Clicked card id:", date.id);
-          onView();
-        }}
+        onClick={onView}
       >
         <button
           {...listeners}
           {...attributes}
           className="absolute top-2 right-2 cursor-grab text-muted-foreground hover:text-foreground z-10"
-          onClick={(e) => {
-            console.log("[DraggableCard] Drag handle clicked, stopping propagation");
-            e.stopPropagation();
-          }}
+          onClick={(e) => e.stopPropagation()}
         >
           ⠃
         </button>
@@ -277,8 +288,6 @@ export default function DateBoard() {
       onCreate,
     } = props;
 
-    console.log("[DateModal] Render", { title, date, newDate, readOnly, isCreateMode });
-
     return (
       <Modal
         title={title}
@@ -302,10 +311,7 @@ export default function DateBoard() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">💖 Dates</h1>
         <button
-          onClick={() => {
-            console.log("[DateBoard] Åbn Tilføj modal");
-            setShowAddModal(true);
-          }}
+          onClick={() => setShowAddModal(true)}
           className="btn-primary"
         >
           ➕ Tilføj
@@ -317,10 +323,7 @@ export default function DateBoard() {
           <TagBadge
             key={cat.id ?? `cat-${idx}`}
             label={cat.name}
-            onClick={() => {
-              console.log("[DateBoard] Filter kategori:", cat.name);
-              setFilterCategory(cat.name === "Alle" ? null : cat.name);
-            }}
+            onClick={() => setFilterCategory(cat.name === "Alle" ? null : cat.name)}
             color={filterCategory === (cat.name === "Alle" ? null : cat.name) ? "primary" : "gray"}
             className="cursor-pointer"
           />
@@ -349,10 +352,7 @@ export default function DateBoard() {
                     <DraggableCard
                       key={date.id}
                       date={date}
-                      onView={() => {
-                        console.log("[DateBoard] Vis date", date.id);
-                        setSelectedDate(date);
-                      }}
+                      onView={() => setSelectedDate(date)}
                       profileMap={profileMap}
                       dateCategories={dateCategories}
                     />
@@ -366,10 +366,7 @@ export default function DateBoard() {
       {selectedDate && (
         <DateModal
           title={selectedDate.title}
-          onClose={() => {
-            console.log("[DateBoard] Luk modal");
-            setSelectedDate(null);
-          }}
+          onClose={() => setSelectedDate(null)}
           date={selectedDate}
           newDate={newDateData}
           setNewDate={setNewDateData}
@@ -379,7 +376,6 @@ export default function DateBoard() {
             className="btn-primary mt-4"
             onClick={(e) => {
               e.stopPropagation();
-              console.log("[DateBoard] Skift til redigering af date", selectedDate.id);
               setEditingDate(selectedDate);
               setSelectedDate(null);
             }}
@@ -392,26 +388,15 @@ export default function DateBoard() {
       {editingDate && (
         <DateModal
           title="Redigér date"
-          onClose={() => {
-            console.log("[DateBoard] Luk redigeringsmodal");
-            setEditingDate(null);
-          }}
+          onClose={() => setEditingDate(null)}
           date={editingDate}
           newDate={newDateData}
           setNewDate={setNewDateData}
           onEdit={async (updated: any) => {
-            console.log("[DateBoard] Opdater date", updated);
+            const updateObj = toSnakeCase(updated);
             const { error } = await supabase
-              .from("dates")
-              .update({
-                title: updated.title,
-                description: updated.description,
-                category: updated.category,
-                image_url: updated.image_url,
-                extra_images: updated.extra_images,
-                status: updated.status,
-                date: updated.date,
-              })
+              .from("modal_objects")
+              .update(updateObj)
               .eq("id", updated.id);
 
             if (error) {
@@ -420,7 +405,6 @@ export default function DateBoard() {
             setEditingDate(null);
           }}
           onDelete={async (id: string) => {
-            console.log("[DateBoard] Slet date", id);
             await handleDeleteDate(id);
             setEditingDate(null);
           }}
@@ -433,13 +417,15 @@ export default function DateBoard() {
         <DateModal
           isCreateMode
           title="Tilføj ny date"
-          onClose={() => {
-            console.log("[DateBoard] Luk tilføj modal");
-            setShowAddModal(false);
-          }}
+          onClose={() => setShowAddModal(false)}
           onCreate={async (newDate: any) => {
-            console.log("[DateBoard] Opret ny date", newDate);
-            await handleCreateNewDate(newDate);
+            // Garanter altid arrays i insert-objekt
+            const createObj = toSnakeCase({
+              ...newDate,
+              gallery_images: newDate.gallery_images ?? [],
+              extra_images: newDate.extra_images ?? [],
+            });
+            await handleCreateNewDate(createObj);
           }}
           newDate={newDateData}
           setNewDate={setNewDateData}

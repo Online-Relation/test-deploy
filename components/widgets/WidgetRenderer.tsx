@@ -1,3 +1,5 @@
+// /components/widgets/WidgetRenderer.tsx
+
 'use client';
 
 import KomplimentReminder from './KomplimentReminder';
@@ -15,7 +17,8 @@ import FollowUpThoughtsWidget from "@/components/widgets/FollowUpThoughtsWidget"
 import FlowersWidget from "@/components/widgets/Flowers";
 import DashboardBanner from '@/components/widgets/DashboardBanner';
 import ActiveBetWidget from "@/components/widgets/ActiveBetWidget";
-import DailyMemoryWidget from "@/components/widgets/DailyMemoryWidget"; // <-- NY IMPORT
+import DailyMemoryWidget from "@/components/widgets/DailyMemoryWidget";
+import DateMissionWidget from "@/components/widgets/DateMissionWidget"; // <-- NY IMPORT
 
 import { useUserContext } from '@/context/UserContext';
 
@@ -99,9 +102,16 @@ export default function WidgetRenderer({ widget }: { widget: Widget }) {
     case 'active_bet':
       console.log('WidgetRenderer: Render ActiveBetWidget');
       return <ActiveBetWidget />;
-    case 'daily_memory': // <-- NY CASE
+    case 'daily_memory':
       console.log('WidgetRenderer: Render DailyMemoryWidget');
       return <DailyMemoryWidget />;
+    case 'date_mission': // <-- NY CASE
+      if (!user?.id) {
+        console.log('WidgetRenderer: DateMissionWidget no user.id, return null');
+        return null;
+      }
+      console.log('WidgetRenderer: Render DateMissionWidget');
+      return <DateMissionWidget userId={user.id} displayName={user.display_name || ""} />;
     default:
       console.log('WidgetRenderer: Unknown widget_key', widget.widget_key);
       return null;

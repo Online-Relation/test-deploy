@@ -1,3 +1,4 @@
+// /app/date-ideas/DateIdeasBoard.tsx
 "use client";
 import { useEffect, useState } from "react";
 import KanbanBoard from "@/components/common/KanbanBoard";
@@ -20,14 +21,20 @@ const columns = [
   { key: "done", label: "Fuldført" },
 ];
 
-// Helper til at mappe camelCase -> snake_case for relevante felter
+// Helper – camelCase til snake_case KUN de felter, der findes i modal_objects!
 function mapDataToDbFormat(data: any) {
   return {
-    ...data,
+    title: data.title,
+    description: data.description,
     image_url: data.imageUrl || "",
     gallery_images: data.galleryImages || [],
+    categories: data.categories || [],
     url: data.url || null,
     mission: data.mission || null,
+    planned_date: data.planned_date || null,
+    status: data.status,
+    type: data.type,
+    // INTET camelCase medsendes!
   };
 }
 
@@ -65,17 +72,17 @@ export default function DateIdeasBoard() {
     categories?: any[];
     url?: string | null;
     mission?: string | null;
-    type?: string;
     planned_date?: string | null;
+    type?: string;
   }) {
     const status = createCol || "idea";
-    console.log("[DateIdeasBoard] Opretter ny idé med data:", data);
-
     const insertData = mapDataToDbFormat({
       ...data,
       type: "date-idea",
       status,
     });
+
+    console.log("[DateIdeasBoard] Opretter ny idé, insertData:", insertData);
 
     const { data: inserted, error } = await supabase
       .from("modal_objects")
@@ -93,14 +100,12 @@ export default function DateIdeasBoard() {
   }
 
   function handleUpdateModal(updated: DateIdea) {
-    console.log("[DateIdeasBoard] Opdaterer idé:", updated);
     setIdeas((prev) =>
       prev.map((idea) => (idea.id === updated.id ? { ...idea, ...updated } : idea))
     );
   }
 
   async function handleUpdateStatus(id: string, newStatus: string) {
-    console.log(`[DateIdeasBoard] Opdaterer status for id=${id} til ${newStatus}`);
     const { error } = await supabase
       .from("modal_objects")
       .update({ status: newStatus })

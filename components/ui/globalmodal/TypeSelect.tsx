@@ -98,7 +98,7 @@ export default function TypeSelect({ value, onChange }: TypeSelectProps) {
           </span>
         )}
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2 w-full">
         <input
           type="text"
           value={query}
@@ -122,7 +122,7 @@ export default function TypeSelect({ value, onChange }: TypeSelectProps) {
         />
         <button
           type="button"
-          className="btn btn-primary w-full sm:w-auto"
+          className="btn btn-primary w-full sm:w-auto flex-shrink-0"
           onClick={handleAddNew}
           disabled={
             !query.trim() ||
