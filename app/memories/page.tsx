@@ -7,20 +7,38 @@ import MemoriesGallery from "@/components/memories/MemoriesGallery";
 import GlobalModal from "@/components/ui/globalmodal/GlobalModal";
 import UserAvatarName from "@/components/ui/globalmodal/UserAvatarName";
 import { updateDashboardImage } from "@/lib/dashboardImages";
+import FullscreenImageViewer from "@/components/ui/globalmodal/FullscreenImageViewer"; // <-- NY
 
 export default function MemoriesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedMemory, setSelectedMemory] = useState<any>(null);
 
-  // Åben modal når billede klikkes
-  const handleMemoryClick = (memory: any) => {
+  // GALLERI TIL FULLSCREEN
+  const [galleryImages, setGalleryImages] = useState<any[]>([]);
+  const [fullscreenIndex, setFullscreenIndex] = useState(0);
+  const [showFullscreen, setShowFullscreen] = useState(false);
+
+  // Når du klikker på et billede i galleriet:
+  const handleMemoryClick = (memory: any, allImages?: any[]) => {
     setSelectedMemory(memory);
     setModalOpen(true);
+
+    // For at muliggøre galleri-navigation i fullscreen:
+    // Husk at give alle billeder med fra MemoriesGallery (nyt!)
+    if (allImages && allImages.length > 0) {
+      setGalleryImages(allImages);
+      const idx = allImages.findIndex(img => img.id === memory.id);
+      setFullscreenIndex(idx >= 0 ? idx : 0);
+    } else {
+      setGalleryImages([memory]);
+      setFullscreenIndex(0);
+    }
   };
 
   const handleCloseModal = () => {
     setModalOpen(false);
     setSelectedMemory(null);
+    setShowFullscreen(false);
   };
 
   const handleSaveMemory = async (data: any) => {
@@ -34,35 +52,58 @@ export default function MemoriesPage() {
     if (updated) {
       setSelectedMemory(updated);
       setModalOpen(false);
-      // TODO: evt. genindlæs billeder hvis du ønsker at listen opdateres
     } else {
       alert("Kunne ikke opdatere minde!");
     }
   };
 
+  // Det viste billede i modal og fullscreen
+  const imageUrl = selectedMemory?.original_image_url || selectedMemory?.image_url;
+
+  // Udtræk alle billed-urls til galleri (brug kun original_image_url hvis tilgængelig)
+  const galleryImageUrls = galleryImages.map(
+    img => img?.original_image_url || img?.image_url
+  );
+
   return (
     <main className="min-h-screen bg-gradient-to-tr from-purple-50 to-orange-50 py-8 px-4">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-6 text-center">Minde-galleri</h1>
-        <MemoriesGallery onMemoryClick={handleMemoryClick} />
+        {/* 
+          Tilføj: 
+          - send også alle billeder til MemoriesGallery, så du kan sende allImages med på klik
+        */}
+        <MemoriesGallery
+          onMemoryClick={(memory, allImages) => handleMemoryClick(memory, allImages)}
+        />
 
-        
-
-<GlobalModal
-  open={modalOpen}
-  onClose={handleCloseModal}
-  title={selectedMemory?.title || ""}
-  description={selectedMemory?.description || ""}
-  onSave={handleSaveMemory}
-  typeId={selectedMemory?.type || "memory"}
-  categories={selectedMemory?.categories || []}
->
-  <div className="flex flex-col items-center w-full">
-    <img
-      src={selectedMemory?.original_image_url || selectedMemory?.image_url}
-      alt={selectedMemory?.title || ""}
-      className="max-h-72 rounded-xl mb-4 w-full object-contain"
-    />
+        <GlobalModal
+          open={modalOpen}
+          onClose={handleCloseModal}
+          title={selectedMemory?.title || ""}
+          description={selectedMemory?.description || ""}
+          onSave={handleSaveMemory}
+          typeId={selectedMemory?.type || "memory"}
+          categories={selectedMemory?.categories || []}
+        >
+          <div className="flex flex-col items-center w-full">
+            {/* Klikbart billede */}
+            <div className="flex justify-center items-center w-full" style={{ minHeight: 360 }}>
+              <img
+                src={imageUrl}
+                alt={selectedMemory?.title || ""}
+                className="max-w-full max-h-[70vh] w-auto h-auto rounded-xl mb-4 shadow cursor-zoom-in"
+                style={{
+                  display: "block",
+                  objectFit: "contain",
+                  margin: "0 auto",
+                  background: "#eee",
+                  maxHeight: "70vh"
+                }}
+                onClick={() => setShowFullscreen(true)}
+                draggable={false}
+              />
+            </div>
             <div className="flex items-center w-full mb-2">
               <UserAvatarName
                 userId={selectedMemory?.user_id}
@@ -102,6 +143,22 @@ export default function MemoriesPage() {
             )}
           </div>
         </GlobalModal>
+
+        {/* FULLSCREEN BILLEDE MED GALLERI OG PILE */}
+        {showFullscreen && galleryImageUrls.length > 0 && (
+          <FullscreenImageViewer
+            images={galleryImageUrls}
+            currentIndex={fullscreenIndex}
+            onClose={() => setShowFullscreen(false)}
+            onPrev={() =>
+              setFullscreenIndex(i => (i === 0 ? galleryImageUrls.length - 1 : i - 1))
+            }
+            onNext={() =>
+              setFullscreenIndex(i => (i === galleryImageUrls.length - 1 ? 0 : i + 1))
+            }
+            alt={selectedMemory?.title}
+          />
+        )}
       </div>
     </main>
   );

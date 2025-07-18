@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import Badge from "@/components/ui/globalmodal/CategoryBadge";
 import ImageGallery from "../globalmodal/ImageGallery";
 import GlobalModalEditForm from "../globalmodal/GlobalModalEditForm";
+import FullscreenImageViewer from "@/components/ui/globalmodal/FullscreenImageViewer";
 import { Category, GalleryImage } from "@/components/ui/globalmodal/types";
 
 type GlobalModalProps = {
@@ -24,13 +25,13 @@ type GlobalModalProps = {
     categories?: Category[];
     description?: string;
     type?: string;
-    planned_date?: string | null; // <-- NYT FELT!
+    planned_date?: string | null;
   }) => void;
   description?: string;
   setDescription?: (desc: string) => void;
   typeId?: string;
   modalId?: string;
-  initialPlannedDate?: string; // <-- NYT PROP!
+  initialPlannedDate?: string;
   initialCategories?: any[];
 };
 
@@ -49,9 +50,10 @@ export default function GlobalModal({
   setDescription,
   typeId,
   modalId,
-  initialPlannedDate = "", // <-- NYT PROP!
+  initialPlannedDate = "",
 }: GlobalModalProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [showFullscreen, setShowFullscreen] = useState(false);
   const typeLabel = typeId ? typeId.charAt(0).toUpperCase() + typeId.slice(1) : "";
 
   if (!open) return null;
@@ -65,13 +67,11 @@ export default function GlobalModal({
     type?: string;
     planned_date?: string | null;
   }) {
-    console.log("GlobalModal > handleSave kaldt med data:", updatedData);
     if (onSave) onSave(updatedData);
-    setIsEditing(false); // Luk modal KUN her - kun ved Gem
+    setIsEditing(false);
   }
 
   function handleCancel() {
-    console.log("GlobalModal > handleCancel (annuller redigering)");
     setIsEditing(false);
   }
 
@@ -126,14 +126,28 @@ export default function GlobalModal({
             <>
               {/* Bannerbillede vises altid hvis det findes */}
               {imageUrl && (
-                <div className="mb-4 w-full flex justify-center items-center max-w-full bg-gray-100 rounded-2xl overflow-hidden">
-                  <img
-                    src={imageUrl}
-                    alt="Banner"
-                    className="max-w-full max-h-[380px] object-contain"
-                    style={{ display: "block" }}
-                  />
-                </div>
+                <>
+                  <div className="mb-4 w-full flex justify-center items-center max-w-full bg-gray-100 rounded-2xl overflow-hidden">
+                    <img
+                      src={imageUrl}
+                      alt="Banner"
+                      className="max-w-full max-h-[380px] object-contain cursor-zoom-in"
+                      style={{ display: "block" }}
+                      onClick={() => setShowFullscreen(true)}
+                    />
+                  </div>
+                  {showFullscreen && (
+  <FullscreenImageViewer
+    images={[imageUrl]} // ← et array! Kan også være flere billeder
+    currentIndex={0}
+    onClose={() => setShowFullscreen(false)}
+    onPrev={() => {}}  // hvis du kun har ét billede, kan de bare være tomme
+    onNext={() => {}}
+    alt={title}
+  />
+)}
+
+                </>
               )}
 
               {/* Titel */}
@@ -186,7 +200,6 @@ export default function GlobalModal({
             <button
               className="btn btn-primary"
               onClick={() => {
-                console.log("GlobalModal > Edit knap klikket");
                 setIsEditing(true);
               }}
             >

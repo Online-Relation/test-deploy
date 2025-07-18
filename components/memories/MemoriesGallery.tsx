@@ -18,7 +18,7 @@ interface Category {
 interface DashboardImage {
   id: string;
   image_url: string;
-  original_image_url?: string;   // <--- tilføjet!
+  original_image_url?: string;
   taken_at?: string;
   title?: string;
   latitude?: number;
@@ -28,7 +28,7 @@ interface DashboardImage {
 }
 
 type MemoriesGalleryProps = {
-  onMemoryClick?: (img: DashboardImage) => void;
+  onMemoryClick?: (img: DashboardImage, allImages: DashboardImage[]) => void;
 };
 
 function getImageUrl(img: DashboardImage) {
@@ -47,7 +47,7 @@ const MemoriesGallery = ({ onMemoryClick }: MemoriesGalleryProps) => {
     const fetchImages = async () => {
       if (!user?.id || !user?.partner_id) return;
       setLoading(true);
-      // VIGTIGT: Select eksplicit, så original_image_url altid er med!
+      // Select eksplicit, så original_image_url altid er med!
       const { data, error } = await supabase
         .from("dashboard_images")
         .select("id, image_url, original_image_url, taken_at, title, latitude, longitude, created_at, categories")
@@ -80,8 +80,7 @@ const MemoriesGallery = ({ onMemoryClick }: MemoriesGalleryProps) => {
               key={img.id}
               className="relative aspect-square overflow-hidden cursor-pointer"
               onClick={() => {
-                console.log("Klikket billede:", img);
-                onMemoryClick?.(img);
+                onMemoryClick?.(img, images);
               }}
             >
               <img
