@@ -24,6 +24,7 @@ const allWidgets = [
   { key: 'flowers', label: 'Blomster Reminder' },
   { key: 'dashboard_banner', label: 'Forsidebillede' },
   { key: 'active_bet', label: 'Aktivt væddemål' },
+  { key: 'daily_memory', label: 'Dagens minde' },
 ];
 
 

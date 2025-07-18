@@ -8,7 +8,7 @@ import CommentSection from "./CommentSection";
 import { ModalObject, updateModalObject } from "@/lib/modalObjects";
 import { Category, GalleryImage } from "./types";
 
-// HJÆLPEFUNKTION: Strip HTML fra description
+// Strip HTML fra description
 function stripHtml(html: string) {
   if (!html) return "";
   return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ");
@@ -19,7 +19,8 @@ type Props = {
     categories?: Category[];
     gallery_images?: GalleryImage[];
     description?: string;
-    planned_date?: string; // <-- NYT FELT!
+    planned_date?: string;
+    original_image_url?: string; // <-- NYT FELT!
   };
   onUpdateModal?: (modal: ModalObject) => void;
 };
@@ -35,10 +36,8 @@ export default function ModalCard({ modal, onUpdateModal }: Props) {
     galleryImages?: GalleryImage[];
     description?: string;
     type?: string;
-    planned_date?: string | null; // <-- NYT FELT!
+    planned_date?: string | null;
   }) {
-    console.log("ModalCard > handleModalSave kaldt med data:", data);
-
     const categoriesWithType =
       (data.categories ?? modalState.categories ?? []).map(cat => ({
         ...cat,
@@ -52,17 +51,14 @@ export default function ModalCard({ modal, onUpdateModal }: Props) {
       categories: categoriesWithType,
       gallery_images: data.galleryImages ?? modalState.gallery_images ?? [],
       type: data.type ?? modalState.type ?? "",
-      planned_date: data.planned_date ?? modalState.planned_date ?? null, // <-- GEMMER NYT FELT!
+      planned_date: data.planned_date ?? modalState.planned_date ?? null,
     };
-
-    console.log("ModalCard > updateData der sendes til DB:", updateData);
 
     const updated = await updateModalObject(modal.id, updateData);
     if (updated) {
       setModalState(updated);
       if (onUpdateModal) onUpdateModal(updated);
-      setOpen(false); // Luk modal KUN her - altså kun på gem
-      console.log("ModalCard > Modal lukker nu efter save");
+      setOpen(false);
     } else {
       alert("Kunne ikke opdatere modal.");
     }
@@ -74,6 +70,7 @@ export default function ModalCard({ modal, onUpdateModal }: Props) {
         className="bg-white shadow-xl rounded-2xl overflow-hidden cursor-pointer hover:scale-105 transition-transform duration-200 max-w-xs w-full"
         onClick={() => setOpen(true)}
       >
+        {/* Vis beskåret billede i kort */}
         {modalState.image_url && (
           <img src={modalState.image_url} alt="Banner" className="w-full h-40 object-cover" />
         )}
@@ -87,7 +84,6 @@ export default function ModalCard({ modal, onUpdateModal }: Props) {
               </Badge>
             ))}
           </div>
-          {/* VIS PLANLAGT DATO KUN FOR DATE-IDEA */}
           {modalState.type === "date-idea" && modalState.planned_date && (
             <div className="text-xs text-gray-500 mb-1">
               Planlagt dato: {modalState.planned_date}
@@ -104,7 +100,7 @@ export default function ModalCard({ modal, onUpdateModal }: Props) {
         open={open}
         onClose={() => setOpen(false)}
         title={modalState.title}
-        imageUrl={modalState.image_url || undefined}
+        imageUrl={modalState.original_image_url || modalState.image_url || undefined} // <-- VIS ALTID ORIGINALBILLEDET I MODAL!
         categories={modalState.categories || []}
         galleryImages={modalState.gallery_images || []}
         description={modalState.description || ""}
@@ -112,7 +108,7 @@ export default function ModalCard({ modal, onUpdateModal }: Props) {
         canUploadGallery={true}
         onSave={handleModalSave}
         modalId={modalState.id}
-        initialPlannedDate={modalState.planned_date || ""} // <-- SENDER VÆRDIEN VIDERE!
+        initialPlannedDate={modalState.planned_date || ""}
       >
         <UserAvatarName userId={modalState.created_by} createdAt={modalState.created_at} className="mt-4" />
         <CommentSection modalId={modalState.id} />

@@ -15,6 +15,7 @@ import FollowUpThoughtsWidget from "@/components/widgets/FollowUpThoughtsWidget"
 import FlowersWidget from "@/components/widgets/Flowers";
 import DashboardBanner from '@/components/widgets/DashboardBanner';
 import ActiveBetWidget from "@/components/widgets/ActiveBetWidget";
+import DailyMemoryWidget from "@/components/widgets/DailyMemoryWidget"; // <-- NY IMPORT
 
 import { useUserContext } from '@/context/UserContext';
 
@@ -98,9 +99,11 @@ export default function WidgetRenderer({ widget }: { widget: Widget }) {
     case 'active_bet':
       console.log('WidgetRenderer: Render ActiveBetWidget');
       return <ActiveBetWidget />;
+    case 'daily_memory': // <-- NY CASE
+      console.log('WidgetRenderer: Render DailyMemoryWidget');
+      return <DailyMemoryWidget />;
     default:
       console.log('WidgetRenderer: Unknown widget_key', widget.widget_key);
       return null;
   }
 }
-

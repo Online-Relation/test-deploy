@@ -58,6 +58,7 @@ export default function DashboardPage() {
     'flowers',
     'dashboard_banner',
     'active_bet',
+    'daily_memory',
   ];
 
   useEffect(() => {

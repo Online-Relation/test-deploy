@@ -1,142 +1,158 @@
-'use client';
+// /components/FancyTodoDashboard.tsx
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+"use client";
 
-interface Task {
-  id: string;
-  title: string;
-  deadline: string;
-  done: boolean;
-  created_at: string;
-}
+import React, { useState } from "react";
+import { CheckCircle, Circle } from "lucide-react";
 
-export default function TodoPage() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [input, setInput] = useState('');
-  const [deadline, setDeadline] = useState('');
+// Dummy kategorier
+const categories = [
+  { key: "work", label: "Arbejde", color: "#7356bf" },
+  { key: "home", label: "Hjem", color: "#fe8a71" },
+  { key: "fitness", label: "Træning", color: "#00bfae" },
+  { key: "other", label: "Andet", color: "#fae100" },
+];
 
-  useEffect(() => {
-    const fetchTasks = async () => {
-      const { data, error } = await supabase.from('tasks').select('*');
-      if (error) {
-        console.error('Fejl ved hentning fra Supabase:', error.message);
-      } else {
-        setTasks(data);
-      }
-    };
-    fetchTasks();
-  }, []);
+// Dummy todo's
+const initialTodos = [
+  { id: 1, text: "Skriv rapport færdig", done: false, category: "work" },
+  { id: 2, text: "Gå tur med hunden", done: true, category: "home" },
+  { id: 3, text: "Handl ind til aftensmad", done: false, category: "home" },
+  { id: 4, text: "30 min cardio", done: true, category: "fitness" },
+  { id: 5, text: "Læs i min bog", done: false, category: "other" },
+  { id: 6, text: "Lav budget for juli", done: false, category: "work" },
+  { id: 7, text: "Stræk ud", done: true, category: "fitness" },
+];
 
-  const addTask = async () => {
+export default function FancyTodoDashboard() {
+  const [todos, setTodos] = useState(initialTodos);
+  const [input, setInput] = useState("");
+  const [category, setCategory] = useState("work");
+
+  // Count udførte todo's
+  const doneCount = todos.filter((t) => t.done).length;
+
+  // Per kategori
+  const doneByCat = categories.map((cat) => ({
+    ...cat,
+    count: todos.filter((t) => t.done && t.category === cat.key).length,
+  }));
+
+  function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
     if (!input.trim()) return;
-    const newTask = {
-      title: input,
-      deadline,
-      done: false,
-    };
-    const { data, error } = await supabase.from('tasks').insert([newTask]).select();
-    if (error) {
-      console.error('Fejl ved tilføjelse til Supabase:', error.message);
-    } else if (data) {
-      setTasks(prev => [...prev, ...data]);
-      setInput('');
-      setDeadline('');
-    }
-  };
+    setTodos([
+      ...todos,
+      {
+        id: Date.now(),
+        text: input.trim(),
+        done: false,
+        category,
+      },
+    ]);
+    setInput("");
+  }
 
-  const toggleTask = async (task: Task) => {
-    const updated = { ...task, done: !task.done };
-    const { error } = await supabase.from('tasks').update({ done: updated.done }).eq('id', task.id);
-    if (error) {
-      console.error('Fejl ved opdatering:', error.message);
-    } else {
-      setTasks(prev => prev.map(t => (t.id === task.id ? updated : t)));
-    }
-  };
-
-  const completedTasks = tasks.filter(t => t.done);
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth();
-
-  const tasksThisYear = tasks.filter(t => new Date(t.created_at).getFullYear() === currentYear);
-  const tasksThisMonth = tasks.filter(t => {
-    const d = new Date(t.created_at);
-    return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
-  });
+  function toggleTodo(id: number) {
+    setTodos((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
+    );
+  }
 
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6">📝 Din To Do-liste</h1>
+    <div className="min-h-screen bg-gradient-to-tr from-indigo-50 to-pink-50 py-10 px-2">
+      <div className="max-w-3xl mx-auto flex flex-col gap-8">
+        <h1 className="text-4xl font-extrabold text-center mb-2 tracking-tight text-indigo-800">To-Do Dash</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="bg-white p-4 rounded shadow">
-          <h2 className="font-semibold mb-2">📅 Opgaver i år</h2>
-          <p className="text-xl font-bold text-blue-600">{tasksThisYear.length}</p>
-        </div>
-        <div className="bg-white p-4 rounded shadow">
-          <h2 className="font-semibold mb-2">🗓️ Denne måned</h2>
-          <p className="text-xl font-bold text-blue-600">{tasksThisMonth.length}</p>
-        </div>
-        <div className="bg-white p-4 rounded shadow">
-          <h2 className="font-semibold mb-2">✔️ Færdige opgaver</h2>
-          <p className="text-xl font-bold text-green-600">{completedTasks.length}</p>
-        </div>
-      </div>
-
-      <div className="bg-white p-4 rounded shadow mb-6">
-        <input
-          type="text"
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          placeholder="Skriv en ny opgave..."
-          className="w-full px-3 py-2 border rounded mb-2"
-        />
-        <input
-          type="date"
-          value={deadline}
-          onChange={e => setDeadline(e.target.value)}
-          className="w-full px-3 py-2 border rounded mb-2"
-        />
-        <button
-          onClick={addTask}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          Tilføj opgave
-        </button>
-      </div>
-
-      <div className="bg-white p-4 rounded shadow mb-6">
-        <h2 className="font-semibold mb-2">Aktive opgaver</h2>
-        {tasks.filter(t => !t.done).map(task => (
-          <div key={task.id} className="p-3 mb-2 border rounded flex justify-between items-start">
-            <div>
-              <input
-                type="checkbox"
-                checked={task.done}
-                onChange={() => toggleTask(task)}
-                className="mr-2"
-              />
-              <span>{task.title}</span>
-              <p className="text-sm text-gray-500">
-                {task.deadline ? `Deadline: ${task.deadline}` : 'Ingen deadline'}
-              </p>
-            </div>
+        {/* Stat bokse */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="rounded-2xl bg-white shadow p-6 flex flex-col items-center justify-center">
+            <span className="text-3xl font-bold text-green-500 mb-1">{doneCount}</span>
+            <span className="text-gray-600">Udførte to-dos</span>
           </div>
-        ))}
-      </div>
-
-      <div className="bg-white p-4 rounded shadow">
-        <h2 className="font-semibold mb-2">✔️ Færdige opgaver</h2>
-        {completedTasks.length === 0 ? (
-          <p className="text-sm text-gray-400">Ingen endnu</p>
-        ) : (
-          <ul className="list-disc pl-5 text-sm text-gray-600">
-            {completedTasks.map(task => (
-              <li key={task.id}>{task.title} ({task.deadline || 'Ingen deadline'})</li>
+          <div className="md:col-span-2 rounded-2xl bg-white shadow p-4 flex flex-wrap gap-3 items-center justify-center">
+            {doneByCat.map((cat) => (
+              <div
+                key={cat.key}
+                className="rounded-full px-4 py-2 flex items-center gap-2 text-xs font-bold"
+                style={{
+                  background: cat.color + "22",
+                  color: cat.color,
+                  border: `1.5px solid ${cat.color}`,
+                }}
+              >
+                <span className="text-base">•</span>
+                {cat.label}
+                <span className="bg-white ml-2 rounded-full px-2 py-1 text-[10px] font-mono" style={{ color: cat.color, border: `1px solid ${cat.color}` }}>
+                  {cat.count}
+                </span>
+              </div>
             ))}
-          </ul>
-        )}
+          </div>
+        </div>
+
+        {/* Tilføj to-do */}
+        <form onSubmit={handleAdd} className="flex flex-col md:flex-row gap-3 bg-white rounded-2xl shadow px-4 py-5 items-center">
+          <input
+            className="border-2 border-indigo-200 focus:border-indigo-500 transition rounded-xl px-4 py-2 w-full md:w-2/3 font-medium"
+            placeholder="Hvad skal du gøre?"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+          />
+          <select
+            className="border-2 border-indigo-200 rounded-xl px-3 py-2 font-medium bg-indigo-50"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            {categories.map((cat) => (
+              <option key={cat.key} value={cat.key}>{cat.label}</option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl px-6 py-2 font-semibold transition shadow"
+          >
+            Tilføj
+          </button>
+        </form>
+
+        {/* To-do liste */}
+        <div className="grid gap-4">
+          {todos.length === 0 && (
+            <div className="text-center text-gray-400">Ingen to-dos endnu.</div>
+          )}
+          {todos.map((todo) => (
+            <div
+              key={todo.id}
+              className={`flex items-center gap-4 bg-white rounded-2xl shadow-lg p-4 transition group border-2
+              ${todo.done ? "border-green-400 opacity-70" : "border-transparent hover:border-indigo-300"}`}
+            >
+              <button
+                onClick={() => toggleTodo(todo.id)}
+                className="flex items-center justify-center rounded-full transition w-9 h-9"
+                aria-label={todo.done ? "Marker som ikke udført" : "Marker som udført"}
+                style={{
+                  border: `2.5px solid ${categories.find(c => c.key === todo.category)?.color || "#999"}`,
+                  background: todo.done ? (categories.find(c => c.key === todo.category)?.color || "#16a34a") : "white"
+                }}
+              >
+                {todo.done ? (
+                  <CheckCircle size={28} className="text-white" />
+                ) : (
+                  <Circle size={26} className="text-gray-300" />
+                )}
+              </button>
+              <div className="flex-1">
+                <div className={`font-medium text-lg ${todo.done ? "line-through text-gray-400" : "text-gray-700"}`}>
+                  {todo.text}
+                </div>
+                <div className="text-xs mt-1" style={{ color: categories.find(c => c.key === todo.category)?.color }}>
+                  {categories.find(c => c.key === todo.category)?.label}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

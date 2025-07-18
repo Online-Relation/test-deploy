@@ -6,27 +6,37 @@ import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useUserContext } from "@/context/UserContext";
 
+const BUCKET_NAME = "global-images";
+
 interface Category {
   id: string;
   label: string;
   color?: string;
-  [key: string]: any;
+  emoji?: string;
 }
 
 interface DashboardImage {
   id: string;
   image_url: string;
+  original_image_url?: string;   // <--- tilføjet!
   taken_at?: string;
   title?: string;
   latitude?: number;
   longitude?: number;
   created_at?: string;
-  categories?: Category[]; // <-- VIGTIGT!
+  categories?: Category[];
 }
 
 type MemoriesGalleryProps = {
   onMemoryClick?: (img: DashboardImage) => void;
 };
+
+function getImageUrl(img: DashboardImage) {
+  if (!img.image_url) return "";
+  if (img.image_url.startsWith("http")) return img.image_url;
+  const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(img.image_url);
+  return data.publicUrl;
+}
 
 const MemoriesGallery = ({ onMemoryClick }: MemoriesGalleryProps) => {
   const { user } = useUserContext();
@@ -37,15 +47,19 @@ const MemoriesGallery = ({ onMemoryClick }: MemoriesGalleryProps) => {
     const fetchImages = async () => {
       if (!user?.id || !user?.partner_id) return;
       setLoading(true);
+      // VIGTIGT: Select eksplicit, så original_image_url altid er med!
       const { data, error } = await supabase
         .from("dashboard_images")
-        .select("*")
+        .select("id, image_url, original_image_url, taken_at, title, latitude, longitude, created_at, categories")
         .in("user_id", [user.id, user.partner_id])
         .order("taken_at", { ascending: false })
         .order("created_at", { ascending: false });
 
       if (error) {
         console.error("Fejl ved hentning af billeder:", error);
+        setImages([]);
+        setLoading(false);
+        return;
       }
 
       setImages(data || []);
@@ -56,68 +70,50 @@ const MemoriesGallery = ({ onMemoryClick }: MemoriesGalleryProps) => {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4">Månedens minder</h2>
+      <h2 className="text-2xl font-bold mb-4 text-center">Minde-galleri</h2>
       {loading && <div className="text-gray-400">Henter billeder…</div>}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-        {images.map((img) => (
-          <div
-            key={img.id}
-            className="rounded-xl shadow bg-white cursor-pointer overflow-hidden group relative"
-            onClick={() => onMemoryClick?.(img)}
-          >
-            <img
-              src={img.image_url}
-              alt={img.title || "Minde"}
-              className="w-full h-32 object-cover group-hover:scale-105 transition"
-            />
-            <div className="p-2 text-xs text-gray-500">
-              {/* Dato */}
-              {img.taken_at ? (
-                <span>
-                  {new Date(img.taken_at).toLocaleDateString("da-DK", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })}
-                </span>
-              ) : img.created_at ? (
-                <span>
-                  {new Date(img.created_at).toLocaleDateString("da-DK", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })}
-                </span>
-              ) : null}
-              {/* Titel */}
-              {img.title && (
-                <span className="block font-medium text-gray-700 truncate">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+        {images.map((img) => {
+          const url = getImageUrl(img);
+          return (
+            <div
+              key={img.id}
+              className="relative aspect-square overflow-hidden cursor-pointer"
+              onClick={() => {
+                console.log("Klikket billede:", img);
+                onMemoryClick?.(img);
+              }}
+            >
+              <img
+                src={url}
+                alt={img.title || "Minde"}
+                className="w-full h-full object-cover"
+                onError={() => console.log("Billedet kunne ikke loades:", url)}
+              />
+              {/* Under billedet vises titel og dato */}
+              <div className="absolute bottom-0 left-0 right-0 bg-white bg-opacity-80 text-xs px-2 py-1">
+                <div className="font-medium truncate">
+                  {img.categories && img.categories[0]?.emoji && (
+                    <span className="mr-1">{img.categories[0].emoji}</span>
+                  )}
                   {img.title}
-                </span>
-              )}
-
-              {/* Kategorier */}
-              {img.categories && img.categories.length > 0 && (
-                <div className="flex gap-1 flex-wrap mt-1">
-                  {img.categories.map((cat) => (
-                    <span
-                      key={cat.id}
-                      className="inline-block rounded-full px-2 py-1 text-xs"
-                      style={{
-                        backgroundColor: cat.color || "#eee",
-                        color: "#444",
-                        fontWeight: 500,
-                        border: "1px solid #ddd",
-                      }}
-                    >
-                      {cat.label}
-                    </span>
-                  ))}
                 </div>
-              )}
+                <div>
+                  {(() => {
+                    const dateStr = img.taken_at || img.created_at;
+                    return dateStr
+                      ? new Date(dateStr).toLocaleDateString("da-DK", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : null;
+                  })()}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

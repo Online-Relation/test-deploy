@@ -1,4 +1,5 @@
 // /components/widgets/DashboardBanner.tsx
+
 "use client";
 import React, { useRef, useState, useEffect } from "react";
 import { uploadImageToSupabase } from "@/lib/uploadImageToSupabase";
@@ -21,8 +22,9 @@ const DashboardBanner = () => {
   const [rawImage, setRawImage] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingMeta, setPendingMeta] = useState<{ taken_at?: Date; latitude?: number; longitude?: number }>({});
+  const [originalImageUrl, setOriginalImageUrl] = useState<string | undefined>(undefined);
 
-  // FLYT FETCH FUNKTIONEN UD HER, så du kan genbruge den efter upload
+  // Hent det nyeste banner (og uploader)
   const fetchLatestBanner = async () => {
     const { data, error } = await supabase
       .from("dashboard_images")
@@ -55,7 +57,6 @@ const DashboardBanner = () => {
     }
   };
 
-  // Kør kun første gang (og ved reload)
   useEffect(() => {
     fetchLatestBanner();
   }, []);
@@ -67,18 +68,18 @@ const DashboardBanner = () => {
     }
   };
 
+  // FIL: Opload originalen, gem URL
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user?.id) return;
     let file = e.target.files?.[0];
     if (!file) return;
 
-    // EXIF-læsning for at hente metadata som f.eks. taget dato og GPS
+    // EXIF-læsning for at hente metadata
     let meta: any = {};
     try {
       meta = await exifr.parse(file);
-      console.log("EXIF meta:", meta);
     } catch (err) {
       meta = {};
-      console.warn("Kunne ikke læse EXIF-data:", err);
     }
 
     let takenAt: Date | undefined = undefined;
@@ -94,7 +95,7 @@ const DashboardBanner = () => {
       longitude: meta.longitude,
     });
 
-    // Hvis billedet er i HEIC-format, konverter til JPEG (som understøttes bredere)
+    // HEIC-konvertering hvis nødvendigt
     if (
       file.type === "image/heic" ||
       file.name.endsWith(".heic") ||
@@ -121,17 +122,27 @@ const DashboardBanner = () => {
       }
     }
 
+    // --- UPLOAD ORIGINAL TIL SUPABASE ---
+    let origUrl;
+    try {
+      origUrl = await uploadImageToSupabase(file, user.id, "original_"); // Prefix kun!
+      setOriginalImageUrl(origUrl); // Husk denne!
+    } catch (err) {
+      alert("Kunne ikke uploade originalbillede");
+      return;
+    }
+
     setRawImage(URL.createObjectURL(file));
     setPendingFile(file);
     setCropModalOpen(true);
   };
 
+  // FIL: Opload croppet billede, gem begge URLs
   const handleCropComplete = async (croppedBlob: Blob) => {
     if (!user?.id) return;
     setUploading(true);
     setCropModalOpen(false);
 
-    // Konverter blob til File for upload
     const croppedFile = new File(
       [croppedBlob],
       pendingFile?.name || "cropped.jpg",
@@ -139,13 +150,14 @@ const DashboardBanner = () => {
     );
 
     try {
-      const url = await uploadImageToSupabase(croppedFile, user.id);
+      const url = await uploadImageToSupabase(croppedFile, user.id, "cropped_");
 
-      // Gem i DB inkl. metadata
+      // GEM BEGGE URLs I SUPABASE
       await supabase.from("dashboard_images").insert([
         {
           user_id: user.id,
           image_url: url,
+          original_image_url: originalImageUrl, // <-- her!
           widget_location: "dashboard_banner",
           taken_at: pendingMeta.taken_at
             ? pendingMeta.taken_at.toISOString()
@@ -155,9 +167,7 @@ const DashboardBanner = () => {
         },
       ]);
 
-      // Hent det nyeste billede igen (så du altid ser seneste)
       await fetchLatestBanner();
-
     } catch (error) {
       alert("Upload fejlede");
     } finally {
@@ -165,6 +175,7 @@ const DashboardBanner = () => {
       setRawImage(null);
       setPendingFile(null);
       setPendingMeta({});
+      setOriginalImageUrl(undefined);
     }
   };
 
@@ -173,6 +184,7 @@ const DashboardBanner = () => {
     setRawImage(null);
     setPendingFile(null);
     setPendingMeta({});
+    setOriginalImageUrl(undefined);
   };
 
   return (
@@ -236,13 +248,12 @@ const DashboardBanner = () => {
       {/* Cropping modal */}
       {cropModalOpen && rawImage && pendingFile && (
         <ImageCropModal
-  open={cropModalOpen}
-  imageSrc={rawImage}           // ← korrekt!
-  onCancel={handleCropCancel}
-  onCropComplete={handleCropComplete} // brug det navn modal’en forventer!
-  aspect={3 / 1.5}
-/>
-
+          open={cropModalOpen}
+          imageSrc={rawImage}
+          onCancel={handleCropCancel}
+          onCropComplete={handleCropComplete}
+          aspect={3 / 1.5}
+        />
       )}
     </div>
   );

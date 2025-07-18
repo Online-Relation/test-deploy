@@ -3,10 +3,11 @@ import { supabase } from './supabaseClient';
 export async function uploadImageToSupabase(
   file: File,
   userId: string,
-  bucket: string = "dashboard" // default bucket
+  filePrefix: string = "",   // <--- her
+  bucket: string = "dashboard"
 ) {
   const fileExt = file.name.split('.').pop();
-  const fileName = `${userId}_dashboard_${Date.now()}.${fileExt}`;
+  const fileName = `${filePrefix}${userId}_dashboard_${Date.now()}.${fileExt}`;
   const filePath = `dashboard-banners/${fileName}`;
 
   const { error } = await supabase.storage
