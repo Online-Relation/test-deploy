@@ -1,8 +1,6 @@
-// /components/memories/MemoriesGallery.tsx
-
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useUserContext } from "@/context/UserContext";
 
@@ -15,7 +13,7 @@ interface Category {
   emoji?: string;
 }
 
-interface DashboardImage {
+export interface DashboardImage {
   id: string;
   image_url: string;
   original_image_url?: string;
@@ -25,9 +23,11 @@ interface DashboardImage {
   longitude?: number;
   created_at?: string;
   categories?: Category[];
+  user_id?: string;
 }
 
 type MemoriesGalleryProps = {
+  images: DashboardImage[]; // <-- tilføjet!
   onMemoryClick?: (img: DashboardImage, allImages: DashboardImage[]) => void;
 };
 
@@ -38,40 +38,12 @@ function getImageUrl(img: DashboardImage) {
   return data.publicUrl;
 }
 
-const MemoriesGallery = ({ onMemoryClick }: MemoriesGalleryProps) => {
-  const { user } = useUserContext();
-  const [images, setImages] = useState<DashboardImage[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const fetchImages = async () => {
-      if (!user?.id || !user?.partner_id) return;
-      setLoading(true);
-      // Select eksplicit, så original_image_url altid er med!
-      const { data, error } = await supabase
-        .from("dashboard_images")
-        .select("id, image_url, original_image_url, taken_at, title, latitude, longitude, created_at, categories")
-        .in("user_id", [user.id, user.partner_id])
-        .order("taken_at", { ascending: false })
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Fejl ved hentning af billeder:", error);
-        setImages([]);
-        setLoading(false);
-        return;
-      }
-
-      setImages(data || []);
-      setLoading(false);
-    };
-    fetchImages();
-  }, [user]);
+const MemoriesGallery = ({ images, onMemoryClick }: MemoriesGalleryProps) => {
+  // OBS: Fjernet user + fetch! Alt data kommer nu som prop
 
   return (
     <div>
       <h2 className="text-2xl font-bold mb-4 text-center">Minde-galleri</h2>
-      {loading && <div className="text-gray-400">Henter billeder…</div>}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
         {images.map((img) => {
           const url = getImageUrl(img);
@@ -80,6 +52,7 @@ const MemoriesGallery = ({ onMemoryClick }: MemoriesGalleryProps) => {
               key={img.id}
               className="relative aspect-square overflow-hidden cursor-pointer"
               onClick={() => {
+                console.log("Klikket billede:", img);
                 onMemoryClick?.(img, images);
               }}
             >
@@ -89,7 +62,6 @@ const MemoriesGallery = ({ onMemoryClick }: MemoriesGalleryProps) => {
                 className="w-full h-full object-cover"
                 onError={() => console.log("Billedet kunne ikke loades:", url)}
               />
-              {/* Under billedet vises titel og dato */}
               <div className="absolute bottom-0 left-0 right-0 bg-white bg-opacity-80 text-xs px-2 py-1">
                 <div className="font-medium truncate">
                   {img.categories && img.categories[0]?.emoji && (

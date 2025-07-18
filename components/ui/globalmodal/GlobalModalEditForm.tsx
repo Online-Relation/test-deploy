@@ -1,4 +1,5 @@
 // /components/ui/globalmodal/GlobalModalEditForm.tsx
+
 "use client";
 import React, { useState, useEffect } from "react";
 import ImageGallery from "./ImageGallery";
@@ -9,6 +10,7 @@ import { useUserContext } from "@/context/UserContext";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import CategorySelect from "@/components/ui/globalmodal/CategorySelect";
 import TypeSelect from "@/components/ui/globalmodal/TypeSelect";
+import { deleteDashboardImage } from "@/lib/dashboardImages";
 
 type GlobalModalEditFormProps = {
   initialTitle?: string;
@@ -31,6 +33,8 @@ type GlobalModalEditFormProps = {
   setDescription?: (desc: string) => void;
   categoryType?: string;
   initialPlannedDate?: string;
+  modalId?: string;
+  onDelete?: () => void;
 };
 
 export default function GlobalModalEditForm({
@@ -46,8 +50,16 @@ export default function GlobalModalEditForm({
   setDescription,
   categoryType = "all",
   initialPlannedDate = "",
+  modalId,
+  onDelete,
 }: GlobalModalEditFormProps) {
   const { user } = useUserContext();
+
+  // Debug-log props
+  console.log("[GlobalModalEditForm] RENDER");
+  console.log("[GlobalModalEditForm] modalId:", modalId);
+  console.log("[GlobalModalEditForm] onDelete:", onDelete);
+
   const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [title, setTitle] = useState(initialTitle);
   const [imageUrl, setImageUrl] = useState(initialImageUrl);
@@ -56,12 +68,8 @@ export default function GlobalModalEditForm({
   const [description, _setDescription] = useState(initialDescription);
   const [type, setType] = useState<{ id: string; label: string } | null>(initialType);
   const [typeError, setTypeError] = useState<string | null>(null);
-
   const [plannedDate, setPlannedDate] = useState(initialPlannedDate || "");
-
-  useEffect(() => {
-    console.log("EditForm > state", { title, imageUrl, galleryImages, description, type, categories, plannedDate });
-  }, [title, imageUrl, galleryImages, description, type, categories, plannedDate]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (setDescription) setDescription(description);
@@ -73,7 +81,6 @@ export default function GlobalModalEditForm({
   async function handleBannerChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-
     if (file.type === "image/heic" || file.name.endsWith(".heic")) {
       try {
         const heic2any = (await import("heic2any")).default;
@@ -83,7 +90,6 @@ export default function GlobalModalEditForm({
         });
         setBannerFile(jpgFile);
         setBannerPreview(URL.createObjectURL(jpgFile));
-        console.log("Banner valgt (konverteret fra HEIC)", jpgFile);
       } catch (err) {
         alert("Kunne ikke konvertere HEIC-billede. Prøv et andet format.");
         setBannerFile(null);
@@ -92,7 +98,6 @@ export default function GlobalModalEditForm({
     } else {
       setBannerFile(file);
       setBannerPreview(URL.createObjectURL(file));
-      console.log("Banner valgt", file);
     }
   }
 
@@ -109,7 +114,6 @@ export default function GlobalModalEditForm({
     if (bannerFile && user?.id) {
       try {
         uploadedUrl = await uploadImageToSupabase(bannerFile, user.id, "global-images");
-        console.log("Banner uploaded til Supabase", uploadedUrl);
       } catch (err) {
         alert("Kunne ikke uploade billede. Prøv igen.");
         setIsSaving(false);
@@ -126,7 +130,6 @@ export default function GlobalModalEditForm({
       type: type.id,
       planned_date: type.id === "date-idea" && plannedDate ? plannedDate : null,
     };
-    console.log("EditForm > handleSubmit > onSave kald med payload:", savePayload);
 
     onSave(savePayload);
     setIsSaving(false);
@@ -136,8 +139,33 @@ export default function GlobalModalEditForm({
     setGalleryImages(newImages);
   }
 
+  async function handleDelete() {
+    console.log("[GlobalModalEditForm] handleDelete CALLED. modalId=", modalId);
+    if (!modalId) {
+      alert("Ingen modalId fundet, kan ikke slette!");
+      return;
+    }
+    if (!window.confirm("Er du sikker på at du vil slette?")) return;
+    setIsDeleting(true);
+    try {
+      const ok = await deleteDashboardImage(modalId);
+      setIsDeleting(false);
+      if (ok) {
+        console.log("[GlobalModalEditForm] Billede slettet");
+        if (onDelete) onDelete();
+      } else {
+        alert("Kunne ikke slette. Prøv igen.");
+      }
+    } catch (err) {
+      setIsDeleting(false);
+      alert("Kunne ikke slette. Prøv igen.");
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
+      {/* ... resten af formen ... */}
+      {/* ... ALT det andet beholdes ... */}
       <label className="flex flex-col">
         <span className="font-semibold mb-1">Titel</span>
         <input
@@ -147,16 +175,11 @@ export default function GlobalModalEditForm({
           className="border rounded px-3 py-2"
         />
       </label>
-
       <label className="flex flex-col">
         <span className="font-semibold mb-1">Type</span>
-        <TypeSelect
-          value={type}
-          onChange={setType}
-        />
+        <TypeSelect value={type} onChange={setType} />
         {typeError && <span className="text-red-500 text-xs mt-1">{typeError}</span>}
       </label>
-
       <label className="flex flex-col">
         <span className="font-semibold mb-1">Banner billede</span>
         {bannerPreview ? (
@@ -169,8 +192,6 @@ export default function GlobalModalEditForm({
         <input type="file" accept="image/*,.heic" onChange={handleBannerChange} className="mb-2" />
         <span className="text-xs text-gray-500">Du kan uploade jpg, png, webp eller heic fra iPhone.</span>
       </label>
-
-      {/* PLANLAGT DATO KUN FOR DATE-IDEA */}
       {type?.id === "date-idea" && (
         <label className="flex flex-col">
           <span className="font-semibold mb-1">Planlagt dato</span>
@@ -182,7 +203,6 @@ export default function GlobalModalEditForm({
           />
         </label>
       )}
-
       <div>
         <span className="font-semibold mb-2 block">Galleri</span>
         <ImageGallery
@@ -191,34 +211,35 @@ export default function GlobalModalEditForm({
           onImagesChange={handleGalleryChange}
         />
       </div>
-
       <div>
         <span className="font-semibold mb-1 block">Beskrivelse</span>
         <div className="border rounded p-2 min-h-[120px] bg-gray-50">
-          <RichTextEditor
-            value={description}
-            onChange={_setDescription}
-          />
+          <RichTextEditor value={description} onChange={_setDescription} />
         </div>
       </div>
-
       <div>
         <span className="font-semibold mb-1 block">Kategorier</span>
-        <CategorySelect
-          value={categories}
-          onChange={setCategories}
-          categoryType={type?.id || "global"}
-        />
+        <CategorySelect value={categories} onChange={setCategories} categoryType={type?.id || "global"} />
       </div>
-
-      <div className="flex justify-end gap-4 pt-4 border-t">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="btn btn-secondary"
-        >
+      <div className="flex justify-between gap-4 pt-4 border-t">
+        <button type="button" onClick={onCancel} className="btn btn-secondary">
           Annuller
         </button>
+        {/* SLET KNAP – console.log før render */}
+        {(() => {
+          console.log("[GlobalModalEditForm] RENDER DELETE-KNAP?", modalId);
+          return modalId && (
+            <button
+  type="button"
+  onClick={handleDelete}
+  className="btn btn-destructive bg-red-600 hover:bg-red-700 text-white"
+  disabled={isDeleting}
+>
+  {isDeleting ? "Sletter..." : "Slet"}
+</button>
+
+          );
+        })()}
         <SaveButton type="submit" loading={isSaving}>
           Gem
         </SaveButton>

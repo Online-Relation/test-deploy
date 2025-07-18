@@ -1,6 +1,7 @@
 // /lib/dashboardImages.ts
 import { supabase } from "@/lib/supabaseClient";
 
+// Opdater dashboard-billede
 export async function updateDashboardImage(
   id: string,
   updates: Partial<{ title: string; description: string; type: string; categories: any[] }>
@@ -17,4 +18,17 @@ export async function updateDashboardImage(
     return null;
   }
   return data;
+}
+
+// Slet dashboard-billede
+export async function deleteDashboardImage(id: string) {
+  const { error } = await supabase
+    .from("dashboard_images")
+    .delete()
+    .eq("id", id);
+  if (error) {
+    console.error("deleteDashboardImage error:", error);
+    throw error;
+  }
+  return true;
 }

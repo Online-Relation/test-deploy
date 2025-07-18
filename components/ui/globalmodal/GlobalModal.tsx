@@ -1,6 +1,6 @@
 // /components/ui/globalmodal/GlobalModal.tsx
 "use client";
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { X } from "lucide-react";
 import Badge from "@/components/ui/globalmodal/CategoryBadge";
 import ImageGallery from "../globalmodal/ImageGallery";
@@ -33,6 +33,7 @@ type GlobalModalProps = {
   modalId?: string;
   initialPlannedDate?: string;
   initialCategories?: any[];
+  onDelete?: () => void;
 };
 
 export default function GlobalModal({
@@ -51,10 +52,16 @@ export default function GlobalModal({
   typeId,
   modalId,
   initialPlannedDate = "",
+  onDelete,
 }: GlobalModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showFullscreen, setShowFullscreen] = useState(false);
   const typeLabel = typeId ? typeId.charAt(0).toUpperCase() + typeId.slice(1) : "";
+
+  // NYT: Nulstil isEditing når modalId/typeId/open ændrer sig (nyt billede)
+  useEffect(() => {
+    if (open) setIsEditing(false);
+  }, [open, modalId, typeId]);
 
   if (!open) return null;
 
@@ -115,6 +122,8 @@ export default function GlobalModal({
                 setDescription={setDescription}
                 canUploadGallery={canUploadGallery}
                 initialPlannedDate={initialPlannedDate || ""}
+                modalId={modalId}
+                onDelete={onDelete}
               />
               {modalId && (
                 <div className="text-xs text-gray-500 text-right mt-4 select-all">
@@ -137,16 +146,15 @@ export default function GlobalModal({
                     />
                   </div>
                   {showFullscreen && (
-  <FullscreenImageViewer
-    images={[imageUrl]} // ← et array! Kan også være flere billeder
-    currentIndex={0}
-    onClose={() => setShowFullscreen(false)}
-    onPrev={() => {}}  // hvis du kun har ét billede, kan de bare være tomme
-    onNext={() => {}}
-    alt={title}
-  />
-)}
-
+                    <FullscreenImageViewer
+                      images={[imageUrl]}
+                      currentIndex={0}
+                      onClose={() => setShowFullscreen(false)}
+                      onPrev={() => {}}
+                      onNext={() => {}}
+                      alt={title}
+                    />
+                  )}
                 </>
               )}
 
