@@ -161,7 +161,7 @@ const renderNav = (entries: any[], level = 0) => entries.map(entry => {
           {mobileOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
         <Link href="/dashboard" className="text-lg font-bold hover:underline">
-          ✨ ConnectTo
+          ✨ ConnectUs
         </Link>
       </div>
 
@@ -203,7 +203,7 @@ const renderNav = (entries: any[], level = 0) => entries.map(entry => {
 <div className="hidden md:flex min-h-screen w-64 bg-gray-900 text-white flex-col justify-between pt-6">
   <div>
     <div className="p-6 text-xl font-bold">
-      <Link href="/dashboard" className="hover:underline">✨ ConnectTo</Link>
+      <Link href="/dashboard" className="hover:underline">✨ ConnectUs</Link>
     </div>
     <nav className="flex flex-col space-y-1 px-4 mt-4">{renderNav(accessHierarchy)}</nav>
   </div>

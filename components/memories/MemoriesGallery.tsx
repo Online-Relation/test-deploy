@@ -2,8 +2,9 @@
 
 import React from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { useUserContext } from "@/context/UserContext";
+import MonthlyGallerySection from "@/components/memories/MonthlyGallerySection";
 
+// ----- TYPEDEFS (flyt evt. til types/models hvis du vil) -----
 const BUCKET_NAME = "global-images";
 
 interface Category {
@@ -27,65 +28,55 @@ export interface DashboardImage {
 }
 
 type MemoriesGalleryProps = {
-  images: DashboardImage[]; // <-- tilføjet!
+  images: DashboardImage[];
   onMemoryClick?: (img: DashboardImage, allImages: DashboardImage[]) => void;
 };
 
-function getImageUrl(img: DashboardImage) {
+// ----- HJÆLPERFUNKTION -----
+export function getImageUrl(img: DashboardImage) {
   if (!img.image_url) return "";
   if (img.image_url.startsWith("http")) return img.image_url;
   const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(img.image_url);
   return data.publicUrl;
 }
 
+// ----- GROUP BY MONTH -----
+function groupImagesByMonth(images: DashboardImage[]) {
+  const groups: Record<string, DashboardImage[]> = {};
+  images.forEach(img => {
+    const dateStr = img.taken_at || img.created_at;
+    if (!dateStr) return;
+    const date = new Date(dateStr);
+    const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+      .toString()
+      .padStart(2, "0")}`;
+    if (!groups[monthKey]) groups[monthKey] = [];
+    groups[monthKey].push(img);
+  });
+  return groups;
+}
+
+// ----- HOVEDKOMPONENT -----
 const MemoriesGallery = ({ images, onMemoryClick }: MemoriesGalleryProps) => {
-  // OBS: Fjernet user + fetch! Alt data kommer nu som prop
+  const groups = groupImagesByMonth(images);
+
+  // Sortér måned-nøgler (YYYY-MM) nyeste først
+  const sortedMonthKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4 text-center">Minde-galleri</h2>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-        {images.map((img) => {
-          const url = getImageUrl(img);
-          return (
-            <div
-              key={img.id}
-              className="relative aspect-square overflow-hidden cursor-pointer"
-              onClick={() => {
-                console.log("Klikket billede:", img);
-                onMemoryClick?.(img, images);
-              }}
-            >
-              <img
-                src={url}
-                alt={img.title || "Minde"}
-                className="w-full h-full object-cover"
-                onError={() => console.log("Billedet kunne ikke loades:", url)}
-              />
-              <div className="absolute bottom-0 left-0 right-0 bg-white bg-opacity-80 text-xs px-2 py-1">
-                <div className="font-medium truncate">
-                  {img.categories && img.categories[0]?.emoji && (
-                    <span className="mr-1">{img.categories[0].emoji}</span>
-                  )}
-                  {img.title}
-                </div>
-                <div>
-                  {(() => {
-                    const dateStr = img.taken_at || img.created_at;
-                    return dateStr
-                      ? new Date(dateStr).toLocaleDateString("da-DK", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        })
-                      : null;
-                  })()}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {sortedMonthKeys.map((key) => {
+        const [year, month] = key.split("-").map(Number);
+        return (
+          <MonthlyGallerySection
+            key={key}
+            year={year}
+            month={month}
+            images={groups[key]}
+            onMemoryClick={onMemoryClick}
+          />
+        );
+      })}
     </div>
   );
 };
