@@ -44,6 +44,50 @@ export default function QuizResultPage() {
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Ny state til samtalestarterens navn
+  const [starterName, setStarterName] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Hent samtalestarter baseret på quizKey
+    const fetchStarterName = async () => {
+      const { data, error } = await supabase
+        .from('quiz_conversation_starter_log')
+        .select('user_id')
+        .eq('quiz_key', quizKey)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Fejl ved hentning af samtalestarter:', error);
+        setStarterName(null);
+        return;
+      }
+
+      if (data?.user_id) {
+        // Hent brugerens navn fra profiles
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('display_name')  // korrekt kolonnenavn
+          .eq('id', data.user_id)
+          .maybeSingle();
+
+        if (profileError) {
+          console.error('Fejl ved hentning af profilnavn:', profileError);
+          setStarterName(null);
+          return;
+        }
+
+        console.log('Profilnavn fundet:', profile?.display_name);
+        setStarterName(profile?.display_name || 'Ukendt');
+      } else {
+        setStarterName(null);
+      }
+    };
+
+    fetchStarterName();
+  }, [quizKey]);
+
   useEffect(() => {
     const fetchEverything = async () => {
       if (!sessionId) return;
@@ -184,6 +228,12 @@ export default function QuizResultPage() {
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
       <h1 className="text-2xl font-bold mb-2">Quizresultat</h1>
 
+      {starterName && (
+        <p className="mb-4 text-lg font-semibold text-purple-600">
+          Lykkehjulet valgte {starterName} til at starte samtalen. Vær åbne og ærlige i jeres samtale selvom I er uenige.
+        </p>
+      )}
+
       {loading ? (
         <p className="text-muted-foreground text-sm">Indlæser data...</p>
       ) : grouped && sessionId ? (
@@ -192,6 +242,7 @@ export default function QuizResultPage() {
             grouped={grouped}
             answers={answers}
             sessionId={sessionId}
+            quizKey={quizKey}
           />
 
           {recommendation && (

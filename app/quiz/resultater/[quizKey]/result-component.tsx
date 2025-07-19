@@ -36,7 +36,7 @@ interface Profile {
   id: string;
   display_name: string;
   avatar_url: string | null;
-  role: string; // <-- tilføjet!
+  role: string;
 }
 
 interface Grouped {
@@ -50,6 +50,7 @@ interface Props {
   answers: Answer[];
   showGraphsOnly?: boolean;
   sessionId?: string;
+  quizKey?: string; // Tilføjet så vi kan bruge quizKey i komponenten
 }
 
 const QuizResultComponent: FC<Props> = ({
@@ -57,9 +58,8 @@ const QuizResultComponent: FC<Props> = ({
   answers,
   showGraphsOnly = false,
   sessionId,
+  quizKey,
 }) => {
-  const { quizKey: rawKey } = useParams();
-  const quizKey = typeof rawKey === 'string' ? rawKey : '';
   const { user } = useUserContext();
 
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
@@ -68,9 +68,14 @@ const QuizResultComponent: FC<Props> = ({
   const [recommendationError, setRecommendationError] = useState<string | null>(null);
   const [view, setView] = useState<'results' | 'visual' | 'recommendations'>('results');
 
-  // NYT: XP-logik states
+  // XP states
   const [xpGiven, setXpGiven] = useState(false);
   const [checkingXp, setCheckingXp] = useState(true);
+
+  // Fuldfør quiz states
+  const [isCompleted, setIsCompleted] = useState<boolean>(false);
+  const [loadingComplete, setLoadingComplete] = useState(false);
+  const [errorComplete, setErrorComplete] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProfiles = async () => {
@@ -92,7 +97,6 @@ const QuizResultComponent: FC<Props> = ({
     fetchProfiles();
   }, [answers]);
 
-  // --- XP-TILDELING ---
   useEffect(() => {
     const assignXpIfNeeded = async () => {
       setCheckingXp(true);
@@ -104,7 +108,6 @@ const QuizResultComponent: FC<Props> = ({
         return;
       }
 
-      // Find roller for brugere
       const { data: roleData, error: roleError } = await supabase
         .from('profiles')
         .select('id, role')
@@ -119,14 +122,12 @@ const QuizResultComponent: FC<Props> = ({
         userRoles[row.id] = row.role;
       });
 
-      // Tjek om XP allerede er givet for denne quiz
       const { data: xpLog } = await supabase
         .from('xp_log')
         .select('id, user_id, description')
         .ilike('description', `%complete_parquiz:%${quizKey}%`)
         .in('user_id', userIds);
 
-      // Find hvilke brugere der mangler XP
       const alreadyGiven = new Set((xpLog || []).map(row => row.user_id));
       const toGive = userIds.filter(uid => !alreadyGiven.has(uid));
 
@@ -136,7 +137,6 @@ const QuizResultComponent: FC<Props> = ({
         return;
       }
 
-      // Hent effort fra quiz_meta (default: "medium")
       const { data: quizMeta } = await supabase
         .from('quiz_meta')
         .select('effort')
@@ -144,7 +144,6 @@ const QuizResultComponent: FC<Props> = ({
         .maybeSingle();
       const effort = quizMeta?.effort || 'medium';
 
-      // Hent XP for hver bruger/rolle
       const xpRows: any[] = [];
       for (const userId of toGive) {
         const role = userRoles[userId];
@@ -173,7 +172,6 @@ const QuizResultComponent: FC<Props> = ({
         return;
       }
 
-      // Insert XP-log
       const { error: insertError } = await supabase
         .from('xp_log')
         .insert(xpRows);
@@ -185,10 +183,9 @@ const QuizResultComponent: FC<Props> = ({
     assignXpIfNeeded();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answers, quizKey]);
-  // --- XP-TILDELING SLUT ---
 
   useEffect(() => {
-    const cleanedKey = quizKey.replace(/\+/g, ' ');
+    const cleanedKey = quizKey?.replace(/\+/g, ' ') || '';
     const totalGrouped = grouped.green.length + grouped.yellow.length + grouped.red.length;
 
     if (!cleanedKey || totalGrouped === 0 || view !== 'recommendations') return;
@@ -257,6 +254,79 @@ const QuizResultComponent: FC<Props> = ({
       },
     ],
   };
+
+  // Ny: Hent fuldførsel-status ved mount
+  useEffect(() => {
+    const fetchCompletionStatus = async () => {
+      if (!quizKey) return;
+      const { data, error } = await supabase
+        .from('quiz_conversation_starter_log')
+        .select('conversation_completed')
+        .eq('quiz_key', quizKey)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Fejl ved hentning af fuldførsel:', error);
+        return;
+      }
+
+      setIsCompleted(data?.conversation_completed ?? false);
+    };
+
+    fetchCompletionStatus();
+  }, [quizKey]);
+
+  // Ny: Funktion til at markere som fuldført
+// Tilføj dette i starten af handleMarkComplete-funktionen i QuizResultComponent
+
+const handleMarkComplete = async () => {
+  console.log('quizKey i handleMarkComplete:', quizKey);
+
+  if (!quizKey) return;
+  setLoadingComplete(true);
+  setErrorComplete(null);
+
+  try {
+    // 1. Hent seneste række for quizKey
+    const { data: rows, error: fetchError } = await supabase
+      .from('quiz_conversation_starter_log')
+      .select('id')
+      .eq('quiz_key', quizKey)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    console.log('Fetched rows:', rows);
+
+    if (fetchError || !rows || rows.length === 0) {
+      setErrorComplete('Kunne ikke finde quiz-log til opdatering.');
+      setLoadingComplete(false);
+      return;
+    }
+
+    const rowId = rows[0].id;
+
+    // 2. Opdater rækken med conversation_completed = true
+    const { error: updateError } = await supabase
+      .from('quiz_conversation_starter_log')
+      .update({ conversation_completed: true })
+      .eq('id', rowId);
+
+    if (updateError) {
+      setErrorComplete('Kunne ikke opdatere status. Prøv igen.');
+    } else {
+      setIsCompleted(true);
+    }
+  } catch (e) {
+    setErrorComplete('Ukendt fejl ved opdatering.');
+  } finally {
+    setLoadingComplete(false);
+  }
+};
+
+
+
 
   if (showGraphsOnly) {
     return (
@@ -384,6 +454,23 @@ const QuizResultComponent: FC<Props> = ({
           )}
         </div>
       )}
+
+      {/* Fuldfør quiz CTA nederst */}
+      <div className="mt-8 p-4 bg-yellow-50 rounded-lg border border-yellow-300 text-center">
+        <p className="mb-2 text-sm text-yellow-800">
+          Har I fået snakket om tingene? Gik det helt galt, eller overlevede I? 😄
+        </p>
+
+        {isCompleted ? (
+          <p className="text-green-700 font-semibold">Quizzen er markeret som fuldført – godt klaret!</p>
+        ) : (
+          <Button onClick={handleMarkComplete} disabled={loadingComplete}>
+            {loadingComplete ? 'Opdaterer...' : 'Fuldfør quiz'}
+          </Button>
+        )}
+
+        {errorComplete && <p className="mt-2 text-red-600 text-sm">{errorComplete}</p>}
+      </div>
     </div>
   );
 };

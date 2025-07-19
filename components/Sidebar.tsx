@@ -18,7 +18,7 @@ import { accessHierarchy } from '@/lib/accessHierarchy'; // <-- brug denne!
 
 const iconMap: Record<string, ReactNode> = {
   dashboard: <LayoutDashboard size={20} />,
-  todo: <ListTodo size={20} />,
+  "/private-todo": <ListTodo size={20} />,
   'online-relation': <Globe size={20} />,
   'tasks-couple': <ListTodo size={20} />,
   fantasy: <Sparkles size={20} />,

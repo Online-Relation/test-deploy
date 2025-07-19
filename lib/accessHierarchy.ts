@@ -8,7 +8,7 @@ export interface AccessEntry {
 
 export const accessHierarchy: AccessEntry[] = [
   { key: 'dashboard', label: 'Dashboard', href: '/dashboard', children: [] },
-  { key: 'todo', label: 'To-Do List', href: '/todo', children: [] },
+  { key: '/private-todo', label: 'To-Do', href: '/private-todo', children: [] },
   {
     key: 'online-relation',
     label: 'Online Relation',
@@ -99,9 +99,9 @@ export const accessHierarchy: AccessEntry[] = [
     label: 'Data',
     href: '/data',
     children: [
-      { key: 'data/sex', label: 'Sex', href: '/data/sex', children: [] },
-      { key: 'data/hverdag', label: 'Hverdag', href: '/data/hverdag', children: [] },
-      { key: 'data/tanker', label: 'Tanker', href: '/data/tanker', children: [] },
+      { key: '/data/sex', label: 'Sex', href: '/data/sex', children: [] },
+      { key: '/data/hverdag', label: 'Hverdag', href: '/data/hverdag', children: [] },
+      { key: '/data/tanker', label: 'Tanker', href: '/data/tanker', children: [] },
     ],
   },
   { key: 'profile', label: 'Profil', href: '/profile', children: [] },
