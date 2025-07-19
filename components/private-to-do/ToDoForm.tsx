@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 
 const categories = [
-  { key: "work", label: "Arbejde" },
-  { key: "home", label: "Hjem" },
-  { key: "fitness", label: "Træning" },
+  { key: "work", label: "Online Relation" },
+  { key: "home", label: "Privat" },
+  { key: "fitness", label: "Parforhold" },
   { key: "other", label: "Andet" },
 ];
 
