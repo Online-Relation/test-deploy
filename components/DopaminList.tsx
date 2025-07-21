@@ -66,21 +66,22 @@ export function DopaminList({ value, onChange }: Props) {
     <div className="mt-6">
       <h3 className="text-lg font-semibold mb-2">⚡️ Dopamin-triggers</h3>
 
-      <div className="flex gap-2 mb-3">
-        <input
-          type="text"
-          placeholder="Tilføj ny trigger..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          className="flex-grow border rounded px-3 py-2"
-        />
-        <button
-          onClick={handleAdd}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded"
-        >
-          <Plus size={16} />
-        </button>
-      </div>
+      <div className="flex flex-col sm:flex-row gap-2 mb-3">
+  <input
+    type="text"
+    placeholder="Tilføj ny trigger..."
+    value={input}
+    onChange={(e) => setInput(e.target.value)}
+    className="flex-grow border rounded px-3 py-2"
+  />
+  <button
+    onClick={handleAdd}
+    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded mt-2 sm:mt-0"
+  >
+    <Plus size={16} />
+  </button>
+</div>
+
 
       <DndContext
         sensors={sensors}

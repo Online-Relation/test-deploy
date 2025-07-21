@@ -1,3 +1,5 @@
+// /components/widgets/ManifestReminderWidget.tsx
+
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -21,35 +23,28 @@ export default function ManifestReminderWidget() {
         .eq('remind_me', true)
         .order('created_at', { ascending: true });
 
-      if (error) {
-        console.error('Fejl ved hentning af manifestation_points:', error);
-        setPoint(null);
-        setCurrentParagraph(null);
-        return;
-      }
-      if (!data || data.length === 0) {
+      if (error || !data || data.length === 0) {
         setPoint(null);
         setCurrentParagraph(null);
         return;
       }
 
-      // For nu vælger vi det første punkt (du kan ændre, hvis du vil randomize)
-      const singlePoint = data[0];
-      setPoint(singlePoint);
-
-      // Split content i afsnit efter linjeskift med nummerering (fx "1. ", "2. ", etc.)
-      const paragraphs = singlePoint.content
-        .split(/\n\s*\d+\.\s*/)
-        .filter((p: string) => p.trim().length > 0);
-
-      // Beregn dag i året
+      // Vælg dagens manifest-point (skift hver dag, men random baseret på dag)
       const dayOfYear = Math.floor(
         (new Date().getTime() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
       );
+      const manifestIndex = dayOfYear % data.length;
+      const selectedPoint = data[manifestIndex];
+      setPoint(selectedPoint);
 
-      // Vælg afsnit baseret på dag i året modulo antal afsnit
-      const index = dayOfYear % paragraphs.length;
-      setCurrentParagraph(paragraphs[index]);
+      // Split content i afsnit (nummererede eller linjeskift)
+      const paragraphs = selectedPoint.content
+        .split(/\n\s*(?=\d+\.\s)/) // splitter på nummererede punkter som "1. xxx"
+        .filter((p: string) => p.trim().length > 0);
+
+      // Udvælg dagens punkt fra afsnittene (så alle punkter kommer i rotation)
+      const paraIndex = dayOfYear % paragraphs.length;
+      setCurrentParagraph(paragraphs[paraIndex]);
     }
 
     fetchPoints();

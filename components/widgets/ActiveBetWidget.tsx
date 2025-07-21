@@ -1,3 +1,5 @@
+// /components/widgets/ActiveBetWidget.tsx
+
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { FaLinkedin } from "react-icons/fa";
@@ -11,10 +13,6 @@ interface Bet {
   end_at: string;
   participant_1: string;
   participant_2: string;
-  participant_1_name?: string;
-  participant_2_name?: string;
-  participant_1_avatar?: string;
-  participant_2_avatar?: string;
   gift_1?: string;
   gift_2?: string;
   guess_1_min?: number | null;
@@ -27,6 +25,12 @@ interface Profile {
   id: string;
   username: string;
   avatar_url?: string;
+}
+
+interface ProgressEntry {
+  id: string;
+  date: string;
+  value: number;
 }
 
 function getCountdown(endAt: string) {
@@ -55,6 +59,7 @@ export default function ActiveBetWidget() {
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [loading, setLoading] = useState(true);
   const [countdown, setCountdown] = useState<string>("");
+  const [progress, setProgress] = useState<ProgressEntry[]>([]);
 
   // Test-data fallback
   const TEST_BET: Bet = {
@@ -104,10 +109,19 @@ export default function ActiveBetWidget() {
         const profilesMap = (profileData || []).reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
         setProfiles(profilesMap);
 
+        // Hent progress for aktivt bet
+        const { data: progressData } = await supabase
+          .from("bet_progress")
+          .select("id, date, value")
+          .eq("bet_id", betData.id)
+          .order("date", { ascending: true });
+        setProgress(progressData || []);
+
         setLoading(false);
       } catch (err) {
         setBet(TEST_BET);
         setProfiles(TEST_PROFILES);
+        setProgress([]);
         setLoading(false);
       }
     })();
@@ -125,80 +139,77 @@ export default function ActiveBetWidget() {
   if (!bet) return null;
 
   return (
-  <div className="rounded-3xl border shadow-xl bg-[#eef3f8] p-7 max-w-2xl mx-auto relative mb-8 flex flex-col gap-4">
-
-    {/* LinkedIn badge/logo & Challenge navn – venstrejusteret */}
-    <div className="w-full flex justify-start mb-1">
-      <div className="flex items-center gap-2">
-        <FaLinkedin size={32} className="text-[#0077b5]" />
-        <span className="text-[#0077b5] font-bold text-lg tracking-wide">LinkedIn Challenge</span>
+    <div className="rounded-3xl border shadow-xl bg-[#eef3f8] p-7 max-w-2xl mx-auto relative mb-8 flex flex-col gap-4">
+      <div className="w-full flex justify-start mb-1">
+        <div className="flex items-center gap-2">
+          <FaLinkedin size={32} className="text-[#0077b5]" />
+          <span className="text-[#0077b5] font-bold text-lg tracking-wide">LinkedIn Challenge</span>
+        </div>
       </div>
-    </div>
-
-    {/* Titel på desktop */}
-    <h3 className="text-2xl font-bold mb-0 text-[#0077b5] hidden sm:block">{bet.title}</h3>
-    {/* Titel skjules på mobil */}
-
-    <p className="text-gray-700">{bet.description}</p>
-
-    <div className="flex flex-wrap items-center gap-3 mb-1">
-      <span className="font-medium text-gray-700">
-        <strong>Periode:</strong> {bet.start_at?.slice(0, 16).replace('T', ' ')} – {bet.end_at?.slice(0, 16).replace('T', ' ')}
-      </span>
-    </div>
-    <div className="mb-2">
-      <span className="inline-block bg-[#0077b5] text-white px-4 py-1 rounded-full tracking-wider font-mono text-lg font-semibold">
-        {countdown}
-      </span>
-    </div>
-
-    {/* Deltagere og gavepræmier */}
-    <div className="flex flex-wrap gap-4 mt-1">
-      <div className="flex-1 min-w-[130px] bg-white rounded-xl shadow p-3 flex flex-col items-center">
-        <img
-          src={profiles[bet.participant_1]?.avatar_url || "/dummy-avatar.jpg"}
-          alt=""
-          className="w-10 h-10 rounded-full border-2 border-[#0077b5] mb-2"
-        />
-        <span className="font-semibold text-[#0077b5]">
-          {profiles[bet.participant_1]?.username || "Deltager 1"}
-        </span>
-        <span className="text-sm text-gray-500">
-          Gave: {bet.gift_1 || "–"}
+      <h3 className="text-2xl font-bold mb-0 text-[#0077b5] hidden sm:block">{bet.title}</h3>
+      <p className="text-gray-700">{bet.description}</p>
+      <div className="flex flex-wrap items-center gap-3 mb-1">
+        <span className="font-medium text-gray-700">
+          <strong>Periode:</strong> {bet.start_at?.slice(0, 16).replace('T', ' ')} – {bet.end_at?.slice(0, 16).replace('T', ' ')}
         </span>
       </div>
-      <div className="flex-1 min-w-[130px] bg-white rounded-xl shadow p-3 flex flex-col items-center">
-        <img
-          src={profiles[bet.participant_2]?.avatar_url || "/dummy-avatar.jpg"}
-          alt=""
-          className="w-10 h-10 rounded-full border-2 border-[#0077b5] mb-2"
-        />
-        <span className="font-semibold text-[#0077b5]">
-          {profiles[bet.participant_2]?.username || "Deltager 2"}
-        </span>
-        <span className="text-sm text-gray-500">
-          Gave: {bet.gift_2 || "–"}
+      <div className="mb-2">
+        <span className="inline-block bg-[#0077b5] text-white px-4 py-1 rounded-full tracking-wider font-mono text-lg font-semibold">
+          {countdown}
         </span>
       </div>
+      <div className="flex flex-wrap gap-4 mt-1">
+        <div className="flex-1 min-w-[130px] bg-white rounded-xl shadow p-3 flex flex-col items-center">
+          <img
+            src={profiles[bet.participant_1]?.avatar_url || "/dummy-avatar.jpg"}
+            alt=""
+            className="w-10 h-10 rounded-full border-2 border-[#0077b5] mb-2"
+          />
+          <span className="font-semibold text-[#0077b5]">
+            {profiles[bet.participant_1]?.username || "Deltager 1"}
+          </span>
+          <span className="text-sm text-gray-500">
+            Gave: {bet.gift_1 || "–"}
+          </span>
+          {(bet.guess_1_min !== undefined && bet.guess_1_max !== undefined) && (
+            <span className="mt-1 text-xs text-gray-700">
+              Gæt: {bet.guess_1_min} – {bet.guess_1_max}
+            </span>
+          )}
+        </div>
+        <div className="flex-1 min-w-[130px] bg-white rounded-xl shadow p-3 flex flex-col items-center">
+          <img
+            src={profiles[bet.participant_2]?.avatar_url || "/dummy-avatar.jpg"}
+            alt=""
+            className="w-10 h-10 rounded-full border-2 border-[#0077b5] mb-2"
+          />
+          <span className="font-semibold text-[#0077b5]">
+            {profiles[bet.participant_2]?.username || "Deltager 2"}
+          </span>
+          <span className="text-sm text-gray-500">
+            Gave: {bet.gift_2 || "–"}
+          </span>
+          {(bet.guess_2_min !== undefined && bet.guess_2_max !== undefined) && (
+            <span className="mt-1 text-xs text-gray-700">
+              Gæt: {bet.guess_2_min} – {bet.guess_2_max}
+            </span>
+          )}
+        </div>
+      </div>
+      <BetProbabilityBar
+        bet={{
+          guess_1_min: bet.guess_1_min ?? 0,
+          guess_1_max: bet.guess_1_max ?? 0,
+          guess_2_min: bet.guess_2_min ?? 0,
+          guess_2_max: bet.guess_2_max ?? 0,
+          end_at: bet.end_at,
+          participant_1_name: profiles[bet.participant_1]?.username || "Deltager 1",
+          participant_2_name: profiles[bet.participant_2]?.username || "Deltager 2",
+          participant_1_avatar: profiles[bet.participant_1]?.avatar_url || "/dummy-avatar.jpg",
+          participant_2_avatar: profiles[bet.participant_2]?.avatar_url || "/dummy-avatar.jpg",
+        }}
+        progress={progress}
+      />
     </div>
-
-    {/* Sandsynligheds-slider og avatarer */}
-    <BetProbabilityBar
-      bet={{
-        guess_1_min: bet.guess_1_min ?? null,
-        guess_1_max: bet.guess_1_max ?? null,
-        guess_2_min: bet.guess_2_min ?? null,
-        guess_2_max: bet.guess_2_max ?? null,
-        end_at: bet.end_at,
-        participant_1_name: profiles[bet.participant_1]?.username || "Deltager 1",
-        participant_2_name: profiles[bet.participant_2]?.username || "Deltager 2",
-        participant_1_avatar: profiles[bet.participant_1]?.avatar_url || "/dummy-avatar.jpg",
-        participant_2_avatar: profiles[bet.participant_2]?.avatar_url || "/dummy-avatar.jpg",
-      }}
-      betId={bet.id}
-    />
-
-  </div>
-);
-
+  );
 }

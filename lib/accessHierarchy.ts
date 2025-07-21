@@ -15,6 +15,7 @@ export const accessHierarchy: AccessEntry[] = [
     href: '/online-relation',
     children: [
       { key: 'online-relation/tasks', label: 'Opgaver', href: '/online-relation/tasks', children: [] },
+      { key: 'online-relation/clients', label: 'Kunder', href: '/online-relation/clients', children: [] },
     ],
   },
   { key: 'tasks-couple', label: 'Opgaver', href: '/tasks-couple', children: [] },
@@ -24,7 +25,7 @@ export const accessHierarchy: AccessEntry[] = [
     href: '/intimitet',
     children: [
       { key: 'fantasy/fantasier', label: 'Fantasier', href: '/fantasy', children: [] },
-      { key: '/sex/positions', label: 'Inspiration', href: '/sex/positions', children: [] },
+      { key: 'sex/positions', label: 'Inspiration', href: '/sex/positions', children: [] },
     ],
   },
  {
@@ -70,7 +71,8 @@ export const accessHierarchy: AccessEntry[] = [
       { key: 'spil/sellerk', label: 'S eller K', href: '/spil/sellerk', children: [] },
       { key: 'spil/memorygaver', label: 'Memory', href: '/spil/memorygaver', children: [] },
       { key: 'spil/quiz', label: 'Quiz', href: '/spil/quizzen', children: [] },
-      { key: '/spil/knob', label: 'Min knap', href: '/spil/knob', children: [] },
+      { key: 'spil/knob', label: 'Min knap', href: '/spil/knob', children: [] },
+      { key: 'spil/aerlighed', label: 'Ærligheden', href: '/spil/aerlighed', children: [] },
     ],
   },
    { key: 'memories', label: 'Minder', href: '/memories', children: [] },
@@ -99,9 +101,9 @@ export const accessHierarchy: AccessEntry[] = [
     label: 'Data',
     href: '/data',
     children: [
-      { key: '/data/sex', label: 'Sex', href: '/data/sex', children: [] },
-      { key: '/data/hverdag', label: 'Hverdag', href: '/data/hverdag', children: [] },
-      { key: '/data/tanker', label: 'Tanker', href: '/data/tanker', children: [] },
+      { key: 'data/sex', label: 'Sex', href: '/data/sex', children: [] },
+      { key: 'data/hverdag', label: 'Hverdag', href: '/data/hverdag', children: [] },
+      { key: 'data/tanker', label: 'Tanker', href: '/data/tanker', children: [] },
     ],
   },
   { key: 'profile', label: 'Profil', href: '/profile', children: [] },
@@ -110,8 +112,8 @@ export const accessHierarchy: AccessEntry[] = [
     label: 'Indstillinger',
     href: '/settings',
     children: [
-      { key: '/settings/error-log', label: 'Error-log', href: '/settings/error-log', children: [] },
-      { key: '/settings/idebank', label: 'Idebank', href: '/settings/idebank', children: [] },
+      { key: 'settings/error-log', label: 'Error-log', href: '/settings/error-log', children: [] },
+      { key: 'settings/idebank', label: 'Idebank', href: '/settings/idebank', children: [] },
       { key: 'settings/widgets/layout', label: 'Layout', href: '/settings/widgets/layout', children: [] },
       { key: 'settings/widgets', label: 'Widgets', href: '/settings/widgets', children: [] },
       { key: 'settings/recommendation', label: 'Anbefaling', href: '/settings/recommendation', children: [] },

@@ -1,42 +1,50 @@
-import React, { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+// /components/BetProbabilityBar.tsx
 
-interface BetProbabilityBarProps {
-  bet: {
-    guess_1_min: number | null;
-    guess_1_max: number | null;
-    guess_2_min: number | null;
-    guess_2_max: number | null;
-    end_at: string;
-    participant_1_avatar?: string;
-    participant_2_avatar?: string;
-    participant_1_name?: string;
-    participant_2_name?: string;
-  };
-  betId: string;
+import React, { useEffect, useState } from "react";
+
+interface Bet {
+  guess_1_min: number;
+  guess_1_max: number;
+  guess_2_min: number;
+  guess_2_max: number;
+  end_at: string;
+  participant_1_name?: string;
+  participant_2_name?: string;
+  participant_1_avatar?: string;
+  participant_2_avatar?: string;
 }
 
-export default function BetProbabilityBar({ bet, betId }: BetProbabilityBarProps) {
-  const [progress, setProgress] = useState<{ date: string; value: number }[]>([]);
-  const [probMads, setProbMads] = useState<number | null>(null);
-  const [probStine, setProbStine] = useState<number | null>(null);
+interface ProgressEntry {
+  date: string;
+  value: number;
+}
+
+export default function BetProbabilityBar({
+  bet,
+  progress,
+}: {
+  bet: Bet;
+  progress: ProgressEntry[];
+}) {
+  const [probMads, setProbMads] = useState(0.5);
+  const [probStine, setProbStine] = useState(0.5);
 
   useEffect(() => {
-    if (!betId) return;
-    (async () => {
-      const { data, error } = await supabase
-        .from("bet_progress")
-        .select("date, value")
-        .eq("bet_id", betId)
-        .order("date", { ascending: true });
-      if (!error && data) setProgress(data);
-    })();
-  }, [betId]);
+    if (!bet || !progress || progress.length === 0) {
+      setProbMads(0.5);
+      setProbStine(0.5);
+      return;
+    }
 
-  useEffect(() => {
-    if (!bet || progress.length === 0) return;
+    let stagnantDays = 0;
+    if (progress.length > 1) {
+      let last = progress[progress.length - 1].value;
+      for (let i = progress.length - 2; i >= 0; i--) {
+        if (progress[i].value === last) stagnantDays++;
+        else break;
+      }
+    }
 
-    // Beregn perDay KUN ud fra de sidste 2 datapunkter (aktuelt tempo)
     let perDay = 0;
     if (progress.length >= 2) {
       const penultimate = progress[progress.length - 2];
@@ -44,13 +52,12 @@ export default function BetProbabilityBar({ bet, betId }: BetProbabilityBarProps
       const days = Math.max(
         1,
         Math.round(
-          (new Date(last.date).getTime() - new Date(penultimate.date).getTime()) /
+          (new Date(last.date).getTime() -
+            new Date(penultimate.date).getTime()) /
             (1000 * 60 * 60 * 24)
         )
       );
       perDay = (last.value - penultimate.value) / days;
-    } else {
-      perDay = 0;
     }
 
     const v1 = progress[progress.length - 1].value;
@@ -61,24 +68,28 @@ export default function BetProbabilityBar({ bet, betId }: BetProbabilityBarProps
       Math.round((end - now) / (1000 * 60 * 60 * 24))
     );
 
-    // Hvis ingen nye likes, så forvent ingen flere likes!
-    const projected = Math.round(v1 + daysLeft * perDay);
+    let projected = Math.round(v1 + daysLeft * perDay);
 
-    let p1 = 0,
-      p2 = 0;
+    let p1 = 0;
+    let p2 = 0;
+
     if (
       typeof bet.guess_1_min === "number" &&
       typeof bet.guess_1_max === "number" &&
       typeof bet.guess_2_min === "number" &&
       typeof bet.guess_2_max === "number"
     ) {
-      const in1 = projected >= bet.guess_1_min && projected <= bet.guess_1_max;
-      const in2 = projected >= bet.guess_2_min && projected <= bet.guess_2_max;
+      const in1 =
+        projected >= bet.guess_1_min && projected <= bet.guess_1_max;
+      const in2 =
+        projected >= bet.guess_2_min && projected <= bet.guess_2_max;
 
       if (in1 && !in2) p1 = 1;
       else if (!in1 && in2) p2 = 1;
-      else if (in1 && in2) p1 = p2 = 0.5;
-      else {
+      else if (in1 && in2) {
+        p1 = 0.5;
+        p2 = 0.5;
+      } else {
         const dTo1 = Math.min(
           Math.abs(projected - bet.guess_1_min),
           Math.abs(projected - bet.guess_1_max)
@@ -87,54 +98,53 @@ export default function BetProbabilityBar({ bet, betId }: BetProbabilityBarProps
           Math.abs(projected - bet.guess_2_min),
           Math.abs(projected - bet.guess_2_max)
         );
-        if (dTo1 + dTo2 === 0) {
-          p1 = p2 = 0.5;
-        } else {
-          p1 = dTo2 / (dTo1 + dTo2);
-          p2 = dTo1 / (dTo1 + dTo2);
+
+        let madsFavor = 0.5;
+        if (stagnantDays >= 5 && v1 < bet.guess_2_min) {
+          madsFavor = Math.min(0.9, 0.5 + stagnantDays * 0.07);
+        } else if (stagnantDays >= 3 && v1 < bet.guess_2_min) {
+          madsFavor = 0.7;
+        }
+        const totalDist = dTo1 + dTo2;
+        if (totalDist > 0) {
+          p1 = (dTo2 / totalDist) * madsFavor;
+          p2 = (dTo1 / totalDist) * (1 - madsFavor);
         }
       }
     }
-    setProbMads(p1);
-    setProbStine(p2);
+
+    // Normalisering
+    const total = p1 + p2;
+    setProbMads(total > 0 ? p1 / total : 0.5);
+    setProbStine(total > 0 ? p2 / total : 0.5);
   }, [progress, bet]);
 
-  if (probMads === null || probStine === null) return null;
-
-  const madsAvatar = bet.participant_1_avatar || "/dummy-avatar.jpg";
-  const stineAvatar = bet.participant_2_avatar || "/dummy-avatar.jpg";
-
-  return (
-    <div className="mt-2 bg-white rounded-2xl shadow px-5 py-4 flex flex-col items-center">
-      <div className="w-full flex items-center gap-2 mb-2">
-        <img
-          src={madsAvatar}
-          alt=""
-          className="w-8 h-8 rounded-full border border-gray-300 object-cover"
-        />
-        <div className="flex-1 bg-gray-200 h-5 rounded-full overflow-hidden relative">
-          <div
-            className="bg-[#0077b5] h-full transition-all"
-            style={{ width: `${probMads * 100}%` }}
-          />
-          <div
-            className="bg-[#00c389] h-full transition-all absolute top-0"
-            style={{
-              width: `${probStine * 100}%`,
-              left: `${probMads * 100}%`,
-            }}
-          />
-        </div>
-        <img
-          src={stineAvatar}
-          alt=""
-          className="w-8 h-8 rounded-full border border-gray-300 object-cover"
-        />
+return (
+  <div className="my-2">
+    <div className="mb-1 flex justify-between text-xs font-semibold">
+      <div className="flex-1 text-left text-pink-600">
+        Stine: {(probStine * 100).toFixed(0)}%
       </div>
-      <div className="w-full flex justify-between text-xs text-gray-600">
-        <span>{Math.round(probMads * 100)}% chance</span>
-        <span>{Math.round(probStine * 100)}% chance</span>
+      <div className="flex-1 text-right text-blue-700">
+        Mads: {(probMads * 100).toFixed(0)}%
       </div>
     </div>
-  );
+    <div className="w-full h-5 rounded-xl bg-gray-200 flex overflow-hidden shadow-inner">
+      <div
+        className="h-full bg-pink-400 transition-all"
+        style={{ width: `${probStine * 100}%` }}
+      />
+      <div
+        className="h-full bg-blue-500 transition-all"
+        style={{ width: `${probMads * 100}%` }}
+      />
+    </div>
+
+  </div>
+);
+
+
+
+
+
 }
