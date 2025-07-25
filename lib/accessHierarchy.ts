@@ -26,6 +26,8 @@ export const accessHierarchy: AccessEntry[] = [
     children: [
       { key: 'fantasy/fantasier', label: 'Fantasier', href: '/fantasy', children: [] },
       { key: 'sex/positions', label: 'Inspiration', href: '/sex/positions', children: [] },
+      { key: 'sex/match-truths', label: 'Sandhed Match', href: '/sex/match-truths', children: [] },
+      { key: 'fantasy/menu-editor/naughty-profile', label: 'Menukort', href: '/fantasy/menu-editor/naughty-profile', children: [] },
     ],
   },
  {
@@ -72,7 +74,6 @@ export const accessHierarchy: AccessEntry[] = [
       { key: 'spil/memorygaver', label: 'Memory', href: '/spil/memorygaver', children: [] },
       { key: 'spil/quiz', label: 'Quiz', href: '/spil/quizzen', children: [] },
       { key: 'spil/knob', label: 'Min knap', href: '/spil/knob', children: [] },
-      { key: 'spil/aerlighed', label: 'Ærligheden', href: '/spil/aerlighed', children: [] },
     ],
   },
    { key: 'memories', label: 'Minder', href: '/memories', children: [] },

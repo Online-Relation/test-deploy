@@ -1,5 +1,4 @@
 // /data/hverdag/page.tsx
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -106,6 +105,22 @@ function extractGifts(data: any[]): { what: string; cost: number; date: string }
   return gifts;
 }
 
+// --- NY: DATEDAY GAVER UDTRÆK ---
+function extractDatedayGifts(data: any[]): { cost: number }[] {
+  const gifts: { cost: number }[] = [];
+  for (const row of data) {
+    if (row.dateday === true && Array.isArray(row.dateday_gifts)) {
+      for (const g of row.dateday_gifts) {
+        let cost = 0;
+        if (typeof g.giftCost === "number") cost = g.giftCost;
+        else if (typeof g.giftCost === "string") cost = parseFloat(g.giftCost.replace(",", ".")) || 0;
+        gifts.push({ cost });
+      }
+    }
+  }
+  return gifts;
+}
+
 export default function HverdagData() {
   // State
   const [moodCounts, setMoodCounts] = useState<number[]>([0, 0, 0, 0, 0]);
@@ -190,19 +205,28 @@ export default function HverdagData() {
 
       // ---- GAVE AGGREGAT (samler ALLE gaver) ----
       const allGifts = extractGifts(data || []);
-      setGiftTotal(allGifts.length);
-      setGiftSum(allGifts.reduce((sum, g) => sum + (g.cost || 0), 0));
+      const allDatedayGifts = extractDatedayGifts(data || []);
+
+      const totalCosts = [
+        ...allGifts.map(g => g.cost),
+        ...allDatedayGifts.map(g => g.cost),
+      ];
+
+      const giftTotalCount = totalCosts.length;
+      const giftSumTotal = totalCosts.reduce((sum, c) => sum + c, 0);
+
+      setGiftTotal(giftTotalCount);
+      setGiftSum(giftSumTotal);
       setLastGiftDate(allGifts.length > 0 ? allGifts[allGifts.length - 1].date : null);
 
       // NYT: Gennemsnit pr. dag – starter fra 2025-07-11 til i dag (inkl.)
       let avgPrice = null;
-      if (allGifts.length > 0) {
+      if (giftTotalCount > 0) {
         const FIXED_START_DATE = toMidnight(new Date("2025-07-11"));
-        const endDate = toMidnight(new Date()); // i dag, midnat
-        const diffDays =
-          Math.floor((endDate.getTime() - FIXED_START_DATE.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        const endDate = toMidnight(new Date());
+        const diffDays = Math.floor((endDate.getTime() - FIXED_START_DATE.getTime()) / (1000 * 60 * 60 * 24)) + 1;
         if (diffDays > 0) {
-          avgPrice = (allGifts.reduce((sum, g) => sum + (g.cost || 0), 0) / diffDays).toFixed(2);
+          avgPrice = (giftSumTotal / diffDays).toFixed(2);
         }
       }
       setAvgPricePerDay(avgPrice);
@@ -563,17 +587,16 @@ export default function HverdagData() {
               }
             </div>
             <div className="text-sm text-gray-500 mt-1">
-              Antal gaver: <b>{giftTotal}</b>
+              Antal gaver (inkl. dates): <b>{giftTotal}</b>
             </div>
             <div className="text-sm text-gray-500">
-              Total værdi: <b>{giftSum} kr.</b>
+              Total værdi (inkl. dates): <b>{giftSum} kr.</b>
             </div>
             {avgPricePerDay && (
-  <div className="text-sm text-gray-500 mt-1">
-    Det koster dig i gennemsnit <b>{avgPricePerDay} kr.</b> pr dag at have en kæreste (siden 11/7-2025).
-  </div>
-)}
-
+              <div className="text-sm text-gray-500 mt-1">
+                Det koster dig i gennemsnit <b>{avgPricePerDay} kr.</b> pr dag at have en kæreste (siden 11/7-2025).
+              </div>
+            )}
           </div>
 
           {/* ALKOHOL */}

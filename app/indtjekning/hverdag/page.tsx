@@ -1,5 +1,4 @@
 // app/indtjekning/hverdag/page.tsx
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -80,6 +79,10 @@ export default function IndtjekningHverdag() {
   const [gifts, setGifts] = useState([{ giftWhat: "", giftCost: "" }]);
   const [flowers, setFlowers] = useState("nej");
   const [alcohol, setAlcohol] = useState("nej");
+
+  // Dateday og tilhørende gaver:
+  const [dateday, setDateday] = useState("nej");
+  const [datedayGifts, setDatedayGifts] = useState([{ giftWhat: "", giftCost: "" }]);
 
   const baseChips = flattenChips(CHIP_CATEGORIES_INIT);
 
@@ -175,9 +178,13 @@ export default function IndtjekningHverdag() {
     setHonestyTalk(item.honesty_talk ? "ja" : "nej");
     setHonestyTopic(item.honesty_topic || "");
     setGift(item.gift ? "ja" : "nej");
-    setGifts(item.gifts && Array.isArray(item.gifts) && item.gift ? item.gifts : [{ giftWhat: "", giftCost: "" }]);
+    setGifts(item.gift && Array.isArray(item.gifts) ? item.gifts : [{ giftWhat: "", giftCost: "" }]);
     setFlowers(item.flowers ? "ja" : "nej");
     setAlcohol(item.alcohol ? "ja" : "nej");
+
+    // Dateday
+    setDateday(item.dateday || "nej");
+    setDatedayGifts(item.dateday_gifts && Array.isArray(item.dateday_gifts) ? item.dateday_gifts : [{ giftWhat: "", giftCost: "" }]);
 
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -212,6 +219,9 @@ export default function IndtjekningHverdag() {
           gifts: gift === "ja" ? gifts : null,
           flowers: flowers === "ja",
           alcohol: alcohol === "ja",
+
+          dateday: dateday === "ja",
+          dateday_gifts: dateday === "ja" ? datedayGifts : null,
         })
         .eq("id", editingId);
     } else {
@@ -232,11 +242,13 @@ export default function IndtjekningHverdag() {
           gifts: gift === "ja" ? gifts : null,
           flowers: flowers === "ja",
           alcohol: alcohol === "ja",
+
+          dateday: dateday === "ja",
+          dateday_gifts: dateday === "ja" ? datedayGifts : null,
         });
     }
     const { error } = result;
 
-    // --- NYT: Hvis blomster er ja, indsæt i flowers_log ---
     if (!error && flowers === "ja" && user?.id) {
       const now = new Date().toISOString();
       const { error: flowerError } = await supabase
@@ -255,13 +267,15 @@ export default function IndtjekningHverdag() {
       setIlyWho("");
       setEditingId(null);
 
-      // NULSTIL nye felter:
       setHonestyTalk("nej");
       setHonestyTopic("");
       setGift("nej");
       setGifts([{ giftWhat: "", giftCost: "" }]);
       setFlowers("nej");
       setAlcohol("nej");
+
+      setDateday("nej");
+      setDatedayGifts([{ giftWhat: "", giftCost: "" }]);
     } else {
       alert("Der opstod en fejl! Prøv igen.");
     }
@@ -277,13 +291,15 @@ export default function IndtjekningHverdag() {
     setSelectedTags([]);
     setIlyWho("");
 
-    // NULSTIL nye felter:
     setHonestyTalk("nej");
     setHonestyTopic("");
     setGift("nej");
     setGifts([{ giftWhat: "", giftCost: "" }]);
     setFlowers("nej");
     setAlcohol("nej");
+
+    setDateday("nej");
+    setDatedayGifts([{ giftWhat: "", giftCost: "" }]);
   }
 
   if (done) {
@@ -345,6 +361,11 @@ export default function IndtjekningHverdag() {
         setFlowers={setFlowers}
         alcohol={alcohol}
         setAlcohol={setAlcohol}
+
+        dateday={dateday}
+        setDateday={setDateday}
+        datedayGifts={datedayGifts}
+        setDatedayGifts={setDatedayGifts}
       />
       <LatestRegistrations latest={latest} fetching={fetching} errorMsg={errorMsg} onEdit={loadForEdit} />
     </div>

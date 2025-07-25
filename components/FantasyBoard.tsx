@@ -66,6 +66,12 @@ export default function FantasyBoard() {
     ? fantasies.filter((f) => f.category === filterCategory)
     : fantasies;
 
+  // --- TÆLLER TIL HVER KOLONNE ---
+  const fantasyCountByStatus = fantasyStatuses.reduce((acc, { key }) => {
+    acc[key] = filteredFantasies.filter((f) => f.status === key).length;
+    return acc;
+  }, {} as Record<string, number>);
+
   const onDragEnd = async (event: any) => {
     await handleDragEnd(event);
   };
@@ -258,69 +264,68 @@ export default function FantasyBoard() {
         ))}
       </div>
 
-  <DndContext
-  sensors={sensors}
-  collisionDetection={rectIntersection}
-  onDragEnd={onDragEnd}
->
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-    {fantasyStatuses.map(({ key }) => {
-  const { setNodeRef } = useDroppable({ id: key });
+      <DndContext
+        sensors={sensors}
+        collisionDetection={rectIntersection}
+        onDragEnd={onDragEnd}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {fantasyStatuses.map(({ key, label }) => {
+            const { setNodeRef } = useDroppable({ id: key });
 
-  return (
-    <div
-      key={key}
-      id={key}
-      ref={setNodeRef}
-      data-testid={`dropzone-${key}`}
-      className="min-h-[300px] bg-muted/10 rounded-xl p-4 transition-all border-2 border-dashed border-transparent hover:border-primary"
-    >
-      <h2 className="text-xl font-semibold mb-4 text-foreground">
-        {fantasyStatuses.find((s) => s.key === key)?.label || key}
-      </h2>
-      {filteredFantasies
-        .filter((f) => f.status === key)
-        .map((fantasy) => (
-          <DraggableCard
-            key={fantasy.id}
-            fantasy={fantasy}
-            onView={() => setSelectedFantasy(fantasy)}
-            profileMap={profileMap}
-            xpMapStine={xpMapStine}
-            fantasyCategories={fantasyCategories}
-          />
-        ))}
-    </div>
-  );
-})}
-
-  </div>
-</DndContext>
-
-
+            return (
+              <div
+                key={key}
+                id={key}
+                ref={setNodeRef}
+                data-testid={`dropzone-${key}`}
+                className="min-h-[300px] bg-muted/10 rounded-xl p-4 transition-all border-2 border-dashed border-transparent hover:border-primary"
+              >
+                <h2 className="text-xl font-semibold mb-4 text-foreground">
+                  {label}{' '}
+                  <span className="text-sm text-muted-foreground">
+                    ({fantasyCountByStatus[key] || 0})
+                  </span>
+                </h2>
+                {filteredFantasies
+                  .filter((f) => f.status === key)
+                  .map((fantasy) => (
+                    <DraggableCard
+                      key={fantasy.id}
+                      fantasy={fantasy}
+                      onView={() => setSelectedFantasy(fantasy)}
+                      profileMap={profileMap}
+                      xpMapStine={xpMapStine}
+                      fantasyCategories={fantasyCategories}
+                    />
+                  ))}
+              </div>
+            );
+          })}
+        </div>
+      </DndContext>
 
       {selectedFantasy && (
         <Modal
-  title={selectedFantasy.title}
-  onClose={() => setSelectedFantasy(null)}
-  fantasy={selectedFantasy}
-  newFantasy={newFantasyData}
-  setNewFantasy={setNewFantasyData}
-  readOnly={true}
-  children={
-    <button
-      className="btn-primary mt-4"
-      onClick={(e) => {
-        e.stopPropagation();
-        setEditingFantasy(selectedFantasy);
-        setSelectedFantasy(null);
-      }}
-    >
-      Redigér
-    </button>
-  }
-/>
-
+          title={selectedFantasy.title}
+          onClose={() => setSelectedFantasy(null)}
+          fantasy={selectedFantasy}
+          newFantasy={newFantasyData}
+          setNewFantasy={setNewFantasyData}
+          readOnly={true}
+          children={
+            <button
+              className="btn-primary mt-4"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingFantasy(selectedFantasy);
+                setSelectedFantasy(null);
+              }}
+            >
+              Redigér
+            </button>
+          }
+        />
       )}
 
       {editingFantasy && (

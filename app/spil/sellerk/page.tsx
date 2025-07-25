@@ -1,5 +1,3 @@
-// /app/spil/sellerk/page.tsx
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -78,12 +76,14 @@ export default function SellerkGamePage() {
     stine: 0,
   });
 
+  const [usedCardIdsForTurn, setUsedCardIdsForTurn] = useState<string[]>([]);
+
   useEffect(() => {
     const fetchData = async () => {
       const [{ data: qData }, { data: profileData }, { data: xpData }, { data: themeData }] = await Promise.all([
         supabase.from("truth_dare_cards").select("id, text, type, difficulty, category, created_at"),
         supabase.from("profiles").select("id, role, display_name, avatar_url").in("role", ["mads", "stine"]),
-        supabase.from("xp_settings").select("role, action, effort, xp").in("action", ["complete_truth_dare", "reject_truth_dare"]),
+        supabase.from("xp_settings").select("role, action, effort, xp").in("action", ["complete_truth_dare", "reject_truth_dare", "maybe_truth_dare"]),
         supabase.from("game_themes").select("name, background_class, card_class, button_class"),
       ]);
 
@@ -139,81 +139,6 @@ export default function SellerkGamePage() {
     setIsWildcard((usedIds.length + 1) % 20 === 0);
   }, [usedIds]);
 
-const drawCard = async (type: "truth" | "dare") => {
-  const userId = userIdMap[turn];
-  if (!userId) return;
-
-  const { data: allCards } = await supabase.from("truth_dare_cards").select("*").eq("type", type);
-  if (!allCards) return;
-
-  const { data: log } = await supabase.from("truth_dare_log").select("card_id").eq("user_id", userId);
-  const usedCardIds = new Set(log?.map((entry) => entry.card_id));
-
-  const availableCards = allCards.filter((card) => {
-    const notUsed = !usedCardIds.has(card.id);
-    const matchesTheme = theme === "default" ? true : card.category === theme;
-
-    return notUsed && matchesTheme;
-  });
-
-  if (availableCards.length === 0) {
-    setCurrentCard({ id: "none", text: "Ingen kort tilbage i bunken.", type });
-    setShowTypeChoice(false);
-    return;
-  }
-
-  const selected = availableCards[Math.floor(Math.random() * availableCards.length)];
-
-  setCurrentCard(selected);
-  setUsedIds((prev) => [...prev, selected.id]);
-  setShowTypeChoice(false);
-};
-
-
-  const logXP = async (action: string) => {
-    if (!user || !currentCard || currentCard.id === "none") return;
-
-    const effortKey = currentCard.difficulty ?? "none";
-    const xpKey = `${turn}_${action}_${effortKey}`;
-    const xp = xpMap[xpKey] ?? 0;
-
-    await supabase.from("xp_log").insert({
-      user_id: user.id,
-      role: turn,
-      change: xp,
-      description: `Sandhed eller konsekvens (${action === "reject_truth_dare" ? "fravalgt" : currentCard.type})`,
-    });
-
-    const targetUserId = userIdMap[turn];
-await supabase.from("truth_dare_log").insert({
-  user_id: targetUserId,
-  card_id: currentCard.id,
-});
-
-setUsedCardIdsForTurn((prev) => [...prev, currentCard.id]);
-
-    setStats((prev) => {
-      const copy = { ...prev };
-      if (action === "reject_truth_dare") copy[turn].skipped++;
-      else copy[turn].success++;
-      return copy;
-    });
-
-    setEarnedXP((prev) => ({ ...prev, [turn]: prev[turn] + xp }));
-    nextTurn();
-  };
-
-  const nextTurn = () => {
-    setShowTypeChoice(true);
-    setCurrentCard(null);
-    setTurn((prev) => (prev === "mads" ? "stine" : "mads"));
-  };
-
-  const themeStyle = themeStyles[theme] || themeStyles.default;
-
-  // Indsættet her:
-    const [usedCardIdsForTurn, setUsedCardIdsForTurn] = useState<string[]>([]);
-
   useEffect(() => {
     const fetchUsedCards = async () => {
       const userId = userIdMap[turn];
@@ -238,6 +163,77 @@ setUsedCardIdsForTurn((prev) => [...prev, currentCard.id]);
       });
     }
   }, [currentCard]);
+
+  const nextTurn = () => {
+    setShowTypeChoice(true);
+    setCurrentCard(null);
+    setTurn((prev) => (prev === "mads" ? "stine" : "mads"));
+  };
+
+  const drawCard = async (type: "truth" | "dare") => {
+    const userId = userIdMap[turn];
+    if (!userId) return;
+
+    const { data: allCards } = await supabase.from("truth_dare_cards").select("*").eq("type", type);
+    if (!allCards) return;
+
+    const { data: log } = await supabase.from("truth_dare_log").select("card_id").eq("user_id", userId);
+    const usedCardIds = new Set(log?.map((entry) => entry.card_id));
+
+    const availableCards = allCards.filter((card) => {
+      const notUsed = !usedCardIds.has(card.id);
+      const matchesTheme = theme === "default" ? true : card.category === theme;
+      return notUsed && matchesTheme;
+    });
+
+    if (availableCards.length === 0) {
+      setCurrentCard({ id: "none", text: "Ingen kort tilbage i bunken.", type });
+      setShowTypeChoice(false);
+      return;
+    }
+
+    const selected = availableCards[Math.floor(Math.random() * availableCards.length)];
+
+    setCurrentCard(selected);
+    setUsedIds((prev) => [...prev, selected.id]);
+    setShowTypeChoice(false);
+  };
+
+  const logXP = async (action: string, answer?: "no" | "maybe" | "yes") => {
+    if (!user || !currentCard || currentCard.id === "none") return;
+
+    const effortKey = currentCard.difficulty ?? "none";
+    const xpKey = `${turn}_${action}_${effortKey}`;
+    const xp = xpMap[xpKey] ?? 0;
+
+    await supabase.from("xp_log").insert({
+      user_id: user.id,
+      role: turn,
+      change: xp,
+      description: `Sandhed eller konsekvens (${action === "reject_truth_dare" ? "fravalgt" : currentCard.type})`,
+    });
+
+    const targetUserId = userIdMap[turn];
+    await supabase.from("truth_dare_log").insert({
+      user_id: targetUserId,
+      card_id: currentCard.id,
+      answer: answer ?? null,
+    });
+
+    setUsedCardIdsForTurn((prev) => [...prev, currentCard.id]);
+
+    setStats((prev) => {
+      const copy = { ...prev };
+      if (action === "reject_truth_dare") copy[turn].skipped++;
+      else copy[turn].success++;
+      return copy;
+    });
+
+    setEarnedXP((prev) => ({ ...prev, [turn]: prev[turn] + xp }));
+    nextTurn();
+  };
+
+  const themeStyle = themeStyles[theme] || themeStyles.default;
 
   return (
     <div className={`flex flex-col items-center justify-center min-h-screen gap-6 pt-2 px-4 pb-12 max-w-xl mx-auto border rounded-xl ${themeStyle.background}`}>
@@ -265,15 +261,14 @@ setUsedCardIdsForTurn((prev) => [...prev, currentCard.id]);
         {Object.entries(players).map(([key, player]) => {
           const isActive = key === turn;
           const remainingTruth =
-  theme === "default"
-    ? questions.filter((q) => q.type === "truth" && !usedCardIdsForTurn.includes(q.id)).length
-    : questions.filter((q) => q.category === theme && q.type === "truth" && !usedCardIdsForTurn.includes(q.id)).length;
+            theme === "default"
+              ? questions.filter((q) => q.type === "truth" && !usedCardIdsForTurn.includes(q.id)).length
+              : questions.filter((q) => q.category === theme && q.type === "truth" && !usedCardIdsForTurn.includes(q.id)).length;
 
-const remainingDare =
-  theme === "default"
-    ? questions.filter((q) => q.type === "dare" && !usedCardIdsForTurn.includes(q.id)).length
-    : questions.filter((q) => q.category === theme && q.type === "dare" && !usedCardIdsForTurn.includes(q.id)).length;
-
+          const remainingDare =
+            theme === "default"
+              ? questions.filter((q) => q.type === "dare" && !usedCardIdsForTurn.includes(q.id)).length
+              : questions.filter((q) => q.category === theme && q.type === "dare" && !usedCardIdsForTurn.includes(q.id)).length;
 
           return (
             <div
@@ -367,15 +362,22 @@ const remainingDare =
               exit={{ opacity: 0, y: 10 }}
               transition={{ duration: 0.2 }}
             >
-              {currentCard?.type === "dare" && (
-                <Button variant="destructive" onClick={() => logXP("reject_truth_dare")}>Jeg sprang fra</Button>
+              {currentCard?.type === "dare" ? (
+                <>
+                  <Button variant="destructive" onClick={() => logXP("reject_truth_dare")}>Jeg sprang fra</Button>
+                  <Button onClick={() => logXP("complete_truth_dare")} className={themeStyle.button}>Jeg fuldførte det!</Button>
+                </>
+              ) : (
+                <>
+                  <Button className={themeStyle.button} onClick={() => logXP("reject_truth_dare", "no")}>No</Button>
+                  <Button className={themeStyle.button} onClick={() => logXP("maybe_truth_dare", "maybe")}>Maybe</Button>
+                  <Button className={themeStyle.button} onClick={() => logXP("complete_truth_dare", "yes")}>Yes</Button>
+                </>
               )}
-              <Button onClick={() => logXP("complete_truth_dare")} className={themeStyle.button}>Jeg fuldførte det!</Button>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
     </div>
   );
-
 }

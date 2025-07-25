@@ -1,4 +1,4 @@
-// components/hverdag/CheckinForm.tsx
+"use client";
 
 import React from "react";
 import CheckinDatePicker from "./CheckinDatePicker";
@@ -55,6 +55,11 @@ interface CheckinFormProps {
   setFlowers: (value: string) => void;
   alcohol: string;
   setAlcohol: (value: string) => void;
+
+  dateday: string;
+  setDateday: (value: string) => void;
+  datedayGifts: Gift[];
+  setDatedayGifts: (gifts: Gift[]) => void;
 }
 
 const CheckinForm: React.FC<CheckinFormProps> = ({
@@ -96,6 +101,11 @@ const CheckinForm: React.FC<CheckinFormProps> = ({
   setFlowers,
   alcohol,
   setAlcohol,
+
+  dateday,
+  setDateday,
+  datedayGifts,
+  setDatedayGifts,
 }) => {
   return (
     <form onSubmit={onSubmit}>
@@ -133,21 +143,22 @@ const CheckinForm: React.FC<CheckinFormProps> = ({
         />
 
         {/* Sagde nogen "jeg elsker dig"? */}
-       <div className="mb-4">
-  <label className="block font-medium mb-1">Hvem sagde "jeg elsker dig" i dag?</label>
-  <select
-    value={ilyWho}
-    onChange={(e) => setIlyWho(e.target.value)}
-    className="border rounded-xl px-3 py-2 w-full"
-  >
-    <option value="">Ingen</option>
-    <option value="partner_first">Min kæreste sagde det først</option>
-    <option value="me_first">Jeg sagde det først</option>
-    <option value="partner_only">Kun min kæreste sagde det</option>
-    <option value="me_only">Kun jeg sagde det</option>
-  </select>
-</div>
-
+        <div className="mb-4">
+          <label className="block font-medium mb-1">
+            Hvem sagde "jeg elsker dig" i dag?
+          </label>
+          <select
+            value={ilyWho}
+            onChange={(e) => setIlyWho(e.target.value)}
+            className="border rounded-xl px-3 py-2 w-full"
+          >
+            <option value="">Ingen</option>
+            <option value="partner_first">Min kæreste sagde det først</option>
+            <option value="me_first">Jeg sagde det først</option>
+            <option value="partner_only">Kun min kæreste sagde det</option>
+            <option value="me_only">Kun jeg sagde det</option>
+          </select>
+        </div>
 
         <MoodBarometer mood={mood} setMood={setMood} />
 
@@ -168,7 +179,7 @@ const CheckinForm: React.FC<CheckinFormProps> = ({
           <label className="block font-medium mb-1">Ærlighedssnak?</label>
           <select
             value={honestyTalk}
-            onChange={e => setHonestyTalk(e.target.value)}
+            onChange={(e) => setHonestyTalk(e.target.value)}
             className="border rounded-xl px-3 py-2 w-full"
           >
             <option value="nej">Nej</option>
@@ -178,7 +189,7 @@ const CheckinForm: React.FC<CheckinFormProps> = ({
             <input
               type="text"
               value={honestyTopic}
-              onChange={e => setHonestyTopic(e.target.value)}
+              onChange={(e) => setHonestyTopic(e.target.value)}
               className="border rounded px-3 py-2 w-full mt-2"
               placeholder="Hvad omhandlede det?"
               maxLength={64}
@@ -186,12 +197,12 @@ const CheckinForm: React.FC<CheckinFormProps> = ({
           )}
         </div>
 
-        {/* Gave: dynamisk array */}
+        {/* Gave */}
         <div className="mb-4">
           <label className="block font-medium mb-1">Gave?</label>
           <select
             value={gift}
-            onChange={e => {
+            onChange={(e) => {
               setGift(e.target.value);
               if (e.target.value === "nej") setGifts([{ giftWhat: "", giftCost: "" }]);
             }}
@@ -207,7 +218,7 @@ const CheckinForm: React.FC<CheckinFormProps> = ({
                   <input
                     type="text"
                     value={g.giftWhat}
-                    onChange={e => {
+                    onChange={(e) => {
                       const newGifts = [...gifts];
                       newGifts[i].giftWhat = e.target.value;
                       setGifts(newGifts);
@@ -219,7 +230,7 @@ const CheckinForm: React.FC<CheckinFormProps> = ({
                   <input
                     type="text"
                     value={g.giftCost}
-                    onChange={e => {
+                    onChange={(e) => {
                       const newGifts = [...gifts];
                       newGifts[i].giftCost = e.target.value;
                       setGifts(newGifts);
@@ -235,7 +246,9 @@ const CheckinForm: React.FC<CheckinFormProps> = ({
                       onClick={() => setGifts(gifts.filter((_, idx) => idx !== i))}
                       tabIndex={-1}
                       title="Fjern gave"
-                    >–</button>
+                    >
+                      –
+                    </button>
                   )}
                 </div>
               ))}
@@ -256,7 +269,7 @@ const CheckinForm: React.FC<CheckinFormProps> = ({
           <label className="block font-medium mb-1">Blomster?</label>
           <select
             value={flowers}
-            onChange={e => setFlowers(e.target.value)}
+            onChange={(e) => setFlowers(e.target.value)}
             className="border rounded-xl px-3 py-2 w-full"
           >
             <option value="nej">Nej</option>
@@ -269,13 +282,85 @@ const CheckinForm: React.FC<CheckinFormProps> = ({
           <label className="block font-medium mb-1">Drak I alkohol?</label>
           <select
             value={alcohol}
-            onChange={e => setAlcohol(e.target.value)}
+            onChange={(e) => setAlcohol(e.target.value)}
             className="border rounded-xl px-3 py-2 w-full"
           >
             <option value="nej">Nej</option>
             <option value="ja">Ja</option>
           </select>
         </div>
+
+        {/* Dateday */}
+        <div className="mb-4">
+          <label className="block font-medium mb-1">Dateday?</label>
+          <select
+            value={dateday}
+            onChange={(e) => {
+              setDateday(e.target.value);
+              if (e.target.value === "nej") setDatedayGifts([{ giftWhat: "", giftCost: "" }]);
+            }}
+            className="border rounded-xl px-3 py-2 w-full"
+          >
+            <option value="nej">Nej</option>
+            <option value="ja">Ja</option>
+          </select>
+        </div>
+
+        {/* Gaver til dateday */}
+        {dateday === "ja" && (
+          <div className="mb-4">
+            <label className="block font-medium mb-1">Gaver til dateday</label>
+            <div className="flex flex-col gap-2 mt-2">
+              {datedayGifts.map((g, i) => (
+                <div key={i} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={g.giftWhat}
+                    onChange={(e) => {
+                      const newGifts = [...datedayGifts];
+                      newGifts[i].giftWhat = e.target.value;
+                      setDatedayGifts(newGifts);
+                    }}
+                    className="border rounded px-3 py-2 w-full"
+                    placeholder="Hvad var gaven?"
+                    maxLength={64}
+                  />
+                  <input
+                    type="text"
+                    value={g.giftCost}
+                    onChange={(e) => {
+                      const newGifts = [...datedayGifts];
+                      newGifts[i].giftCost = e.target.value;
+                      setDatedayGifts(newGifts);
+                    }}
+                    className="border rounded px-3 py-2 w-32"
+                    placeholder="Pris"
+                    maxLength={32}
+                  />
+                  {datedayGifts.length > 1 && (
+                    <button
+                      type="button"
+                      className="text-red-600 font-bold px-2"
+                      onClick={() => setDatedayGifts(datedayGifts.filter((_, idx) => idx !== i))}
+                      tabIndex={-1}
+                      title="Fjern gave"
+                    >
+                      –
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                className="mt-1 px-3 py-1 rounded bg-green-600 text-white font-semibold w-fit"
+                onClick={() => setDatedayGifts([...datedayGifts, { giftWhat: "", giftCost: "" }])}
+                tabIndex={-1}
+              >
+                + Tilføj gave
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Submit & Cancel */}
         <div className="flex gap-3 mt-4">
@@ -284,11 +369,7 @@ const CheckinForm: React.FC<CheckinFormProps> = ({
             type="submit"
             disabled={loading}
           >
-            {loading
-              ? "Gemmer..."
-              : editingId
-              ? "Opdater indtjekning"
-              : "Gem"}
+            {loading ? "Gemmer..." : editingId ? "Opdater indtjekning" : "Gem"}
           </button>
           {editingId && (
             <button

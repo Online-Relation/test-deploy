@@ -1,5 +1,3 @@
-// /components/widgets/ManifestReminderWidget.tsx
-
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -17,11 +15,14 @@ export default function ManifestReminderWidget() {
 
   useEffect(() => {
     async function fetchPoints() {
+      console.log("ManifestReminderWidget: fetching manifestation_points...");
       const { data, error } = await supabase
         .from('manifestation_points')
         .select('id, title, content')
         .eq('remind_me', true)
         .order('created_at', { ascending: true });
+
+      console.log("ManifestReminderWidget: fetch result", { data, error });
 
       if (error || !data || data.length === 0) {
         setPoint(null);
@@ -29,26 +30,35 @@ export default function ManifestReminderWidget() {
         return;
       }
 
-      // Vælg dagens manifest-point (skift hver dag, men random baseret på dag)
+      // Vælg dagens manifest-point
       const dayOfYear = Math.floor(
         (new Date().getTime() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
       );
       const manifestIndex = dayOfYear % data.length;
       const selectedPoint = data[manifestIndex];
+      console.log("ManifestReminderWidget: selectedPoint", selectedPoint);
       setPoint(selectedPoint);
 
       // Split content i afsnit (nummererede eller linjeskift)
       const paragraphs = selectedPoint.content
-        .split(/\n\s*(?=\d+\.\s)/) // splitter på nummererede punkter som "1. xxx"
+        .split(/\n\s*(?=\d+\.\s)/)
         .filter((p: string) => p.trim().length > 0);
 
-      // Udvælg dagens punkt fra afsnittene (så alle punkter kommer i rotation)
+      console.log("ManifestReminderWidget: paragraphs", paragraphs);
+
+      if (paragraphs.length === 0) {
+        setCurrentParagraph(selectedPoint.content);
+        return;
+      }
+
       const paraIndex = dayOfYear % paragraphs.length;
       setCurrentParagraph(paragraphs[paraIndex]);
     }
 
     fetchPoints();
   }, []);
+
+  console.log("ManifestReminderWidget: point", point, "currentParagraph", currentParagraph);
 
   if (!point || !currentParagraph) return null;
 

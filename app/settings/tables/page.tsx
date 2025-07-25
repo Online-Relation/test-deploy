@@ -1,344 +1,335 @@
-// /app/settings/tables/page.tsx
-
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Card } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import GptStatus from "@/components/GptStatus";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { SortableItem } from "@/components/SortableItem";
 
-type Source = {
+interface TableItem {
+  id: string;
   table_name: string;
+  description: string;
   enabled: boolean;
-  description: string | null;
-  priority?: number;
-};
+  priority: number;
+  ignored: boolean;
+}
 
-const GPT_MODELS = [
-  { value: "gpt-3.5-turbo", label: "GPT-3.5" },
-  { value: "gpt-4", label: "GPT-4" },
+const EXCLUDE_TABLES = [
+  "spatial_ref_sys",
+  "geometry_columns",
+  "geography_columns",
+  "raster_columns",
+  "raster_overviews",
+  "topology",
+  "topology_edges",
+  "topology_faces",
+  "topology_nodes",
+  "topology_paths",
+  "topology_topogroups",
 ];
 
-export default function TableSettingsPage() {
-  const [sources, setSources] = useState<Source[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [savingIndex, setSavingIndex] = useState<number | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [rowCounts, setRowCounts] = useState<Record<string, number>>({});
-  const [latestRowCounts, setLatestRowCounts] = useState<Record<string, number>>({});
-  const [newSource, setNewSource] = useState<Source>({
-    table_name: "",
-    enabled: true,
-    description: "",
-    priority: 5,
-  });
-  const [confirmations, setConfirmations] = useState<Record<string, boolean>>({});
-  const [selectedModel, setSelectedModel] = useState("gpt-3.5-turbo");
+export default function SettingsTables() {
+  const [tables, setTables] = useState<TableItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   useEffect(() => {
-    fetchSources();
-    fetchLatestRowCounts();
-    fetchSelectedModel();
+    async function fetchTables() {
+      setLoading(true);
+      setError(null);
+      try {
+        const { data, error } = await supabase
+          .from("recommendation_sources")
+          .select("*")
+          .order("priority", { ascending: true });
+        if (error) throw error;
+
+        const { data: allTables, error: allTablesError } = await supabase.rpc(
+          "get_all_public_tables"
+        );
+        if (allTablesError) throw allTablesError;
+
+        const filteredAllTables = allTables.filter(
+          (tbl: any) => !EXCLUDE_TABLES.includes(tbl.table_name)
+        );
+
+        const existingTableNames = data.map((tbl: TableItem) => tbl.table_name);
+
+        const combinedTables: TableItem[] = [
+          ...data,
+          ...filteredAllTables
+            .filter((tbl: any) => !existingTableNames.includes(tbl.table_name))
+            .map((tbl: any, idx: number) => ({
+              id: `new-${idx}`,
+              table_name: tbl.table_name,
+              description: "",
+              enabled: false,
+              priority: (data?.length || 0) + idx + 1,
+              ignored: false,
+            })),
+        ];
+
+        setTables(combinedTables);
+      } catch (err: any) {
+        setError(err.message || "Fejl ved hentning af tabeller");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchTables();
   }, []);
 
-  const fetchSelectedModel = async () => {
-    const { data } = await supabase
-      .from("gpt_settings")
-      .select("value")
-      .eq("key", "default_model")
-      .maybeSingle();
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    if (!over) return; // Hvis man slipper udenfor
+    if (active.id !== over.id) {
+      setTables((items) => {
+        // Find item og sektion (ignoreret eller ej)
+        const activeItem = items.find((i) => i.id === active.id);
+        const overItem = items.find((i) => i.id === over.id);
+        if (!activeItem || !overItem) return items;
 
-    if (data?.value) {
-      setSelectedModel(data.value);
+        // Sørg for at kun sortere inden for samme sektion (ignoreret eller ej)
+        if (activeItem.ignored !== overItem.ignored) return items;
+
+        // Filtrer tabeller inden for samme sektion
+        const sectionItems = items.filter((i) => i.ignored === activeItem.ignored);
+
+        // Indekser for drag/drop inden for sektion
+        const oldIndex = sectionItems.findIndex((i) => i.id === active.id);
+        const newIndex = sectionItems.findIndex((i) => i.id === over.id);
+
+        // Reorder sektionen
+        const newSection = arrayMove(sectionItems, oldIndex, newIndex).map(
+          (item, index) => ({
+            ...item,
+            priority: index + 1,
+          })
+        );
+
+        // Erstat gamle sektion i hele arrayet
+        const others = items.filter((i) => i.ignored !== activeItem.ignored);
+
+        // Sorter andre sektioner efter priority, så vi har samlet array
+        const combined = [...newSection, ...others].sort(
+          (a, b) => a.priority - b.priority
+        );
+
+        return combined;
+      });
     }
   };
 
-  const updateSelectedModel = async (value: string) => {
-    setSelectedModel(value);
-
-    const { error } = await supabase
-      .from("gpt_settings")
-      .upsert({ key: "default_model", value }, { onConflict: "key" });
-
-    if (!error) {
-      alert("🧠 GPT-model opdateret til: " + value);
-    }
-  };
-
-  const fetchSources = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("recommendation_sources")
-      .select("*")
-      .order("priority", { ascending: true });
-
-    if (error) {
-      console.error("❌ Fejl ved hentning:", error.message);
-      setErrorMsg("Kunne ikke hente tabeller.");
-    } else {
-      setSources(data);
-      fetchCounts(data);
-    }
-
-    setLoading(false);
-  };
-
-  const fetchLatestRowCounts = async () => {
-    const { data } = await supabase
-      .from("overall_meta")
-      .select("row_counts")
-      .order("generated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (data?.row_counts) {
-      setLatestRowCounts(data.row_counts);
-    }
-  };
-
-  const fetchCounts = async (sourceList: Source[]) => {
-    const counts: Record<string, number> = {};
-
-    for (const source of sourceList) {
-      const { count, error } = await supabase
-        .from(source.table_name)
-        .select("*", { count: "exact", head: true });
-
-      counts[source.table_name] = !error && typeof count === "number" ? count : 0;
-    }
-
-    setRowCounts(counts);
-  };
-
-  const handleToggle = (index: number) => {
-    const updated = [...sources];
-    updated[index].enabled = !updated[index].enabled;
-    setSources(updated);
-  };
-
-  const handleDescriptionChange = (index: number, value: string) => {
-    const updated = [...sources];
-    updated[index].description = value;
-    setSources(updated);
-  };
-
-  const handleSave = async (source: Source, index: number) => {
-    if (!source.table_name) {
-      setErrorMsg("Mangler table_name");
-      return;
-    }
-
-    setSavingIndex(index);
-    setErrorMsg(null);
-
-    const { error } = await supabase.from("recommendation_sources").upsert(
-      {
-        table_name: source.table_name,
-        enabled: source.enabled,
-        description: source.description ?? "",
-        priority: source.priority ?? 5,
-      },
-      { onConflict: "table_name" }
+  const toggleEnabled = (id: string) => {
+    setTables((items) =>
+      items.map((item) =>
+        item.id === id ? { ...item, enabled: !item.enabled } : item
+      )
     );
+  };
 
-    if (error) {
-      console.error("Fejl:", error);
-      setErrorMsg("Fejl ved gemning.");
-    } else {
-      setConfirmations((prev) => ({
-        ...prev,
-        [source.table_name]: true,
-      }));
+  const toggleIgnored = (id: string) => {
+    setTables((items) =>
+      items.map((item) =>
+        item.id === id ? { ...item, ignored: !item.ignored } : item
+      )
+    );
+  };
 
-      setTimeout(() => {
-        setConfirmations((prev) => ({
-          ...prev,
-          [source.table_name]: false,
-        }));
-      }, 2000);
+  const updateDescription = (id: string, value: string) => {
+    setTables((items) =>
+      items.map((item) => (item.id === id ? { ...item, description: value } : item))
+    );
+  };
 
-      // sortér efter ny prioritet
-      setSources((prev) =>
-        [...prev].sort((a, b) => (a.priority ?? 99) - (b.priority ?? 99))
+  const updateTableName = (id: string, value: string) => {
+    setTables((items) =>
+      items.map((item) => (item.id === id ? { ...item, table_name: value } : item))
+    );
+  };
+
+  const saveTables = async () => {
+    setSaving(true);
+    setError(null);
+
+    try {
+      const toSave = tables.filter(
+        (t) => t.description.trim() !== "" || t.enabled === true || t.ignored === true
       );
-    }
 
-    setSavingIndex(null);
-  };
+      const { error } = await supabase.from("recommendation_sources").upsert(
+        toSave.map(({ id, ...rest }) => rest),
+        { onConflict: "table_name" }
+      );
 
-  const handleAddSource = async () => {
-    if (!newSource.table_name) {
-      setErrorMsg("Tabellens navn er påkrævet.");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("recommendation_sources")
-      .insert(newSource);
-
-    if (error) {
-      console.error("❌ Fejl ved oprettelse:", error.message);
-      setErrorMsg("Kunne ikke tilføje tabellen.");
-    } else {
-      setErrorMsg(null);
-      setNewSource({ table_name: "", enabled: true, description: "", priority: 5 });
-      await fetchSources();
+      if (error) throw error;
+      alert("Tabeller gemt");
+    } catch (err: any) {
+      setError(err.message || "Fejl ved gem");
+    } finally {
+      setSaving(false);
     }
   };
+
+  // Del tabeller i ignoreret og ikke ignoreret
+  const notIgnoredTables = tables.filter((t) => !t.ignored);
+  const ignoredTables = tables.filter((t) => t.ignored);
 
   return (
-    <div className="max-w-3xl mx-auto p-4 space-y-6">
-      <h1 className="text-xl font-bold">Anbefalingstabeller</h1>
-
-      <div className="flex items-center space-x-4">
-        <Label>GPT-model</Label>
-        <Select value={selectedModel} onValueChange={updateSelectedModel}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Vælg model" />
-          </SelectTrigger>
-          <SelectContent>
-            {GPT_MODELS.map((model) => (
-              <SelectItem key={model.value} value={model.value}>
-                {model.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <GptStatus model={selectedModel} />
-      </div>
-
-      {errorMsg && (
-        <div className="p-2 text-sm text-red-700 border border-red-300 bg-red-100 rounded">
-          {errorMsg}
-        </div>
-      )}
-
+    <div className="max-w-4xl mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-6">Anbefalingstabeller</h1>
       {loading ? (
-        <p>Indlæser...</p>
+        <p>Henter tabeller...</p>
+      ) : error ? (
+        <p className="text-red-600 mb-4">{error}</p>
       ) : (
-        sources.map((source, index) => (
-          <Card key={source.table_name} className="p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-lg">{source.table_name}</Label>
-              <label className="flex items-center space-x-2">
-                <Input
-                  type="checkbox"
-                  checked={source.enabled}
-                  onChange={() => handleToggle(index)}
-                />
-                <span>Aktiv</span>
-              </label>
-            </div>
+        <>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <h2 className="mb-2 font-semibold">Tabeller</h2>
+            <SortableContext
+              items={notIgnoredTables.map((t) => t.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <ul className="mb-8">
+                {notIgnoredTables.map((table) => (
+                  <SortableItem
+                    key={table.id}
+                    id={table.id}
+                    label={
+                      <div className="bg-violet-100 p-4 rounded-lg flex flex-col sm:flex-row gap-4 sm:items-center">
+                        <input
+                          type="text"
+                          className="border border-violet-300 rounded px-3 py-2 w-full sm:w-48"
+                          value={table.table_name}
+                          onChange={(e) => updateTableName(table.id, e.target.value)}
+                          placeholder="Tabelnavn"
+                          disabled={table.ignored}
+                        />
+                        <label className="flex items-center gap-2 cursor-pointer select-none whitespace-nowrap">
+                          <input
+                            type="checkbox"
+                            checked={table.enabled}
+                            onChange={() => toggleEnabled(table.id)}
+                            disabled={table.ignored}
+                            className="w-5 h-5"
+                          />
+                          <span>Aktiv</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer select-none whitespace-nowrap">
+                          <input
+                            type="checkbox"
+                            checked={table.ignored}
+                            onChange={() => toggleIgnored(table.id)}
+                            className="w-5 h-5"
+                          />
+                          <span>Ignorer</span>
+                        </label>
+                        <textarea
+                          className="border border-violet-300 rounded px-3 py-2 flex-grow min-w-[250px] resize-y"
+                          value={table.description}
+                          onChange={(e) => updateDescription(table.id, e.target.value)}
+                          placeholder="Beskrivelse til GPT"
+                          rows={3}
+                          disabled={table.ignored}
+                        />
+                      </div>
+                    }
+                  />
+                ))}
+              </ul>
+            </SortableContext>
 
-            <div>
-              <Label>Beskrivelse til GPT</Label>
-              <Textarea
-                value={sources[index]?.description ?? ""}
-                onChange={(e) => handleDescriptionChange(index, e.target.value)}
-                placeholder="Forklar hvad GPT skal analysere i denne tabel"
-              />
+            {ignoredTables.length > 0 && (
+              <>
+                <h2 className="mb-2 font-semibold text-red-600">Ignorerede tabeller</h2>
+                <SortableContext
+                  items={ignoredTables.map((t) => t.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <ul>
+                    {ignoredTables.map((table) => (
+                      <SortableItem
+                        key={table.id}
+                        id={table.id}
+                        label={
+                          <div className="bg-violet-100 p-4 rounded-lg flex flex-col sm:flex-row gap-4 sm:items-center opacity-50">
+                            <input
+                              type="text"
+                              className="border border-violet-300 rounded px-3 py-2 w-full sm:w-48"
+                              value={table.table_name}
+                              onChange={(e) => updateTableName(table.id, e.target.value)}
+                              placeholder="Tabelnavn"
+                              disabled={table.ignored}
+                            />
+                            <label className="flex items-center gap-2 cursor-pointer select-none whitespace-nowrap">
+                              <input
+                                type="checkbox"
+                                checked={table.enabled}
+                                onChange={() => toggleEnabled(table.id)}
+                                disabled={table.ignored}
+                                className="w-5 h-5"
+                              />
+                              <span>Aktiv</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer select-none whitespace-nowrap">
+                              <input
+                                type="checkbox"
+                                checked={table.ignored}
+                                onChange={() => toggleIgnored(table.id)}
+                                className="w-5 h-5"
+                              />
+                              <span>Ignorer</span>
+                            </label>
+                            <textarea
+                              className="border border-violet-300 rounded px-3 py-2 flex-grow min-w-[250px] resize-y"
+                              value={table.description}
+                              onChange={(e) => updateDescription(table.id, e.target.value)}
+                              placeholder="Beskrivelse til GPT"
+                              rows={3}
+                              disabled={table.ignored}
+                            />
+                          </div>
+                        }
+                      />
+                    ))}
+                  </ul>
+                </SortableContext>
+              </>
+            )}
+          </DndContext>
 
-              <div className="mt-2">
-                <Label>Prioritet (1 = vigtigst)</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={source.priority ?? 5}
-                  onChange={(e) => {
-                    const updated = [...sources];
-                    updated[index].priority = parseInt(e.target.value);
-                    setSources(updated);
-                  }}
-                />
-              </div>
-
-              {confirmations[source.table_name] && (
-                <p className="text-xs text-green-600 mt-1">✅ Opdateret</p>
-              )}
-
-              {rowCounts[source.table_name] !== undefined && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Aktuelle rækker i Supabase: {rowCounts[source.table_name]}
-                </p>
-              )}
-
-              {latestRowCounts[source.table_name] !== undefined && (
-                <p className="text-xs text-blue-600">
-                  Brugte rækker i seneste anbefaling: {latestRowCounts[source.table_name]}
-                </p>
-              )}
-            </div>
-
-            <div className="text-right">
-              <Button
-                disabled={savingIndex === index}
-                onClick={() => handleSave(source, index)}
-              >
-                {savingIndex === index ? "Gemmer..." : "Gem"}
-              </Button>
-            </div>
-          </Card>
-        ))
+          <button
+            onClick={saveTables}
+            disabled={saving}
+            className="mt-4 px-6 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {saving ? "Gemmer..." : "Gem ændringer"}
+          </button>
+        </>
       )}
-
-      <Card className="p-4 space-y-4">
-        <h2 className="text-lg font-semibold">Tilføj ny tabel</h2>
-        <div>
-          <Label>Tabellens navn</Label>
-          <Input
-            placeholder="f.eks. sexlife_logs"
-            value={newSource.table_name}
-            onChange={(e) =>
-              setNewSource((prev) => ({ ...prev, table_name: e.target.value }))
-            }
-          />
-        </div>
-
-        <div>
-          <Label>Beskrivelse</Label>
-          <Textarea
-            placeholder="Forklar hvad GPT skal analysere"
-            value={newSource.description ?? ""}
-            onChange={(e) =>
-              setNewSource((prev) => ({
-                ...prev,
-                description: e.target.value,
-              }))
-            }
-          />
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <Input
-            type="checkbox"
-            checked={newSource.enabled}
-            onChange={(e) =>
-              setNewSource((prev) => ({
-                ...prev,
-                enabled: e.target.checked,
-              }))
-            }
-          />
-          <span>Aktiv</span>
-        </div>
-
-        <div className="text-right">
-          <Button onClick={handleAddSource}>Tilføj tabel</Button>
-        </div>
-      </Card>
     </div>
   );
 }
