@@ -41,7 +41,10 @@ export default function GallerySection({ galleryUrls }: Props) {
       return;
     }
 
-    window.location.reload();
+    if (typeof window !== "undefined") {
+  window.location.reload();
+}
+
   };
 
   const handleImageClick = (url: string) => {
