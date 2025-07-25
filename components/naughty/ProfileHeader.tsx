@@ -129,9 +129,9 @@ export default function ProfileHeader({
 
           <div className="space-y-1 text-pink-800">
             <h2 className="text-2xl font-bold">Stine</h2>
-            <p className="text-sm">Alder: 35 år</p>
-            <p className="text-sm">BH-størrelse: 75C</p>
-            <p className="text-sm">Favoritleg: Rollespil med øjenkontakt</p>
+            <p className="text-sm">Alder: 38 år</p>
+            <p className="text-sm">BH-størrelse: 75B</p>
+            <p className="text-sm">Favoritleg: Når jeg er i centrum</p>
             <p className="text-sm">Elsker at blive rost og overrasket</p>
           </div>
         </div>

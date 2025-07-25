@@ -12,6 +12,7 @@ const RichTextEditor = dynamic(() => import("@/components/ui/RichTextEditor"), {
 
 interface Props {
   myProfileId: string | null;
+  pageProfileId: string | null;
   services?: {
     id: string;
     text: string;
@@ -19,61 +20,124 @@ interface Props {
   }[];
 }
 
-export default function NaughtyServices({ myProfileId, services = [] }: Props) {
+interface Order {
+  id: string;
+  text: string;
+  price: number;
+  buyer_id: string;
+  status: string;
+}
+
+export default function NaughtyServices({ myProfileId, pageProfileId, services = [] }: Props) {
   const [hasMounted, setHasMounted] = useState(false);
   const [description, setDescription] = useState("");
   const [basePrice, setBasePrice] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
+  const [ordered, setOrdered] = useState<string[]>([]);
+  const [incomingOrders, setIncomingOrders] = useState<Order[]>([]);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
 
   useEffect(() => {
     setHasMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!hasMounted || !myProfileId) return;
+    if (!hasMounted || !pageProfileId) return;
 
     const fetchMeta = async () => {
       const { data: meta } = await supabase
         .from("fantasy_menu_meta")
         .select("description, price")
-        .eq("user_id", myProfileId)
+        .eq("user_id", pageProfileId)
         .single();
 
       if (meta?.description) setDescription(meta.description);
       if (meta?.price != null) setBasePrice(meta.price);
     };
 
+    const fetchOrders = async () => {
+      const { data, error } = await supabase
+        .from("fantasy_menu_orders")
+        .select("id, text, price, buyer_id, status")
+        .eq("seller_id", pageProfileId)
+        .eq("status", "ordered");
+
+      if (!error && data) setIncomingOrders(data);
+    };
+
     fetchMeta();
-  }, [myProfileId, hasMounted]);
+    fetchOrders();
+  }, [pageProfileId, hasMounted]);
 
-  const handleSave = async () => {
-    if (!myProfileId) return;
-    const { data: existing } = await supabase
-      .from("fantasy_menu_meta")
-      .select("user_id")
-      .eq("user_id", myProfileId)
-      .maybeSingle();
+  const handleOrder = async (service: { id: string; text: string; extra_price?: number | null }) => {
+    if (!myProfileId || !pageProfileId) return;
+    const price = service.extra_price != null ? service.extra_price : basePrice ?? 0;
 
-    if (existing) {
-      await supabase
-        .from("fantasy_menu_meta")
-        .update({ description })
-        .eq("user_id", myProfileId);
+    const { error } = await supabase.from("fantasy_menu_orders").insert({
+      buyer_id: myProfileId,
+      seller_id: pageProfileId,
+      service_id: service.id,
+      text: service.text,
+      price,
+    });
+
+    if (error) {
+      console.error("Fejl ved bestilling:", error);
     } else {
-      await supabase
-        .from("fantasy_menu_meta")
-        .insert({ user_id: myProfileId, description });
+      setOrdered((prev) => [...prev, service.id]);
     }
-
-    setEditing(false);
   };
-
-  const frækhedsProcent = Math.round(((services?.length || 0) / 30) * 100);
 
   if (!hasMounted) return null;
 
+  const totalPrice = incomingOrders.reduce((sum, order) => sum + order.price, 0);
+
   return (
     <div className="space-y-6">
+      {incomingOrders.length > 0 && myProfileId === pageProfileId && (
+        <div className="bg-white border border-red-300 p-5 rounded-2xl shadow-lg">
+          <h3 className="text-lg font-bold text-red-600 mb-3">Du har en ny bestilling</h3>
+
+          {!paymentConfirmed ? (
+            <>
+              <div className="space-y-3">
+                {incomingOrders.map((order) => (
+                  <div
+                    key={order.id}
+                    className="border border-red-200 rounded-xl p-4 bg-red-50 text-sm text-red-800 shadow-sm"
+                  >
+                    <div className="font-medium">{order.text}</div>
+                    <div className="text-xs mt-1">Pris: {order.price} kr.</div>
+                  </div>
+                ))}
+                <div className="text-right text-sm font-semibold text-red-700 pt-2 border-t border-red-200">
+                  Samlet pris: {totalPrice} kr.
+                </div>
+              </div>
+              <button
+                onClick={() => setPaymentConfirmed(true)}
+                className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg text-sm shadow hover:bg-red-700"
+              >
+                Jeg har modtaget pengene
+              </button>
+            </>
+          ) : (
+            <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-sm text-red-800">
+              <p className="font-semibold mb-2">
+                Sådan, Stine – du er nu officielt købt og bestilt til fræk fornøjelse!
+              </p>
+              <p>
+                Du er lækker, du er eksklusiv, og fra nu af er du på arbejde… på den helt sjove måde.
+              </p>
+              <p className="mt-2">
+                Bare rolig: Det er ikke bare okay at tage imod betaling for at være så fristende – det er faktisk kun rimeligt.
+                Du styrer showet fra nu af – og jeg lover at nyde hver en krone, jeg “bruger” på dig.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="bg-pink-50 border border-pink-200 rounded-xl p-5 shadow">
         {editing ? (
           <div className="space-y-2">
@@ -81,7 +145,7 @@ export default function NaughtyServices({ myProfileId, services = [] }: Props) {
             <div className="flex gap-2">
               <button
                 className="bg-pink-500 text-white px-4 py-1.5 rounded-lg text-sm shadow hover:bg-pink-600"
-                onClick={handleSave}
+                onClick={() => setEditing(false)}
               >
                 Gem
               </button>
@@ -130,6 +194,15 @@ export default function NaughtyServices({ myProfileId, services = [] }: Props) {
               ? `${basePrice} kr.`
               : ""}
           </div>
+          {myProfileId && myProfileId !== pageProfileId && (
+            <button
+              onClick={() => handleOrder(ydelse)}
+              className="ml-4 text-sm text-pink-600 underline hover:text-pink-800"
+              disabled={ordered.includes(ydelse.id)}
+            >
+              {ordered.includes(ydelse.id) ? "Bestilt" : "Bestil"}
+            </button>
+          )}
         </div>
       ))}
     </div>

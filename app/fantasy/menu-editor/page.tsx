@@ -5,16 +5,13 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { useRouter } from "next/navigation";
 import { useUserContext } from "@/context/UserContext";
+import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 
-const SortableItem = dynamic(() => import("@/components/SortableItem") as any, {
+const DndKitWrapper = dynamic(() => import("@/components/naughty/DndKitWrapper"), {
   ssr: false,
 });
-
-
-const DndKitWrapper = dynamic(() => import("@/components/naughty/DndKitWrapper"), { ssr: false });
 
 interface Option {
   id: string;
@@ -26,8 +23,10 @@ interface Option {
 const EDITOR_ID = "190a3151-97bc-43be-9daf-1f3b3062f97f";
 
 export default function MenuSelectPage() {
-  const { user } = useUserContext();
+  console.log("🔄 MenuSelectPage rendering...");
+  const { user, loading } = useUserContext(); // skal altid kaldes uden for betingelser
   const router = useRouter();
+
   const [options, setOptions] = useState<Option[]>([]);
   const [addons, setAddons] = useState<Option[]>([]);
   const [selections, setSelections] = useState<Record<string, "yes" | "no" | null>>({});
@@ -40,11 +39,15 @@ export default function MenuSelectPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [noGoText, setNoGoText] = useState("");
+
   const isEditor = user?.id === EDITOR_ID;
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user) return;
+
     const fetchData = async () => {
+      console.log("📦 Henter data fra Supabase...");
+
       const { data: optionsData } = await supabase
         .from("fantasy_menu_options")
         .select("*")
@@ -74,6 +77,12 @@ export default function MenuSelectPage() {
         .eq("user_id", user.id)
         .single();
 
+      console.log("✅ optionsData:", optionsData);
+      console.log("✅ addonData:", addonData);
+      console.log("✅ items:", items);
+      console.log("✅ metaData:", metaData);
+      console.log("✅ noGoData:", noGoData);
+
       if (metaData) {
         setPrice(metaData.price ?? 100);
         setNotes(metaData.notes ?? "");
@@ -101,43 +110,54 @@ export default function MenuSelectPage() {
     fetchData();
   }, [user?.id]);
 
-  const handleSave = async () => {
-    if (!user?.id) return alert("Bruger ikke fundet");
+ const handleSave = async () => {
+  if (!user) return; // Beskyt mod null user
 
+  console.log("💾 Gemmer valg til Supabase...");
+
+  await supabase
+    .from("fantasy_menu_meta")
+    .upsert(
+      { user_id: user.id, price, addon_price: addonPrice, notes },
+      { onConflict: "user_id" }
+    );
+
+  await supabase
+    .from("fantasy_menu_nogos")
+    .upsert({ user_id: user.id, text: noGoText }, { onConflict: "user_id" });
+
+  const toInsert = Object.entries(selections)
+    .filter(([_, choice]) => choice !== null)
+    .map(([id, choice]) => ({
+      user_id: user.id,
+      text: [...options, ...addons].find((opt) => opt.id === id)?.text ?? "",
+      choice,
+      extra_price: addons.some((a) => a.id === id) ? addonPrice : null,
+      is_selected: choice === "yes",
+    }));
+
+  console.log("📦 Indhold der gemmes:", toInsert);
+
+  if (toInsert.length) {
     await supabase
-      .from("fantasy_menu_meta")
-      .upsert(
-        { user_id: user.id, price, addon_price: addonPrice, notes },
-        { onConflict: "user_id" }
-      );
+      .from("fantasy_menu_items")
+      .upsert(toInsert, { onConflict: "user_id,text" });
+  }
 
-    await supabase
-      .from("fantasy_menu_nogos")
-      .upsert({ user_id: user.id, text: noGoText }, { onConflict: "user_id" });
+  router.push("/fantasy/menu-editor/naughty-profile");
+};
 
-    const toInsert = Object.entries(selections)
-      .filter(([_, choice]) => choice !== null)
-      .map(([id, choice]) => ({
-        user_id: user.id,
-        text: [...options, ...addons].find((opt) => opt.id === id)?.text ?? "",
-        choice,
-        extra_price: addons.some((a) => a.id === id) ? addonPrice : null,
-        is_selected: choice === "yes",
-      }));
 
-    if (toInsert.length) {
-      await supabase
-        .from("fantasy_menu_items")
-        .upsert(toInsert, { onConflict: "user_id,text" });
-    }
-
-    router.push("/fantasy/menu-editor/naughty-profile");
-  };
+  // først her må du returnere tidlig
+  if (loading || !user) {
+    console.log("⏳ Enten loader vi eller mangler user – return null");
+    return null;
+  }
 
   return (
-    <div className="max-w-md mx-auto p-4 space-y-6">
-      <h1 className="text-2xl font-bold text-center flex justify-center items-center gap-2">
-        Stines valg 🍓
+    <div className="max-w-md mx-auto p-4 space-y-6 bg-pink-50 border border-pink-200 rounded-2xl shadow-lg">
+      <h1 className="text-3xl font-bold text-center text-pink-700 flex justify-center items-center gap-2">
+        Stines valg
         {isEditor && (
           <button
             className="ml-2 p-1 text-gray-500 hover:text-black"
@@ -164,19 +184,19 @@ export default function MenuSelectPage() {
       />
 
       <div>
-        <label className="block font-semibold text-red-600">NO-GO zoner eller personlige grænser:</label>
+        <label className="block font-semibold text-pink-600">NO-GO zoner eller personlige grænser:</label>
         <textarea
           value={noGoText}
           onChange={(e) => setNoGoText(e.target.value)}
           rows={4}
-          className="w-full border rounded px-2 py-1"
+          className="w-full border border-pink-300 rounded px-3 py-2"
           placeholder="Skriv fx: ingen analsex, ingen dominans, eller andre vigtige grænser..."
         />
       </div>
 
       <button
         onClick={handleSave}
-        className="w-full bg-blue-600 text-white py-2 rounded mt-6"
+        className="w-full bg-pink-600 hover:bg-pink-700 text-white py-2 rounded-xl font-semibold shadow"
       >
         Gem valgene
       </button>

@@ -1,13 +1,32 @@
+// app/fantasy/menu-editor/naughty-profile/page.tsx
+
 'use client';
 
-import { useSession } from "@supabase/auth-helpers-react";
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import ProfileHeader from "@/components/naughty/ProfileHeader";
-import NaughtyServices from "@/components/naughty/NaughtyServices";
-import GallerySection from "@/components/naughty/GallerySection";
-import NoGoList from "@/components/naughty/NoGoList";
-import Link from "next/link";
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { useRouter } from 'next/navigation';
+import { useUserContext } from '@/context/UserContext';
+import { X, Pencil } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { SortableItem } from '@/components/SortableItem';
+import ProfileHeader from '@/components/naughty/ProfileHeader';
+import NaughtyServices from '@/components/naughty/NaughtyServices';
+import GallerySection from '@/components/naughty/GallerySection';
+import NoGoList from '@/components/naughty/NoGoList';
+import Link from 'next/link';
 
 interface Service {
   id: string;
@@ -17,7 +36,7 @@ interface Service {
 
 export default function NaughtyProfilePage() {
   const [hasMounted, setHasMounted] = useState(false);
-  const session = useSession();
+  const { user } = useUserContext();
   const [myProfileId, setMyProfileId] = useState<string | null>(null);
   const [pageProfileId, setPageProfileId] = useState<string | null>(null);
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
@@ -42,13 +61,13 @@ export default function NaughtyProfilePage() {
       setMyProfileId(myProfileId);
 
       const { data: stineProfile, error: profileError } = await supabase
-        .from("profiles")
-        .select("id, username")
-        .eq("username", "Stine")
+        .from('profiles')
+        .select('id, username')
+        .eq('username', 'Stine')
         .single();
 
       if (profileError) {
-        console.error("Fejl ved hentning af Stine profil:", profileError);
+        console.error('Fejl ved hentning af Stine profil:', profileError);
         return;
       }
 
@@ -57,12 +76,12 @@ export default function NaughtyProfilePage() {
 
         if (!profileImageUrl) {
           const { data: meta, error: metaError } = await supabase
-            .from("fantasy_menu_meta")
-            .select("profile_image_url")
-            .eq("user_id", stineProfile.id)
+            .from('fantasy_menu_meta')
+            .select('profile_image_url')
+            .eq('user_id', stineProfile.id)
             .single();
 
-          if (metaError) console.error("Fejl ved hentning af meta:", metaError);
+          if (metaError) console.error('Fejl ved hentning af meta:', metaError);
 
           if (meta?.profile_image_url) {
             setProfileImageUrl(meta.profile_image_url);
@@ -70,26 +89,26 @@ export default function NaughtyProfilePage() {
         }
 
         const { data: list, error } = await supabase.storage
-          .from("naughty-profile")
-          .list("fantasy-profile/stine/gallery", { limit: 10 });
+          .from('naughty-profile')
+          .list('fantasy-profile/stine/gallery', { limit: 10 });
 
         if (list && !error) {
           const urls = list.map((item) =>
             supabase.storage
-              .from("naughty-profile")
+              .from('naughty-profile')
               .getPublicUrl(`fantasy-profile/stine/gallery/${item.name}`).data.publicUrl
           );
           setGalleryUrls(urls);
         }
 
         const { data: items, error: itemError } = await supabase
-          .from("fantasy_menu_items")
-          .select("id, text, extra_price")
-          .eq("user_id", stineProfile.id)
-          .eq("is_selected", true);
+          .from('fantasy_menu_items')
+          .select('id, text, extra_price')
+          .eq('user_id', stineProfile.id)
+          .eq('is_selected', true);
 
         if (itemError) {
-          console.error("Fejl ved hentning af valgte items:", itemError);
+          console.error('Fejl ved hentning af valgte items:', itemError);
         } else {
           setServices(items ?? []);
         }
@@ -113,7 +132,8 @@ export default function NaughtyProfilePage() {
       />
 
       <NaughtyServices
-        myProfileId={pageProfileId ?? ""}
+        myProfileId={myProfileId}
+        pageProfileId={pageProfileId}
         services={Array.isArray(services) ? services : []}
       />
 
