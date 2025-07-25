@@ -1,5 +1,3 @@
-// app/fantasy/menu-editor/naughty-profile/page.tsx
-
 'use client';
 
 import { useSession } from "@supabase/auth-helpers-react";
@@ -9,7 +7,6 @@ import ProfileHeader from "@/components/naughty/ProfileHeader";
 import NaughtyServices from "@/components/naughty/NaughtyServices";
 import GallerySection from "@/components/naughty/GallerySection";
 import NoGoList from "@/components/naughty/NoGoList";
-
 import Link from "next/link";
 
 interface Service {
@@ -19,6 +16,7 @@ interface Service {
 }
 
 export default function NaughtyProfilePage() {
+  const [hasMounted, setHasMounted] = useState(false);
   const session = useSession();
   const [myProfileId, setMyProfileId] = useState<string | null>(null);
   const [pageProfileId, setPageProfileId] = useState<string | null>(null);
@@ -28,6 +26,12 @@ export default function NaughtyProfilePage() {
   const [services, setServices] = useState<Service[]>([]);
 
   useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasMounted) return;
+
     const fetchData = async () => {
       const {
         data: { session },
@@ -93,7 +97,9 @@ export default function NaughtyProfilePage() {
     };
 
     fetchData();
-  }, []);
+  }, [hasMounted]);
+
+  if (!hasMounted) return null;
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-8">

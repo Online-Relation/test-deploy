@@ -1,11 +1,8 @@
-// components/naughty/ProfileHeader.tsx
-
 "use client";
 
 import Image from "next/image";
 import { useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import heic2any from "heic2any";
 
 interface Service {
   id: string;
@@ -39,6 +36,7 @@ export default function ProfileHeader({
 
     if (file.type === "image/heic" || file.name.endsWith(".HEIC")) {
       try {
+        const heic2any = (await import("heic2any")).default;
         const convertedBlob = await heic2any({ blob: file, toType: "image/jpeg" });
         file = new File([convertedBlob as BlobPart], file.name.replace(/\.heic$/i, ".jpg"), {
           type: "image/jpeg",
@@ -140,21 +138,19 @@ export default function ProfileHeader({
       </div>
 
       <div className="bg-white rounded-2xl shadow-md p-6 md:p-8 space-y-3 mt-6">
-  <p className="text-pink-700 font-semibold">Frækhedsniveau: {niveau}</p>
-  <div className="w-full bg-pink-100 rounded-full h-5 overflow-hidden shadow-inner">
-    <div
-      className="h-full bg-gradient-to-r from-pink-400 to-pink-600 text-right pr-3 text-white text-xs font-bold flex items-center justify-end rounded-full"
-      style={{ width: `${frækhedsProcent}%` }}
-    >
-      {frækhedsProcent}%
-    </div>
-  </div>
-  <p className="text-xs text-gray-500">
-  Baseret på {services?.filter((s) => s.text !== "").length} ud af {services.length} mulige ydelser
-</p>
-
-</div>
-
+        <p className="text-pink-700 font-semibold">Frækhedsniveau: {niveau}</p>
+        <div className="w-full bg-pink-100 rounded-full h-5 overflow-hidden shadow-inner">
+          <div
+            className="h-full bg-gradient-to-r from-pink-400 to-pink-600 text-right pr-3 text-white text-xs font-bold flex items-center justify-end rounded-full"
+            style={{ width: `${frækhedsProcent}%` }}
+          >
+            {frækhedsProcent}%
+          </div>
+        </div>
+        <p className="text-xs text-gray-500">
+          Baseret på {services?.filter((s) => s.text !== "").length} ud af {services.length} mulige ydelser
+        </p>
+      </div>
     </>
   );
 }

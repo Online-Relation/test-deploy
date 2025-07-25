@@ -41,9 +41,10 @@ export default function GallerySection({ galleryUrls }: Props) {
       return;
     }
 
-    if (typeof window !== "undefined") {
+    if (typeof window !== 'undefined') {
   window.location.reload();
 }
+
 
   };
 
