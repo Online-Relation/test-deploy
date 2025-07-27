@@ -81,87 +81,95 @@ export default function DndKitWrapper({
 
   return (
     <>
-      <h2 className="text-xl font-semibold">Ydelser</h2>
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, "option")}> 
-        <SortableContext items={options.map((o) => o.id)} strategy={verticalListSortingStrategy}>
-          {options.map((opt) => (
-            <SortableItem
-              key={opt.id}
-              id={opt.id}
-              label={
-                <div className="flex flex-col w-full">
-                  <span className="text-sm font-medium">{opt.text}</span>
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      onClick={() => handleSelect(opt.id, "yes")}
-                      className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
-                        selections[opt.id] === "yes"
-                          ? "bg-green-500 text-white shadow-md"
-                          : "bg-white text-green-600 border border-green-500 hover:bg-green-100"
-                      }`}
-                    >
-                      Ja
-                    </button>
-                    <button
-                      onClick={() => handleSelect(opt.id, "no")}
-                      className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
-                        selections[opt.id] === "no"
-                          ? "bg-red-500 text-white shadow-md"
-                          : "bg-white text-red-600 border border-red-500 hover:bg-red-100"
-                      }`}
-                    >
-                      Nej
-                    </button>
-                  </div>
-                </div>
-              }
-              onEdit={isEditor ? () => setEditingId(opt.id) : undefined}
-              onDelete={undefined} // Tilføj slet-funktion hvis ønsket
-            />
-          ))}
-        </SortableContext>
-      </DndContext>
+      {options.length > 0 && (
+        <>
+          <h2 className="text-xl font-bold text-pink-500">Ydelser</h2>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, "option")}>
+            <SortableContext items={options.map((o) => o.id)} strategy={verticalListSortingStrategy}>
+              {options.map((opt) => (
+                <SortableItem
+                  key={opt.id}
+                  id={opt.id}
+                  label={
+                    <div className="flex flex-col w-full">
+                      <span className="text-sm font-medium">{opt.text}</span>
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => handleSelect(opt.id, "yes")}
+                          className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
+                            selections[opt.id] === "yes"
+                              ? "bg-green-500 text-white shadow-md"
+                              : "bg-white text-green-600 border border-green-500 hover:bg-green-100"
+                          }`}
+                        >
+                          Ja
+                        </button>
+                        <button
+                          onClick={() => handleSelect(opt.id, "no")}
+                          className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
+                            selections[opt.id] === "no"
+                              ? "bg-red-500 text-white shadow-md"
+                              : "bg-white text-red-600 border border-red-500 hover:bg-red-100"
+                          }`}
+                        >
+                          Nej
+                        </button>
+                      </div>
+                    </div>
+                  }
+                  onEdit={isEditor ? () => setEditingId(opt.id) : undefined}
+                  onDelete={undefined}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+        </>
+      )}
 
-      <h2 className="text-xl font-semibold text-purple-700 mt-6">Tillægsydelser</h2>
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, "addon")}> 
-        <SortableContext items={addons.map((a) => a.id)} strategy={verticalListSortingStrategy}>
-          {addons.map((opt) => (
-            <SortableItem
-              key={opt.id}
-              id={opt.id}
-              label={
-                <div className="flex flex-col w-full">
-                  <span className="text-sm font-medium">{opt.text}</span>
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      onClick={() => handleSelect(opt.id, "yes")}
-                      className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
-                        selections[opt.id] === "yes"
-                          ? "bg-green-500 text-white shadow-md"
-                          : "bg-white text-green-600 border border-green-500 hover:bg-green-100"
-                      }`}
-                    >
-                      Ja
-                    </button>
-                    <button
-                      onClick={() => handleSelect(opt.id, "no")}
-                      className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
-                        selections[opt.id] === "no"
-                          ? "bg-red-500 text-white shadow-md"
-                          : "bg-white text-red-600 border border-red-500 hover:bg-red-100"
-                      }`}
-                    >
-                      Nej
-                    </button>
-                  </div>
-                </div>
-              }
-              onEdit={isEditor ? () => setEditingId(opt.id) : undefined}
-              onDelete={undefined} // Tilføj slet-funktion hvis ønsket
-            />
-          ))}
-        </SortableContext>
-      </DndContext>
+      {addons.length > 0 && (
+        <>
+          
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, "addon")}>
+            <SortableContext items={addons.map((a) => a.id)} strategy={verticalListSortingStrategy}>
+              {addons.map((opt) => (
+                <SortableItem
+                  key={opt.id}
+                  id={opt.id}
+                  label={
+                    <div className="flex flex-col w-full">
+                      <span className="text-sm font-medium">{opt.text}</span>
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => handleSelect(opt.id, "yes")}
+                          className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
+                            selections[opt.id] === "yes"
+                              ? "bg-green-500 text-white shadow-md"
+                              : "bg-white text-green-600 border border-green-500 hover:bg-green-100"
+                          }`}
+                        >
+                          Ja
+                        </button>
+                        <button
+                          onClick={() => handleSelect(opt.id, "no")}
+                          className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
+                            selections[opt.id] === "no"
+                              ? "bg-red-500 text-white shadow-md"
+                              : "bg-white text-red-600 border border-red-500 hover:bg-red-100"
+                          }`}
+                        >
+                          Nej
+                        </button>
+                      </div>
+                    </div>
+                  }
+                  onEdit={isEditor ? () => setEditingId(opt.id) : undefined}
+                  onDelete={undefined}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+        </>
+      )}
     </>
   );
 }
