@@ -63,6 +63,7 @@ export default function DndKitWrapper({
   );
 
   const handleSelect = (id: string, choice: "yes" | "no") => {
+    console.log("handleSelect", id, choice);
     setSelections((prev) => ({ ...prev, [id]: choice }));
   };
 
@@ -128,7 +129,6 @@ export default function DndKitWrapper({
 
       {addons.length > 0 && (
         <>
-          
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, "addon")}>
             <SortableContext items={addons.map((a) => a.id)} strategy={verticalListSortingStrategy}>
               {addons.map((opt) => (

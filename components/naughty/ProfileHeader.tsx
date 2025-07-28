@@ -1,3 +1,5 @@
+// components/naughty/ProfileHeader.tsx
+
 "use client";
 
 import Image from "next/image";
@@ -65,7 +67,7 @@ export default function ProfileHeader({
       .getPublicUrl(filePath);
 
     const newUrl = data.publicUrl;
-    console.log("🖼️ Ny profilbillede-URL:", newUrl);
+    console.log("\ud83c\udfbc\ufe0f Ny profilbillede-URL:", newUrl);
     setProfileImageUrl(newUrl);
 
     const { error: upsertError } = await supabase
@@ -82,12 +84,12 @@ export default function ProfileHeader({
     setUploading(false);
   };
 
-  const frækhedsProcent = Math.round(((services?.length || 0) / 30) * 100);
+  const fr\u00e6khedsProcent = Math.round(((services?.length || 0) / 30) * 100);
   const niveau =
-    frækhedsProcent < 20 ? "💋 Kyssekat" :
-    frækhedsProcent < 50 ? "🔥 Frækkert" :
-    frækhedsProcent < 80 ? "😈 Sengeakrobat" :
-    "💦 Vild viking";
+    fr\u00e6khedsProcent < 20 ? "\ud83d\udc8b Kyssekat" :
+    fr\u00e6khedsProcent < 50 ? "\ud83d\udd25 Fr\u00e6kkert" :
+    fr\u00e6khedsProcent < 80 ? "\ud83d\ude08 Sengeakrobat" :
+    "\ud83d\udca6 Vild viking";
 
   return (
     <>
@@ -96,13 +98,16 @@ export default function ProfileHeader({
           <div className="flex flex-col items-center">
             <div className="relative w-28 h-28 md:w-32 md:h-32">
               {profileImageUrl ? (
-                <Image
-                  src={profileImageUrl}
-                  alt="Profilbillede"
-                  fill
-                  sizes="128px"
-                  className="rounded-full object-cover border-4 border-pink-200 shadow-sm"
-                />
+                <>
+                  <Image
+                    src={profileImageUrl}
+                    alt="Profilbillede"
+                    fill
+                    sizes="128px"
+                    className="rounded-full object-cover border-4 border-pink-200 shadow-sm"
+                  />
+                  <div className="absolute -top-1 -left-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full shadow-md" />
+                </>
               ) : (
                 <div className="w-full h-full bg-gray-200 rounded-full" />
               )}
@@ -129,6 +134,8 @@ export default function ProfileHeader({
 
           <div className="space-y-1 text-pink-800">
             <h2 className="text-2xl font-bold">Stine</h2>
+            <p className="text-xs text-green-600 font-semibold">Online nu</p>
+            <p className="text-sm text-pink-600 font-medium">Åben for bestilling</p>
             <p className="text-sm">Alder: 38 år</p>
             <p className="text-sm">BH-størrelse: 75B</p>
             <p className="text-sm">Favoritleg: Når jeg er i centrum</p>

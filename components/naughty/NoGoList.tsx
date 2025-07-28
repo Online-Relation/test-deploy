@@ -34,7 +34,7 @@ export default function NoGoList({ myProfileId, pageProfileId }: Props) {
     <div className="space-y-4">
       <h2 className="text-2xl font-semibold text-pink-700">No Go's</h2>
       <p className="italic text-sm text-gray-600">
-        Hvad er den største turn off for dig? Er der noget man aldrig skal prøve på i sengen? Fortæl det her, så din partner ved hvad der ikke fungerer for dig.
+        Hvad er den største turn off for dig? Er der noget man aldrig skal prøve på i sengen? Fortæl det her.
       </p>
       <ul className="list-disc list-inside text-red-600">
         {noGoList.map((item, index) => (

@@ -14,6 +14,8 @@ const DndKitWrapper = dynamic(() => import("@/components/naughty/DndKitWrapper")
   ssr: false,
 });
 
+const STINE_ID = "5687c342-1a13-441c-86ca-f7e87e1edbd5";
+
 interface Option {
   id: string;
   text: string;
@@ -40,39 +42,44 @@ export default function MenuSelectPage() {
   const [editText, setEditText] = useState("");
   const [noGoText, setNoGoText] = useState("");
 
+  const [optionAdded, setOptionAdded] = useState(false);
+  const [addonAdded, setAddonAdded] = useState(false);
+
   const isEditor = user?.id === EDITOR_ID;
 
   useEffect(() => {
-    if (!user) return;
-
     const fetchData = async () => {
-      const { data: optionsData } = await supabase
+      const { data: optionsData, error: optionsError } = await supabase
         .from("fantasy_menu_options")
-        .select("*")
-        .eq("is_addon", false)
-        .order("sort_order");
+        .select("id, text, created_by, is_addon")
+        .eq("is_addon", false);
 
-      const { data: addonData } = await supabase
+      if (optionsError) console.error("❌ optionsError", optionsError);
+      console.log("✅ optionsData", optionsData);
+
+      const { data: addonData, error: addonError } = await supabase
         .from("fantasy_menu_options")
-        .select("*")
-        .eq("is_addon", true)
-        .order("sort_order");
+        .select("id, text, created_by, is_addon")
+        .eq("is_addon", true);
+
+      if (addonError) console.error("❌ addonError", addonError);
+      console.log("✅ addonData", addonData);
 
       const { data: items } = await supabase
         .from("fantasy_menu_items")
         .select("text, choice")
-        .eq("user_id", user.id);
+        .eq("user_id", STINE_ID);
 
       const { data: metaData } = await supabase
         .from("fantasy_menu_meta")
         .select("price, addon_price, notes")
-        .eq("user_id", user.id)
+        .eq("user_id", STINE_ID)
         .single();
 
       const { data: noGoData } = await supabase
         .from("fantasy_menu_nogos")
         .select("text")
-        .eq("user_id", user.id)
+        .eq("user_id", STINE_ID)
         .single();
 
       if (metaData) {
@@ -100,55 +107,104 @@ export default function MenuSelectPage() {
     };
 
     fetchData();
-  }, [user?.id]);
+  }, []);
 
   const handleSave = async () => {
-    if (!user) return;
+  console.log("📦 selections", selections);
+  console.log("📦 options", options);
+  console.log("📦 addons", addons);
 
-    await supabase
-      .from("fantasy_menu_meta")
-      .upsert(
-        { user_id: user.id, price, addon_price: addonPrice, notes },
-        { onConflict: "user_id" }
-      );
+  // Gem meta
+  await supabase
+    .from("fantasy_menu_meta")
+    .upsert(
+      { user_id: STINE_ID, price, addon_price: addonPrice, notes },
+      { onConflict: "user_id" }
+    );
 
-    await supabase
-      .from("fantasy_menu_nogos")
-      .upsert({ user_id: user.id, text: noGoText }, { onConflict: "user_id" });
+  // Gem NO-GO tekst
+  await supabase
+    .from("fantasy_menu_nogos")
+    .upsert({ user_id: STINE_ID, text: noGoText }, { onConflict: "user_id" });
 
-    const toInsert = Object.entries(selections)
-      .filter(([_, choice]) => choice !== null)
-      .map(([id, choice]) => ({
-        user_id: user.id,
-        text: [...options, ...addons].find((opt) => opt.id === id)?.text ?? "",
+  // Kombinér alle ydelser
+  const allOptions = [...options, ...addons];
+
+  // Byg listen til insert
+  const toInsert = Object.entries(selections)
+    .filter(([_, choice]) => choice !== null)
+    .map(([id, choice]) => {
+      const match = allOptions.find((opt) => opt.id === id);
+      if (!match) {
+        console.warn("⚠️ Mangler match for ID:", id);
+        return null;
+      }
+
+      return {
+        user_id: STINE_ID,
+        text: match.text,
         choice,
-        extra_price: addons.some((a) => a.id === id) ? addonPrice : null,
+        extra_price: match.is_addon ? addonPrice : null,
         is_selected: choice === "yes",
-      }));
+      };
+    })
+    .filter(Boolean);
 
-    if (toInsert.length) {
-      await supabase
-        .from("fantasy_menu_items")
-        .upsert(toInsert, { onConflict: "user_id,text" });
-    }
+  // Fjern dubletter baseret på user_id + text
+ // Fjern dubletter baseret på user_id + text
+const seen = new Set();
+const filteredToInsert = toInsert.filter((item): item is NonNullable<typeof item> => {
+  if (!item) return false;
+  const key = `${item.user_id}-${item.text}`;
+  if (seen.has(key)) return false;
+  seen.add(key);
+  return true;
+});
 
-    router.push("/fantasy/menu-editor/naughty-profile");
-  };
+
+  console.log("🧾 Klar til at sende til Supabase (uden dubletter):");
+  console.table(filteredToInsert);
+
+  // Gem til Supabase
+  const { error } = await supabase
+    .from("fantasy_menu_items")
+    .upsert(filteredToInsert, { onConflict: "user_id,text" });
+
+  if (error) {
+    console.error("❌ Supabase upsert-fejl", error);
+    return;
+  }
+
+  // Gå videre
+  router.push("/fantasy/menu-editor/naughty-profile");
+};
+
+
 
   const handleAddOption = async () => {
     if (!newOption || !user) return;
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("fantasy_menu_options")
-      .insert({ text: newOption, is_addon: false, created_by: user.id });
-    if (!error) setNewOption("");
+      .insert({ text: newOption, is_addon: false, created_by: STINE_ID })
+      .select();
+    if (!error && data?.[0]) {
+      setOptions((prev) => [...prev, data[0]]);
+      setNewOption("");
+      setOptionAdded(true);
+    }
   };
 
   const handleAddAddon = async () => {
     if (!newAddon || !user) return;
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("fantasy_menu_options")
-      .insert({ text: newAddon, is_addon: true, created_by: user.id });
-    if (!error) setNewAddon("");
+      .insert({ text: newAddon, is_addon: true, created_by: STINE_ID })
+      .select();
+    if (!error && data?.[0]) {
+      setAddons((prev) => [...prev, data[0]]);
+      setNewAddon("");
+      setAddonAdded(true);
+    }
   };
 
   if (loading || !user) return null;
@@ -173,12 +229,16 @@ export default function MenuSelectPage() {
           <input
             type="text"
             value={newOption}
-            onChange={(e) => setNewOption(e.target.value)}
+            onChange={(e) => {
+              setNewOption(e.target.value);
+              setOptionAdded(false);
+            }}
             className="w-full border border-pink-300 rounded px-3 py-2"
           />
           <button onClick={handleAddOption} className="mt-1 bg-pink-600 text-white px-3 py-1 rounded">
             Tilføj
           </button>
+          {optionAdded && <p className="text-xs text-pink-600 mt-1">Tilføjet</p>}
         </div>
 
         <div>
@@ -225,12 +285,16 @@ export default function MenuSelectPage() {
           <input
             type="text"
             value={newAddon}
-            onChange={(e) => setNewAddon(e.target.value)}
+            onChange={(e) => {
+              setNewAddon(e.target.value);
+              setAddonAdded(false);
+            }}
             className="w-full border border-pink-300 rounded px-3 py-2"
           />
           <button onClick={handleAddAddon} className="mt-1 bg-pink-600 text-white px-3 py-1 rounded">
             Tilføj
           </button>
+          {addonAdded && <p className="text-xs text-pink-600 mt-1">Tilføjet</p>}
         </div>
 
         <DndKitWrapper

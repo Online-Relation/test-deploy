@@ -60,6 +60,7 @@ export default function DashboardPage() {
     'active_bet',
     'daily_memory',
     'date_mission',
+    'never_boring_statement',
   ];
 
   useEffect(() => {

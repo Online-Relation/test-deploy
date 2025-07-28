@@ -10,6 +10,8 @@ const RichTextEditor = dynamic(() => import("@/components/ui/RichTextEditor"), {
   ssr: false,
 });
 
+const STINE_ID = "5687c342-1a13-441c-86ca-f7e87e1edbd5";
+
 interface Props {
   myProfileId: string | null;
   pageProfileId: string | null;
@@ -36,6 +38,8 @@ export default function NaughtyServices({ myProfileId, pageProfileId, services =
   const [ordered, setOrdered] = useState<string[]>([]);
   const [incomingOrders, setIncomingOrders] = useState<Order[]>([]);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [countdown, setCountdown] = useState(20);
+  const [showConfirmationBox, setShowConfirmationBox] = useState(true);
 
   useEffect(() => {
     setHasMounted(true);
@@ -48,7 +52,7 @@ export default function NaughtyServices({ myProfileId, pageProfileId, services =
       const { data: meta } = await supabase
         .from("fantasy_menu_meta")
         .select("description, price")
-        .eq("user_id", pageProfileId)
+        .eq("user_id", STINE_ID)
         .single();
 
       if (meta?.description) setDescription(meta.description);
@@ -59,7 +63,7 @@ export default function NaughtyServices({ myProfileId, pageProfileId, services =
       const { data, error } = await supabase
         .from("fantasy_menu_orders")
         .select("id, text, price, buyer_id, status")
-        .eq("seller_id", pageProfileId)
+        .eq("seller_id", STINE_ID)
         .eq("status", "ordered");
 
       if (!error && data) setIncomingOrders(data);
@@ -69,13 +73,30 @@ export default function NaughtyServices({ myProfileId, pageProfileId, services =
     fetchOrders();
   }, [pageProfileId, hasMounted]);
 
+  useEffect(() => {
+    if (!paymentConfirmed) return;
+
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setShowConfirmationBox(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [paymentConfirmed]);
+
   const handleOrder = async (service: { id: string; text: string; extra_price?: number | null }) => {
-    if (!myProfileId || !pageProfileId) return;
+    if (!myProfileId) return;
     const price = service.extra_price != null ? service.extra_price : basePrice ?? 0;
 
     const { error } = await supabase.from("fantasy_menu_orders").insert({
       buyer_id: myProfileId,
-      seller_id: pageProfileId,
+      seller_id: STINE_ID,
       service_id: service.id,
       text: service.text,
       price,
@@ -94,7 +115,7 @@ export default function NaughtyServices({ myProfileId, pageProfileId, services =
 
   return (
     <div className="space-y-6">
-      {incomingOrders.length > 0 && myProfileId === pageProfileId && (
+      {incomingOrders.length > 0 && myProfileId === STINE_ID && (showConfirmationBox || !paymentConfirmed) && (
         <div className="bg-white border border-red-300 p-5 rounded-2xl shadow-lg">
           <h3 className="text-lg font-bold text-red-600 mb-3">Du har en ny bestilling</h3>
 
@@ -122,7 +143,7 @@ export default function NaughtyServices({ myProfileId, pageProfileId, services =
               </button>
             </>
           ) : (
-            <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-sm text-red-800">
+            <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-sm text-red-800 relative">
               <p className="font-semibold mb-2">
                 Sådan, Stine – du er nu officielt købt og bestilt til fræk fornøjelse!
               </p>
@@ -131,8 +152,9 @@ export default function NaughtyServices({ myProfileId, pageProfileId, services =
               </p>
               <p className="mt-2">
                 Bare rolig: Det er ikke bare okay at tage imod betaling for at være så fristende – det er faktisk kun rimeligt.
-                Du styrer showet fra nu af – og jeg lover at nyde hver en krone, jeg “bruger” på dig.
+                Du styrer showet fra nu af ❤️.
               </p>
+              <p className="mt-4 text-xs text-gray-500">Denne besked forsvinder om {countdown} sekunder.</p>
             </div>
           )}
         </div>
@@ -194,7 +216,7 @@ export default function NaughtyServices({ myProfileId, pageProfileId, services =
               ? `${basePrice} kr.`
               : ""}
           </div>
-          {myProfileId && myProfileId !== pageProfileId && (
+          {myProfileId && myProfileId !== STINE_ID && (
             <button
               onClick={() => handleOrder(ydelse)}
               className="ml-4 text-sm text-pink-600 underline hover:text-pink-800"

@@ -19,6 +19,8 @@ import DashboardBanner from '@/components/widgets/DashboardBanner';
 import ActiveBetWidget from "@/components/widgets/ActiveBetWidget";
 import DailyMemoryWidget from "@/components/widgets/DailyMemoryWidget";
 import DateMissionWidget from "@/components/widgets/DateMissionWidget";
+import NeverBoringStatement from "@/components/widgets/NeverBoringStatement";
+
 
 import { useUserContext } from '@/context/UserContext';
 
@@ -37,6 +39,8 @@ export default function WidgetRenderer({ widget }: { widget: Widget }) {
   }
 
   switch (widget.widget_key) {
+    case 'never_boring_statement':
+      return <NeverBoringStatement />;
     case 'kompliment_reminder':
       return <KomplimentReminder height={widget.height} layout={widget.layout} />;
     case 'xp_meter':
@@ -80,6 +84,7 @@ export default function WidgetRenderer({ widget }: { widget: Widget }) {
       return <DailyMemoryWidget />;
     case 'date_mission':
       if (!user?.id) return null;
+    
       // RENDER OG UNMOUNT KORREKT:
       const widgetElement = <DateMissionWidget userId={user.id} displayName={user.display_name || ""} />;
       if (!widgetElement) {

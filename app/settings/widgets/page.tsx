@@ -26,6 +26,7 @@ const allWidgets = [
   { key: 'active_bet', label: 'Aktivt væddemål' },
   { key: 'daily_memory', label: 'Dagens minde' },
   { key: 'date_mission', label: 'Date Mission' },
+  { key: 'never_boring_statement', label: 'Anti-kedsomhed' },
 ];
 
 
