@@ -6,6 +6,7 @@ import React, { useEffect, useState } from "react";
 import { Sparkles, PartyPopper, Glasses, Frown } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useUserContext } from "@/context/UserContext";
+import { Badge } from "@/components/ui/badge";
 
 const NeverBoringStatement = () => {
   const { user } = useUserContext();
@@ -13,6 +14,8 @@ const NeverBoringStatement = () => {
   const [moodSelected, setMoodSelected] = useState<number | null>(null);
   const [relationshipMood, setRelationshipMood] = useState<number | null>(null);
   const [yesterdaySummary, setYesterdaySummary] = useState<string | null>(null);
+  const [xpGiven, setXpGiven] = useState(false);
+  const [displayName, setDisplayName] = useState<string | null>(null);
 
   useEffect(() => {
     const now = new Date();
@@ -64,7 +67,7 @@ const NeverBoringStatement = () => {
       .toString()
       .padStart(2, "0")}-${today.getDate().toString().padStart(2, "0")}`;
 
-    if (user?.id) {
+    if (user?.id && moodSelected !== null) {
       const { error } = await supabase.from("daily_checkin").insert({
         user_id: user.id,
         checkin_date,
@@ -72,7 +75,22 @@ const NeverBoringStatement = () => {
         everyday_feeling: moodSelected,
       });
 
-      if (error) {
+      if (!error) {
+        await supabase.from("xp_log").insert({
+          user_id: user.id,
+          action: "daily_checkin",
+          xp: 10,
+        });
+
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        setDisplayName(profileData?.display_name ?? null);
+        setXpGiven(true);
+      } else {
         console.error("Fejl ved indsættelse af daily_checkin:", error.message);
       }
     }
@@ -132,8 +150,11 @@ const NeverBoringStatement = () => {
           </>
         )}
 
-        {relationshipMood !== null && (
-          <p className="mt-4 text-green-600 font-semibold">Tak for din registrering 💜</p>
+        {relationshipMood !== null && xpGiven && displayName && (
+          <p className="mt-4 text-green-600 font-semibold">
+            Tak for din registrering {displayName}.<br />
+            Du har fået tildelt <Badge className="bg-purple-600 text-white shadow">10 XP </Badge>point.
+          </p>
         )}
       </div>
     );

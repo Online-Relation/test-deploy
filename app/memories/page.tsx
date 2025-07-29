@@ -9,24 +9,33 @@ import UserAvatarName from "@/components/ui/globalmodal/UserAvatarName";
 import { updateDashboardImage, deleteDashboardImage } from "@/lib/dashboardImages";
 import FullscreenImageViewer from "@/components/ui/globalmodal/FullscreenImageViewer";
 import { supabase } from "@/lib/supabaseClient";
+import { useSearchParams } from "next/navigation";
 
 export default function MemoriesPage() {
-  // State for ALLE minder (billeder)
   const [memories, setMemories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Modal og galleri-states
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedMemory, setSelectedMemory] = useState<any>(null);
   const [galleryImages, setGalleryImages] = useState<any[]>([]);
   const [fullscreenIndex, setFullscreenIndex] = useState(0);
   const [showFullscreen, setShowFullscreen] = useState(false);
 
-  // Hent billeder fra supabase én gang
+  const [showUploadNotice, setShowUploadNotice] = useState(false);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const uploaded = searchParams.get("uploaded");
+    console.log("🔍 searchParams uploaded:", uploaded);
+    if (uploaded === "true") {
+      setShowUploadNotice(true);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     async function fetchImages() {
       setLoading(true);
-      const userId = null; // Hvis du har en bruger, hent id og brug i filter!
+      const userId = null;
       let query = supabase
         .from("dashboard_images")
         .select(
@@ -34,7 +43,6 @@ export default function MemoriesPage() {
         )
         .order("taken_at", { ascending: false })
         .order("created_at", { ascending: false });
-      // Tilføj evt. filter på bruger/partner-id!
       const { data, error } = await query;
       if (!error && data) setMemories(data);
       setLoading(false);
@@ -42,7 +50,6 @@ export default function MemoriesPage() {
     fetchImages();
   }, []);
 
-  // Klik på billede i galleri åbner modal og gallerinavigation
   const handleMemoryClick = (memory: any, allImages?: any[]) => {
     setSelectedMemory(memory);
     setModalOpen(true);
@@ -63,7 +70,6 @@ export default function MemoriesPage() {
     setShowFullscreen(false);
   };
 
-  // Gem/rediger billede
   const handleSaveMemory = async (data: any) => {
     if (!selectedMemory?.id) return;
     const updated = await updateDashboardImage(selectedMemory.id, {
@@ -83,7 +89,6 @@ export default function MemoriesPage() {
     }
   };
 
-  // Slet billede
   const handleDeleteMemory = async () => {
     if (!selectedMemory?.id) return;
     await deleteDashboardImage(selectedMemory.id);
@@ -92,7 +97,6 @@ export default function MemoriesPage() {
     setSelectedMemory(null);
   };
 
-  // Det viste billede i modal og fullscreen
   const imageUrl = selectedMemory?.original_image_url || selectedMemory?.image_url;
   const galleryImageUrls = galleryImages.map(
     img => img?.original_image_url || img?.image_url
@@ -102,9 +106,25 @@ export default function MemoriesPage() {
     <main className="min-h-screen bg-gradient-to-tr from-purple-50 to-orange-50 py-8 px-4">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-6 text-center">Minde-galleri</h1>
+        {showUploadNotice && (
+          <div className="relative mb-6">
+            <div className="rounded-2xl shadow-lg p-6 bg-black text-white border border-purple-700 relative overflow-hidden">
+              <h2 className="text-purple-400 font-semibold text-sm mb-2">🎯 MISSION GENNEMFØRT</h2>
+              <div className="bg-purple-900/20 border border-purple-500 rounded-xl p-4 mb-4">
+                <p className="text-purple-200 text-base font-medium">
+                  Dit billede er nu uploadet og gemt i jeres minder.
+                </p>
+                <p className="text-purple-200 text-sm mt-2">
+                  Du har fuldført en mission og gjort hverdagen mere spændende og sjov.
+                </p>
+              </div>
+              <div className="text-xs text-gray-300">🕰️ {new Date().toLocaleString("da-DK")} </div>
+            </div>
+          </div>
+        )}
         {loading && <div className="text-gray-400">Henter billeder…</div>}
         <MemoriesGallery
-          images={memories} // <-- vigtig!
+          images={memories}
           onMemoryClick={(memory) =>
             handleMemoryClick(memory, memories)
           }
@@ -122,7 +142,6 @@ export default function MemoriesPage() {
           onDelete={handleDeleteMemory}
         >
           <div className="flex flex-col items-center w-full">
-            {/* Klikbart billede */}
             <div className="flex justify-center items-center w-full" style={{ minHeight: 360 }}>
               <img
                 src={imageUrl}
@@ -157,8 +176,7 @@ export default function MemoriesPage() {
               </div>
             )}
             <div className="text-xs text-gray-500 mb-1 w-full text-left">
-              Uploadet d.{" "}
-              {selectedMemory?.taken_at
+              Uploadet d. {selectedMemory?.taken_at
                 ? new Date(selectedMemory.taken_at).toLocaleDateString("da-DK")
                 : selectedMemory?.created_at
                 ? new Date(selectedMemory.created_at).toLocaleDateString("da-DK")
@@ -179,7 +197,6 @@ export default function MemoriesPage() {
           </div>
         </GlobalModal>
 
-        {/* FULLSCREEN GALLERI */}
         {showFullscreen && galleryImageUrls.length > 0 && (
           <FullscreenImageViewer
             images={galleryImageUrls}

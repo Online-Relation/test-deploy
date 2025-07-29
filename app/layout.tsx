@@ -9,7 +9,9 @@ import ClientLayout from './ClientLayout';  // <-- Her bruger du din klient-wrap
 const poppins = Poppins({
   subsets: ['latin'],
   weight: ['400', '500', '700'],
+  display: 'swap', // 👈 vigtig!
 });
+
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
