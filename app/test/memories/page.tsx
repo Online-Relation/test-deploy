@@ -1,4 +1,6 @@
-"use client";
+// /app/memories/page.tsx
+
+export const dynamic = 'force-dynamic';
 
 import React, { Suspense } from "react";
 import MemoriesContent from "@/components/memories/MemoriesContent";
