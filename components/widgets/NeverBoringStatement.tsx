@@ -103,27 +103,28 @@ const NeverBoringStatement = () => {
           Hvordan har jeres hverdag været i dag?
         </h2>
         {!moodSelected && (
-          <div className="flex gap-4 mt-4">
-            <button
-              onClick={() => handleMoodClick(5)}
-              className="flex items-center gap-2 px-5 py-3 bg-purple-600 text-white rounded-full hover:bg-purple-700 shadow-md hover:scale-105 transition-all"
-            >
-              <PartyPopper className="w-5 h-5" /> Sjov
-            </button>
-            <button
-              onClick={() => handleMoodClick(3)}
-              className="flex items-center gap-2 px-5 py-3 bg-purple-500 text-white rounded-full hover:bg-purple-600 shadow-md hover:scale-105 transition-all"
-            >
-              <Glasses className="w-5 h-5" /> Hyggelig
-            </button>
-            <button
-              onClick={() => handleMoodClick(1)}
-              className="flex items-center gap-2 px-5 py-3 bg-purple-400 text-white rounded-full hover:bg-purple-500 shadow-md hover:scale-105 transition-all"
-            >
-              <Frown className="w-5 h-5" /> Kedelig
-            </button>
-          </div>
-        )}
+  <div className="flex flex-wrap justify-center gap-3 mt-4 w-full">
+    <button
+      onClick={() => handleMoodClick(5)}
+      className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-full hover:bg-purple-700 shadow-md hover:scale-105 transition-all min-w-[100px]"
+    >
+      <PartyPopper className="w-5 h-5" /> Sjov
+    </button>
+    <button
+      onClick={() => handleMoodClick(3)}
+      className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-full hover:bg-purple-600 shadow-md hover:scale-105 transition-all min-w-[100px]"
+    >
+      <Glasses className="w-5 h-5" /> Hyggelig
+    </button>
+    <button
+      onClick={() => handleMoodClick(1)}
+      className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-400 text-white rounded-full hover:bg-purple-500 shadow-md hover:scale-105 transition-all min-w-[100px]"
+    >
+      <Frown className="w-5 h-5" /> Kedelig
+    </button>
+  </div>
+)}
+
 
         {moodSelected && relationshipMood === null && (
           <>
