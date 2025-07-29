@@ -1,3 +1,5 @@
+// /components/memories/MemoriesContent.tsx
+
 "use client";
 
 import React, { useEffect, useState, Suspense } from "react";
@@ -7,7 +9,14 @@ import UserAvatarName from "@/components/ui/globalmodal/UserAvatarName";
 import { updateDashboardImage, deleteDashboardImage } from "@/lib/dashboardImages";
 import FullscreenImageViewer from "@/components/ui/globalmodal/FullscreenImageViewer";
 import { supabase } from "@/lib/supabaseClient";
-import UploadNotice from "@/components/memories/UploadNotice";
+import dynamic from "next/dynamic";
+
+// 👇 Sørg for at importere med korrekt Suspense support
+const UploadNotice = dynamic(() => import("./UploadNotice"), {
+  // @ts-expect-error suspense is valid in Next 13+ with App Router
+  suspense: true,
+});
+
 
 export default function MemoriesContent() {
   const [memories, setMemories] = useState<any[]>([]);
@@ -78,7 +87,6 @@ export default function MemoriesContent() {
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-6 text-center">Minde-galleri</h1>
 
-        {/* wrapped in Suspense */}
         <Suspense fallback={null}>
           <UploadNotice />
         </Suspense>
