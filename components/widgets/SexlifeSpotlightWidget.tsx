@@ -1,4 +1,4 @@
-// components/DashboardSpotlightWidget.tsx
+// components/widgets/SexlifeSpotlightWidget.tsx
 'use client';
 
 import React, { useEffect, useState } from "react";
@@ -39,7 +39,7 @@ const temperatureData = [
   { week: "Uge 30", Mads: 2, Stine: 2 },
 ];
 
-export default function DashboardSpotlightWidget() {
+export default function SexlifeSpotlightWidget() {
   const [activeTab, setActiveTab] = useState("temperature");
   const [sexData, setSexData] = useState<any[]>([]);
   const [totalSex, setTotalSex] = useState(0);
@@ -110,11 +110,7 @@ export default function DashboardSpotlightWidget() {
 
   return (
     <div className="relative bg-gradient-to-br from-violet-100 to-white rounded-3xl p-6 shadow-xl overflow-hidden">
-      <div className="absolute top-4 left-4 bg-violet-500 text-white text-xs px-3 py-1 rounded-full shadow-md z-10">
-        ✨ Spotlight
-      </div>
-
-      <div className="absolute -top-10 -right-10 w-32 h-32 bg-violet-200 rounded-full opacity-30 z-0" />
+      <h4 className="text-lg font-bold text-center text-purple-700 mb-6">Parforholdets puls</h4>
 
       <div className="relative z-10 mb-6 flex items-center justify-center gap-4">
         <button

@@ -21,6 +21,7 @@ import DailyMemoryWidget from "@/components/widgets/DailyMemoryWidget";
 import DateMissionWidget from "@/components/widgets/DateMissionWidget";
 import NeverBoringStatement from "@/components/widgets/NeverBoringStatement";
 import SexlifeSpotlightWidget from "@/components/widgets/SexlifeSpotlightWidget";
+import WeeklyMissionCard from "@/components/widgets/WeeklyMissionCard";
 
 
 
@@ -84,8 +85,11 @@ export default function WidgetRenderer({ widget }: { widget: Widget }) {
       return <ActiveBetWidget />;
     case 'daily_memory':
       return <DailyMemoryWidget />;
+    case "weekly_mission":
+      return <WeeklyMissionCard />;
     case "sexlife_spotlight":
       return <SexlifeSpotlightWidget />;
+    
     case 'date_mission':
       if (!user?.id) return null;
     

@@ -28,8 +28,8 @@ const allWidgets = [
   { key: 'date_mission', label: 'Date Mission' },
   { key: 'never_boring_statement', label: 'Anti-kedsomhed' },
   { key: 'sexlife_spotlight', label: 'Sexliv Spotlight' },
+  { key: 'weekly_mission', label: 'Ugentlig mission' },
 ];
-
 
 const heightOptions = ['auto', 'medium', 'large'];
 

@@ -1,3 +1,5 @@
+// context/UserContext.tsx
+
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
@@ -19,20 +21,21 @@ interface UserProfile {
 interface UserContextValue {
   user: UserProfile | null;
   loading: boolean;
+  partnerId: string | null;
 }
 
-const UserContext = createContext<UserContextValue>({ user: null, loading: true });
+const UserContext = createContext<UserContextValue>({ user: null, loading: true, partnerId: null });
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [partnerId, setPartnerId] = useState<string | null>(null);
 
   const pathname = usePathname();
   const isAuthPage = pathname === '/login' || pathname === '/signup';
 
   useEffect(() => {
     if (isAuthPage) {
-      // Hvis vi er på login/signup skal vi ikke have bruger data
       setUser(null);
       setLoading(false);
       return;
@@ -47,26 +50,25 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       const authRes = await supabase.auth.getUser();
 
       if (authRes.error) {
-        // Log kun fejl der ikke er "Auth session missing"
         if (authRes.error.message !== "Auth session missing!") {
           console.error('❌ Fejl ved hentning af bruger fra Supabase:', authRes.error.message);
         }
         setUser(null);
+        setPartnerId(null);
         setLoading(false);
         return;
       }
 
       const authUser = authRes.data?.user;
       if (!authUser) {
-        // Ikke logget ind
         setUser(null);
+        setPartnerId(null);
         setLoading(false);
         return;
       }
 
       const userId = authUser.id;
 
-      // Hent profil-data
       const profileResult = await supabase
         .from('profiles')
         .select('id, display_name, avatar_url, role, partner_id')
@@ -76,13 +78,13 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       if (profileResult.error || !profileResult.data) {
         console.error('❌ Fejl ved hentning af profil:', profileResult.error?.message);
         setUser(null);
+        setPartnerId(null);
         setLoading(false);
         return;
       }
 
       const profileData = profileResult.data;
 
-      // Hent adgangsrettigheder, hvis nødvendigt
       let accessMap: AccessMap = {};
       try {
         const accessResult = await supabase
@@ -110,12 +112,12 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         access: accessMap,
         partner_id: profileData.partner_id ?? null,
       });
+      setPartnerId(profileData.partner_id ?? null);
       setLoading(false);
     };
 
     fetchUser();
 
-    // Lyt til auth state changes og opdater bruger
     const { data: listener } = supabase.auth.onAuthStateChange(() => {
       fetchUser();
     });
@@ -126,7 +128,11 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [isAuthPage]);
 
-  return <UserContext.Provider value={{ user, loading }}>{children}</UserContext.Provider>;
+  return (
+    <UserContext.Provider value={{ user, loading, partnerId }}>
+      {children}
+    </UserContext.Provider>
+  );
 };
 
 export const useUserContext = () => useContext(UserContext);

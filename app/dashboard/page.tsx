@@ -61,7 +61,8 @@ export default function DashboardPage() {
     'daily_memory',
     'date_mission',
     'never_boring_statement',
-    'sexlife_spotlight'
+    'sexlife_spotlight',
+    'weekly_mission',
   ];
 
   useEffect(() => {
