@@ -43,6 +43,7 @@ export default function DashboardPage() {
   }, []);
 
   const supportedWidgets = [
+    'dashboard_banner',
     'xp_meter',
     'reward_progress',
     'task_summary',
@@ -56,7 +57,7 @@ export default function DashboardPage() {
     'manifestation_reminder',
     'followup_thoughts',
     'flowers',
-    'dashboard_banner',
+    
     'active_bet',
     'daily_memory',
     'date_mission',

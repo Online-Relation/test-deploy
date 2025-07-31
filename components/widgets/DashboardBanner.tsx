@@ -12,19 +12,17 @@ const DashboardBanner = () => {
   const { user } = useUserContext();
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
   const [uploading, setUploading] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Uploaderens navn
   const [uploaderName, setUploaderName] = useState<string>("");
 
-  // Cropping & metadata state
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [rawImage, setRawImage] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingMeta, setPendingMeta] = useState<{ taken_at?: Date; latitude?: number; longitude?: number }>({});
   const [originalImageUrl, setOriginalImageUrl] = useState<string | undefined>(undefined);
 
-  // Hent det nyeste banner (og uploader)
   const fetchLatestBanner = async () => {
     const { data, error } = await supabase
       .from("dashboard_images")
@@ -41,7 +39,6 @@ const DashboardBanner = () => {
     if (data?.image_url) {
       setImageUrl(data.image_url);
 
-      // Hent uploaderens display_name
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("display_name")
@@ -68,13 +65,11 @@ const DashboardBanner = () => {
     }
   };
 
-  // FIL: Opload originalen, gem URL
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!user?.id) return;
     let file = e.target.files?.[0];
     if (!file) return;
 
-    // EXIF-læsning for at hente metadata
     let meta: any = {};
     try {
       meta = await exifr.parse(file);
@@ -95,7 +90,6 @@ const DashboardBanner = () => {
       longitude: meta.longitude,
     });
 
-    // HEIC-konvertering hvis nødvendigt
     if (
       file.type === "image/heic" ||
       file.name.endsWith(".heic") ||
@@ -115,18 +109,15 @@ const DashboardBanner = () => {
           type: "image/jpeg",
         });
       } catch (err) {
-        alert(
-          "Kunne ikke konvertere HEIC-billede. Prøv igen med JPG eller PNG."
-        );
+        alert("Kunne ikke konvertere HEIC-billede. Prøv igen med JPG eller PNG.");
         return;
       }
     }
 
-    // --- UPLOAD ORIGINAL TIL SUPABASE ---
     let origUrl;
     try {
-      origUrl = await uploadImageToSupabase(file, user.id, "original_"); // Prefix kun!
-      setOriginalImageUrl(origUrl); // Husk denne!
+      origUrl = await uploadImageToSupabase(file, user.id, "original_");
+      setOriginalImageUrl(origUrl);
     } catch (err) {
       alert("Kunne ikke uploade originalbillede");
       return;
@@ -137,7 +128,6 @@ const DashboardBanner = () => {
     setCropModalOpen(true);
   };
 
-  // FIL: Opload croppet billede, gem begge URLs
   const handleCropComplete = async (croppedBlob: Blob) => {
     if (!user?.id) return;
     setUploading(true);
@@ -152,22 +142,20 @@ const DashboardBanner = () => {
     try {
       const url = await uploadImageToSupabase(croppedFile, user.id, "cropped_");
 
-      // GEM BEGGE URLs I SUPABASE
       await supabase.from("dashboard_images").insert([
         {
           user_id: user.id,
           image_url: url,
-          original_image_url: originalImageUrl, // <-- her!
+          original_image_url: originalImageUrl,
           widget_location: "dashboard_banner",
-          taken_at: pendingMeta.taken_at
-            ? pendingMeta.taken_at.toISOString()
-            : null,
+          taken_at: pendingMeta.taken_at ? pendingMeta.taken_at.toISOString() : null,
           latitude: pendingMeta.latitude,
           longitude: pendingMeta.longitude,
         },
       ]);
 
       await fetchLatestBanner();
+      setImageLoaded(false);
     } catch (error) {
       alert("Upload fejlede");
     } finally {
@@ -189,15 +177,16 @@ const DashboardBanner = () => {
 
   return (
     <div className="w-full rounded-2xl shadow-md overflow-hidden mb-6 relative bg-white bg-opacity-90 flex flex-col items-center p-4 space-y-4">
-      {/* Overskrift med uploaderens navn */}
       {uploaderName && (
         <div className="w-full px-2 text-sm font-semibold text-gray-700 italic">
           Det her minde betød noget for <span className="font-bold">{uploaderName}</span>
         </div>
       )}
 
-      {/* Bannerbillede container */}
-      <div className="w-full relative aspect-[3/1.5] bg-gradient-to-tr from-purple-100 to-orange-100 rounded-xl overflow-hidden flex items-center justify-center">
+     <div
+  className={`w-full relative min-h-[200px] bg-gradient-to-tr from-purple-100 to-orange-100 rounded-xl overflow-hidden transition-opacity duration-500 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+>
+
         <input
           type="file"
           accept="image/*"
@@ -205,13 +194,26 @@ const DashboardBanner = () => {
           ref={fileInputRef}
           onChange={handleFileChange}
         />
-        {imageUrl ? (
+        {!imageLoaded && (
+  <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100 animate-pulse">
+    <span className="text-sm text-gray-400">Indlæser billede…</span>
+  </div>
+)}
+
+        {imageUrl && (
           <img
             src={imageUrl}
             alt="Forsidebillede"
-            className="w-full h-full object-cover"
+            onLoad={() => {
+              console.log("Image loaded");
+              setImageLoaded(true);
+            }}
+            className={`absolute top-0 left-0 w-full h-full object-cover transition-opacity duration-500 ${
+              imageLoaded ? "opacity-100" : "opacity-0"
+            }`}
           />
-        ) : (
+        )}
+        {!imageUrl && (
           <button
             className="flex flex-col items-center justify-center w-full h-full bg-white bg-opacity-40 hover:bg-opacity-60 transition rounded-xl"
             onClick={handleUploadClick}
@@ -245,7 +247,7 @@ const DashboardBanner = () => {
           </button>
         )}
       </div>
-      {/* Cropping modal */}
+
       {cropModalOpen && rawImage && pendingFile && (
         <ImageCropModal
           open={cropModalOpen}

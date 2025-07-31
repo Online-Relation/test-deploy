@@ -27,8 +27,9 @@ const NeverBoringStatement = () => {
   const [widgetClosed, setWidgetClosed] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
 
-  useEffect(() => {
-    const currentHour = 20; // SIMULATION: Tving tidspunkt til 20 for aften-test
+ useEffect(() => {
+    const now = new Date();
+    const currentHour = now.getHours();
 
     if (!user?.id) return;
 

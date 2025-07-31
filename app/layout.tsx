@@ -26,7 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#6366f1" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-title" content="Mit Dashboard" />
+        <meta name="apple-mobile-web-app-title" content="ConnectUs" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
       <body className="flex bg-gray-50 text-foreground min-h-screen">
