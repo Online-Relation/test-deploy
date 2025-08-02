@@ -2,26 +2,9 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { useRouter } from 'next/navigation';
 import { useUserContext } from '@/context/UserContext';
-import { X, Pencil } from 'lucide-react';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { SortableItem } from '@/components/SortableItem';
 import ProfileHeader from '@/components/naughty/ProfileHeader';
 import NaughtyServices from '@/components/naughty/NaughtyServices';
 import GallerySection from '@/components/naughty/GallerySection';
@@ -32,6 +15,7 @@ interface Service {
   id: string;
   text: string;
   extra_price?: number | null;
+  is_addon?: boolean;
 }
 
 export default function NaughtyProfilePage() {
@@ -46,6 +30,21 @@ export default function NaughtyProfilePage() {
 
   useEffect(() => {
     setHasMounted(true);
+  }, []);
+
+  const fetchGalleryUrls = useCallback(async (profileId: string) => {
+    const { data: list, error } = await supabase.storage
+      .from('naughty-profile')
+      .list('fantasy-profile/stine/gallery', { limit: 50 });
+
+    if (list && !error) {
+      const urls = list.map((item) =>
+        supabase.storage
+          .from('naughty-profile')
+          .getPublicUrl(`fantasy-profile/stine/gallery/${item.name}`).data.publicUrl
+      );
+      setGalleryUrls(urls);
+    }
   }, []);
 
   useEffect(() => {
@@ -66,70 +65,75 @@ export default function NaughtyProfilePage() {
         .eq('username', 'Stine')
         .single();
 
-      if (profileError) {
+      if (profileError || !stineProfile) {
         console.error('Fejl ved hentning af Stine profil:', profileError);
         return;
       }
 
-      if (stineProfile) {
-        setPageProfileId(stineProfile.id);
+      setPageProfileId(stineProfile.id);
 
-        if (!profileImageUrl) {
-          const { data: meta, error: metaError } = await supabase
-            .from('fantasy_menu_meta')
-            .select('profile_image_url')
-            .eq('user_id', stineProfile.id)
-            .single();
+      const { data: meta, error: metaError } = await supabase
+        .from('fantasy_menu_meta')
+        .select('profile_image_url')
+        .eq('user_id', stineProfile.id)
+        .single();
 
-          if (metaError) console.error('Fejl ved hentning af meta:', metaError);
+      if (!metaError && meta?.profile_image_url) {
+        setProfileImageUrl(meta.profile_image_url);
+      }
 
-          if (meta?.profile_image_url) {
-            setProfileImageUrl(meta.profile_image_url);
-          }
+      await fetchGalleryUrls(stineProfile.id);
+
+      const { data: items, error: itemError } = await supabase
+        .from('fantasy_menu_items')
+        .select(`id, extra_price, text, user_id`)
+        .eq('user_id', stineProfile.id);
+
+      if (!itemError && Array.isArray(items)) {
+        const texts = items.map((item: any) => item.text);
+
+        const { data: options, error: optionError } = await supabase
+          .from('fantasy_menu_options')
+          .select('text, is_addon')
+          .in('text', texts);
+
+        if (optionError) {
+          console.error('Fejl ved hentning af options:', optionError);
+          return;
         }
 
-        const { data: list, error } = await supabase.storage
-          .from('naughty-profile')
-          .list('fantasy-profile/stine/gallery', { limit: 10 });
+        const mapped = items.map((item: any) => {
+          const option = options.find((o) => o.text === item.text);
+          return {
+            id: item.id,
+            text: item.text,
+            extra_price: item.extra_price,
+            is_addon: option?.is_addon ?? false,
+          };
+        });
 
-        if (list && !error) {
-          const urls = list.map((item) =>
-            supabase.storage
-              .from('naughty-profile')
-              .getPublicUrl(`fantasy-profile/stine/gallery/${item.name}`).data.publicUrl
-          );
-          setGalleryUrls(urls);
-        }
-
-        const { data: items, error: itemError } = await supabase
-          .from('fantasy_menu_items')
-          .select('id, text, extra_price')
-          .eq('user_id', stineProfile.id)
-          .eq('is_selected', true);
-
-        if (itemError) {
-          console.error('Fejl ved hentning af valgte items:', itemError);
-        } else {
-          setServices(items ?? []);
-        }
+        
+        setServices(mapped);
       }
     };
 
     fetchData();
-  }, [hasMounted]);
+  }, [hasMounted, fetchGalleryUrls]);
 
   if (!hasMounted) return null;
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-8">
       <ProfileHeader
-        myProfileId={myProfileId}
-        profileImageUrl={profileImageUrl}
-        setProfileImageUrl={setProfileImageUrl}
-        setUploading={setUploading}
-        uploading={uploading}
-        services={services}
-      />
+  myProfileId={myProfileId}
+  profileImageUrl={profileImageUrl}
+  setProfileImageUrl={setProfileImageUrl}
+  setUploading={setUploading}
+  uploading={uploading}
+/>
+
+
+
 
       <NaughtyServices
         myProfileId={myProfileId}
@@ -151,7 +155,7 @@ export default function NaughtyProfilePage() {
         <NoGoList myProfileId={myProfileId} pageProfileId={pageProfileId} />
       </div>
 
-      <GallerySection galleryUrls={galleryUrls} />
+      <GallerySection galleryUrls={galleryUrls} refetchGallery={() => pageProfileId && fetchGalleryUrls(pageProfileId)} />
     </div>
   );
 }

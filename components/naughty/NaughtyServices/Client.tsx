@@ -19,6 +19,7 @@ interface Props {
     id: string;
     text: string;
     extra_price?: number | null;
+    is_addon?: boolean;
   }[];
 }
 
@@ -71,6 +72,29 @@ export default function NaughtyServices({ myProfileId, pageProfileId, services =
 
     fetchMeta();
     fetchOrders();
+
+    const channel = supabase
+      .channel("realtime-orders")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "fantasy_menu_orders",
+          filter: `seller_id=eq.${STINE_ID}`,
+        },
+        (payload) => {
+          const newOrder = payload.new as Order;
+          if (newOrder.status === "ordered") {
+            setIncomingOrders((prev) => [...prev, newOrder]);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [pageProfileId, hasMounted]);
 
   useEffect(() => {
@@ -112,6 +136,9 @@ export default function NaughtyServices({ myProfileId, pageProfileId, services =
   if (!hasMounted) return null;
 
   const totalPrice = incomingOrders.reduce((sum, order) => sum + order.price, 0);
+
+  const selectedServices = (services || []).filter((s) => !s.is_addon);
+  const selectedAddons = (services || []).filter((s) => s.is_addon);
 
   return (
     <div className="space-y-6">
@@ -199,34 +226,61 @@ export default function NaughtyServices({ myProfileId, pageProfileId, services =
         )}
       </div>
 
-      <h2 className="text-2xl font-semibold text-pink-700">
-        Seksuelle ydelser hun tilbyder
-      </h2>
-
-      {(services || []).map((ydelse) => (
-        <div
-          key={ydelse.id}
-          className="bg-white border border-pink-300 rounded-lg p-4 shadow-sm flex items-center justify-between"
-        >
-          <div className="text-gray-800 font-medium">{ydelse.text}</div>
-          <div className="text-sm text-gray-500 ml-4 whitespace-nowrap">
-            {ydelse.extra_price != null
-              ? `${ydelse.extra_price} kr.`
-              : basePrice != null
-              ? `${basePrice} kr.`
-              : ""}
+      <div className="space-y-4">
+        <h2 className="text-2xl font-semibold text-pink-700">Ydelser</h2>
+        {selectedServices.map((ydelse) => (
+          <div
+            key={ydelse.id}
+            className="bg-white border border-pink-300 rounded-lg p-4 shadow-sm flex items-center justify-between"
+          >
+            <div className="text-gray-800 font-medium">{ydelse.text}</div>
+            <div className="text-sm text-gray-500 ml-4 whitespace-nowrap">
+              {ydelse.extra_price != null
+                ? `${ydelse.extra_price} kr.`
+                : basePrice != null
+                ? `${basePrice} kr.`
+                : ""}
+            </div>
+            {myProfileId && myProfileId !== STINE_ID && (
+              <button
+                onClick={() => handleOrder(ydelse)}
+                className="ml-4 text-sm text-pink-600 underline hover:text-pink-800"
+                disabled={ordered.includes(ydelse.id)}
+              >
+                {ordered.includes(ydelse.id) ? "Bestilt" : "Bestil"}
+              </button>
+            )}
           </div>
-          {myProfileId && myProfileId !== STINE_ID && (
-            <button
-              onClick={() => handleOrder(ydelse)}
-              className="ml-4 text-sm text-pink-600 underline hover:text-pink-800"
-              disabled={ordered.includes(ydelse.id)}
-            >
-              {ordered.includes(ydelse.id) ? "Bestilt" : "Bestil"}
-            </button>
-          )}
-        </div>
-      ))}
+        ))}
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-2xl font-semibold text-pink-700">Tilkøb</h2>
+        {selectedAddons.map((tilkøb) => (
+          <div
+            key={tilkøb.id}
+            className="bg-white border border-pink-300 rounded-lg p-4 shadow-sm flex items-center justify-between"
+          >
+            <div className="text-gray-800 font-medium">{tilkøb.text}</div>
+            <div className="text-sm text-gray-500 ml-4 whitespace-nowrap">
+              {tilkøb.extra_price != null
+                ? `${tilkøb.extra_price} kr.`
+                : basePrice != null
+                ? `${basePrice} kr.`
+                : ""}
+            </div>
+            {myProfileId && myProfileId !== STINE_ID && (
+              <button
+                onClick={() => handleOrder(tilkøb)}
+                className="ml-4 text-sm text-pink-600 underline hover:text-pink-800"
+                disabled={ordered.includes(tilkøb.id)}
+              >
+                {ordered.includes(tilkøb.id) ? "Bestilt" : "Bestil"}
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -3,13 +3,8 @@
 "use client";
 
 import Image from "next/image";
-import { useRef } from "react";
+import { useRef, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-
-interface Service {
-  id: string;
-  text: string;
-}
 
 interface Props {
   myProfileId: string | null;
@@ -17,7 +12,6 @@ interface Props {
   setProfileImageUrl: (url: string | null) => void;
   uploading: boolean;
   setUploading: (value: boolean) => void;
-  services: Service[];
 }
 
 export default function ProfileHeader({
@@ -26,9 +20,37 @@ export default function ProfileHeader({
   setProfileImageUrl,
   uploading,
   setUploading,
-  services,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [totalServices, setTotalServices] = useState<number>(0);
+  const [acceptedCount, setAcceptedCount] = useState<number>(0);
+
+  useEffect(() => {
+    const fetchServiceData = async () => {
+      const [{ count: total, error: totalError }, { count: accepted, error: acceptedError }] = await Promise.all([
+        supabase.from("fantasy_menu_options").select("id", { count: "exact", head: true }),
+        supabase
+          .from("fantasy_menu_items")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", myProfileId || "")
+          .eq("choice", "yes"),
+      ]);
+
+      if (totalError) {
+        console.error("Fejl ved hentning af total services:", totalError.message);
+      } else {
+        setTotalServices(total ?? 0);
+      }
+
+      if (acceptedError) {
+        console.error("Fejl ved hentning af accepterede services:", acceptedError.message);
+      } else {
+        setAcceptedCount(accepted ?? 0);
+      }
+    };
+
+    if (myProfileId) fetchServiceData();
+  }, [myProfileId]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     let file = e.target.files?.[0];
@@ -62,12 +84,8 @@ export default function ProfileHeader({
       return;
     }
 
-    const { data } = supabase.storage
-      .from("naughty-profile")
-      .getPublicUrl(filePath);
-
+    const { data } = supabase.storage.from("naughty-profile").getPublicUrl(filePath);
     const newUrl = data.publicUrl;
-    console.log("\ud83c\udfbc\ufe0f Ny profilbillede-URL:", newUrl);
     setProfileImageUrl(newUrl);
 
     const { error: upsertError } = await supabase
@@ -84,12 +102,15 @@ export default function ProfileHeader({
     setUploading(false);
   };
 
-  const fr\u00e6khedsProcent = Math.round(((services?.length || 0) / 30) * 100);
+  const frækhedsProcent = totalServices > 0 ? Math.round((acceptedCount / totalServices) * 100) : 0;
   const niveau =
-    fr\u00e6khedsProcent < 20 ? "\ud83d\udc8b Kyssekat" :
-    fr\u00e6khedsProcent < 50 ? "\ud83d\udd25 Fr\u00e6kkert" :
-    fr\u00e6khedsProcent < 80 ? "\ud83d\ude08 Sengeakrobat" :
-    "\ud83d\udca6 Vild viking";
+    frækhedsProcent < 20
+      ? "😇 God pige"
+      : frækhedsProcent < 50
+      ? "😏 Slem pige"
+      : frækhedsProcent < 80
+      ? "🔥 Fræk flirt"
+      : "👑 Vild og uimodståelig";
 
   return (
     <>
@@ -106,7 +127,6 @@ export default function ProfileHeader({
                     sizes="128px"
                     className="rounded-full object-cover border-4 border-pink-200 shadow-sm"
                   />
-                  <div className="absolute -top-1 -left-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full shadow-md" />
                 </>
               ) : (
                 <div className="w-full h-full bg-gray-200 rounded-full" />
@@ -134,7 +154,10 @@ export default function ProfileHeader({
 
           <div className="space-y-1 text-pink-800">
             <h2 className="text-2xl font-bold">Stine</h2>
-            <p className="text-xs text-green-600 font-semibold">Online nu</p>
+            <p className="text-xs text-green-600 font-semibold flex items-center gap-1">
+              <span className="inline-block w-2.5 h-2.5 bg-green-500 rounded-full shadow-sm" />
+              Online nu
+            </p>
             <p className="text-sm text-pink-600 font-medium">Åben for bestilling</p>
             <p className="text-sm">Alder: 38 år</p>
             <p className="text-sm">BH-størrelse: 75B</p>
@@ -155,7 +178,7 @@ export default function ProfileHeader({
           </div>
         </div>
         <p className="text-xs text-gray-500">
-          Baseret på {services?.filter((s) => s.text !== "").length} ud af {services.length} mulige ydelser
+          Baseret på {acceptedCount} ud af {totalServices} mulige ydelser
         </p>
       </div>
     </>
