@@ -130,6 +130,7 @@ function BucketGrid() {
             description={bucket.description}
             goals={bucket.goals}
             users={users}
+            deadline={bucket.deadline}
             onClick={() => {
               setActiveBucketId(bucket.id);
               setNewBucketTitle(bucket.title);

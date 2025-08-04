@@ -24,6 +24,10 @@ export default function DashboardPage() {
   const [challengeCardRefresh, setChallengeCardRefresh] = useState(0);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
     if (user?.id === "5687c342-1a13-441c-86ca-f7e87e1edbd5") {
       if (!sessionStorage.getItem("login_logged")) {
         logUserActivity({

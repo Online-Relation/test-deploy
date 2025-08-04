@@ -6,12 +6,21 @@ import { supabase } from '@/lib/supabaseClient';
 export async function getBucketNotes(bucketId: string) {
   const { data, error } = await supabase
     .from('bucket_history')
-    .select('*')
+    .select(`
+      *,
+      profiles:created_by (
+        id,
+        display_name,
+        avatar_url
+      )
+    `)
     .eq('bucket_id', bucketId)
     .order('created_at', { ascending: false });
+
   if (error) throw error;
   return data;
 }
+
 
 // Tilføj et nyt notat
 // /lib/bucketHistoryApi.ts
