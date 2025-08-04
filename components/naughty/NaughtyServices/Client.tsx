@@ -41,6 +41,8 @@ export default function NaughtyServices({ myProfileId, pageProfileId, services =
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [countdown, setCountdown] = useState(20);
   const [showConfirmationBox, setShowConfirmationBox] = useState(true);
+  const [totalServices, setTotalServices] = useState<number>(0);
+  const [acceptedCount, setAcceptedCount] = useState<number>(0);
 
   useEffect(() => {
     setHasMounted(true);
@@ -70,8 +72,22 @@ export default function NaughtyServices({ myProfileId, pageProfileId, services =
       if (!error && data) setIncomingOrders(data);
     };
 
+    const fetchFrækhedData = async () => {
+      const [{ count: total }, { count: accepted }] = await Promise.all([
+        supabase.from("fantasy_menu_options").select("id", { count: "exact", head: true }),
+        supabase
+          .from("fantasy_menu_items")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", STINE_ID)
+          .eq("choice", "yes"),
+      ]);
+      setTotalServices(total ?? 0);
+      setAcceptedCount(accepted ?? 0);
+    };
+
     fetchMeta();
     fetchOrders();
+    fetchFrækhedData();
 
     const channel = supabase
       .channel("realtime-orders")
@@ -135,6 +151,19 @@ export default function NaughtyServices({ myProfileId, pageProfileId, services =
 
   if (!hasMounted) return null;
 
+  const frækhedsProcent = totalServices > 0 ? Math.round((acceptedCount / totalServices) * 100) : 0;
+  const niveau =
+    frækhedsProcent < 10 ? "😇 Uskyldig engel" :
+    frækhedsProcent < 20 ? "💄 Pirrende prinsesse" :
+    frækhedsProcent < 30 ? "💃 Legesyg forfører" :
+    frækhedsProcent < 40 ? "💋 Forførende frækkert" :
+    frækhedsProcent < 50 ? "🔥 Sensuel sirene" :
+    frækhedsProcent < 60 ? "💎 Lystfuld luksus" :
+    frækhedsProcent < 70 ? "🧨 Eksplosiv elskerinde" :
+    frækhedsProcent < 80 ? "🖤 Kinky kælenkat" :
+    frækhedsProcent < 90 ? "👠 Dominerende darling" :
+    "💋 Uimodståelig bad girl";
+
   const totalPrice = incomingOrders.reduce((sum, order) => sum + order.price, 0);
 
   const selectedServices = (services || []).filter((s) => !s.is_addon);
@@ -142,6 +171,21 @@ export default function NaughtyServices({ myProfileId, pageProfileId, services =
 
   return (
     <div className="space-y-6">
+      <div className="bg-white rounded-2xl shadow-md p-6 md:p-8">
+        <p className="text-pink-700 font-semibold">Frækhedsniveau: {niveau}</p>
+        <div className="w-full bg-pink-100 rounded-full h-5 overflow-hidden shadow-inner my-2">
+          <div
+            className="h-full bg-gradient-to-r from-pink-400 to-pink-600 text-right pr-3 text-white text-xs font-bold flex items-center justify-end rounded-full"
+            style={{ width: `${frækhedsProcent}%` }}
+          >
+            {frækhedsProcent}%
+          </div>
+        </div>
+        <p className="text-xs text-gray-500">
+          Baseret på {acceptedCount} ud af {totalServices} mulige ydelser
+        </p>
+      </div>
+
       {incomingOrders.length > 0 && myProfileId === STINE_ID && (showConfirmationBox || !paymentConfirmed) && (
         <div className="bg-white border border-red-300 p-5 rounded-2xl shadow-lg">
           <h3 className="text-lg font-bold text-red-600 mb-3">Du har en ny bestilling</h3>

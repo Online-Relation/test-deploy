@@ -167,20 +167,7 @@ export default function ProfileHeader({
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-md p-6 md:p-8 space-y-3 mt-6">
-        <p className="text-pink-700 font-semibold">Frækhedsniveau: {niveau}</p>
-        <div className="w-full bg-pink-100 rounded-full h-5 overflow-hidden shadow-inner">
-          <div
-            className="h-full bg-gradient-to-r from-pink-400 to-pink-600 text-right pr-3 text-white text-xs font-bold flex items-center justify-end rounded-full"
-            style={{ width: `${frækhedsProcent}%` }}
-          >
-            {frækhedsProcent}%
-          </div>
-        </div>
-        <p className="text-xs text-gray-500">
-          Baseret på {acceptedCount} ud af {totalServices} mulige ydelser
-        </p>
-      </div>
+      
     </>
   );
 }
