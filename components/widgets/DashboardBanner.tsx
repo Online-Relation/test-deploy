@@ -7,6 +7,9 @@ import { supabase } from "@/lib/supabaseClient";
 import { useUserContext } from "@/context/UserContext";
 import ImageCropModal from "../ImageCropModal";
 import * as exifr from "exifr";
+import { Category } from "@/components/ui/globalmodal/types";
+import CategorySelect from "@/components/ui/globalmodal/CategorySelect";
+
 
 const DashboardBanner = () => {
   const { user } = useUserContext();
@@ -22,6 +25,7 @@ const DashboardBanner = () => {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingMeta, setPendingMeta] = useState<{ taken_at?: Date; latitude?: number; longitude?: number }>({});
   const [originalImageUrl, setOriginalImageUrl] = useState<string | undefined>(undefined);
+ const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
 
   const fetchLatestBanner = async () => {
     const { data, error } = await supabase
@@ -72,22 +76,22 @@ const DashboardBanner = () => {
 
     let meta: any = {};
     try {
-      meta = await exifr.parse(file);
+      meta = (await exifr.parse(file)) || {};
     } catch (err) {
       meta = {};
     }
 
     let takenAt: Date | undefined = undefined;
-    if (meta.DateTimeOriginal) {
+    if (meta?.DateTimeOriginal) {
       takenAt = new Date(meta.DateTimeOriginal);
-    } else if (meta.CreateDate) {
+    } else if (meta?.CreateDate) {
       takenAt = new Date(meta.CreateDate);
     }
 
     setPendingMeta({
       taken_at: takenAt,
-      latitude: meta.latitude,
-      longitude: meta.longitude,
+      latitude: meta?.latitude,
+      longitude: meta?.longitude,
     });
 
     if (
@@ -151,6 +155,7 @@ const DashboardBanner = () => {
           taken_at: pendingMeta.taken_at ? pendingMeta.taken_at.toISOString() : null,
           latitude: pendingMeta.latitude,
           longitude: pendingMeta.longitude,
+          categories: selectedCategories,
         },
       ]);
 
@@ -164,6 +169,7 @@ const DashboardBanner = () => {
       setPendingFile(null);
       setPendingMeta({});
       setOriginalImageUrl(undefined);
+      setSelectedCategories([]);
     }
   };
 
@@ -173,20 +179,20 @@ const DashboardBanner = () => {
     setPendingFile(null);
     setPendingMeta({});
     setOriginalImageUrl(undefined);
+    setSelectedCategories([]);
   };
 
   return (
     <div className="w-full rounded-2xl shadow-md overflow-hidden mb-6 relative bg-white bg-opacity-90 flex flex-col items-center p-4 space-y-4">
       {uploaderName && (
         <div className="w-full px-2 text-sm font-semibold text-gray-700 italic">
-          Det her minde betød noget for <span className="font-bold">{uploaderName}</span>
+          Det her billede fangede noget særligt for <span className="font-bold">{uploaderName}</span>
         </div>
       )}
 
-     <div
-  className={`w-full relative min-h-[200px] bg-gradient-to-tr from-purple-100 to-orange-100 rounded-xl overflow-hidden transition-opacity duration-500 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
->
-
+      <div
+        className={`w-full relative min-h-[200px] bg-gradient-to-tr from-purple-100 to-orange-100 rounded-xl overflow-hidden transition-opacity duration-500 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+      >
         <input
           type="file"
           accept="image/*"
@@ -194,11 +200,14 @@ const DashboardBanner = () => {
           ref={fileInputRef}
           onChange={handleFileChange}
         />
-        {!imageLoaded && (
-  <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100 animate-pulse">
-    <span className="text-sm text-gray-400">Indlæser billede…</span>
-  </div>
-)}
+
+        {(uploading || !imageLoaded) && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100 bg-opacity-80">
+            <span className="text-sm text-gray-600 animate-pulse">
+              {uploading ? "Uploader billede…" : "Indlæser billede…"}
+            </span>
+          </div>
+        )}
 
         {imageUrl && (
           <img
@@ -213,7 +222,8 @@ const DashboardBanner = () => {
             }`}
           />
         )}
-        {!imageUrl && (
+
+        {!imageUrl && !uploading && (
           <button
             className="flex flex-col items-center justify-center w-full h-full bg-white bg-opacity-40 hover:bg-opacity-60 transition rounded-xl"
             onClick={handleUploadClick}
@@ -221,11 +231,12 @@ const DashboardBanner = () => {
           >
             <span className="text-5xl mb-2">+</span>
             <span className="font-medium text-gray-500">
-              {uploading ? "Uploader..." : "Upload billede"}
+              Upload billede
             </span>
           </button>
         )}
-        {imageUrl && (
+
+        {imageUrl && !uploading && (
           <button
             className="absolute top-2 right-2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 shadow"
             onClick={handleUploadClick}
@@ -249,13 +260,19 @@ const DashboardBanner = () => {
       </div>
 
       {cropModalOpen && rawImage && pendingFile && (
-        <ImageCropModal
-          open={cropModalOpen}
-          imageSrc={rawImage}
-          onCancel={handleCropCancel}
-          onCropComplete={handleCropComplete}
-          aspect={3 / 1.5}
-        />
+        <>
+          <ImageCropModal
+            open={cropModalOpen}
+            imageSrc={rawImage}
+            onCancel={handleCropCancel}
+            onCropComplete={handleCropComplete}
+            aspect={3 / 1.5}
+          />
+          <div className="w-full mt-4">
+           <CategorySelect value={selectedCategories} onChange={setSelectedCategories} categoryType="memory" />
+
+          </div>
+        </>
       )}
     </div>
   );

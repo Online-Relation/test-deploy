@@ -1,5 +1,3 @@
-// components/naughty/GallerySection.tsx
-
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -30,40 +28,42 @@ export default function GallerySection({ galleryUrls, refetchGallery }: Props) {
   }, []);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    let file = e.target.files?.[0];
-    if (!file || !myProfileId) return;
+    const files = e.target.files;
+    if (!files || !myProfileId) return;
 
     setUploading(true);
     setSuccessMessage("");
 
-    if (file.type === "image/heic" || file.name.toLowerCase().endsWith(".heic")) {
-      try {
-        const heic2any = (await import("heic2any")).default;
-        const convertedBlob = await heic2any({ blob: file, toType: "image/jpeg" });
-        file = new File([convertedBlob as BlobPart], file.name.replace(/\.heic$/i, ".jpg"), {
-          type: "image/jpeg",
-        });
-      } catch (err) {
-        console.error("Kunne ikke konvertere HEIC:", err);
-        setUploading(false);
-        return;
+    for (let i = 0; i < files.length; i++) {
+      let file = files[i];
+
+      if (file.type === "image/heic" || file.name.toLowerCase().endsWith(".heic")) {
+        try {
+          const heic2any = (await import("heic2any")).default;
+          const convertedBlob = await heic2any({ blob: file, toType: "image/jpeg" });
+          file = new File([convertedBlob as BlobPart], file.name.replace(/\.heic$/i, ".jpg"), {
+            type: "image/jpeg",
+          });
+        } catch (err) {
+          console.error("Kunne ikke konvertere HEIC:", err);
+          continue;
+        }
+      }
+
+      const timestamp = Date.now();
+      const filePath = `fantasy-profile/stine/gallery/${timestamp}_${file.name}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("naughty-profile")
+        .upload(filePath, file);
+
+      if (uploadError) {
+        console.error("Galleri upload fejl:", uploadError.message);
+        continue;
       }
     }
 
-    const timestamp = Date.now();
-    const filePath = `fantasy-profile/stine/gallery/${timestamp}_${file.name}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("naughty-profile")
-      .upload(filePath, file);
-
-    if (uploadError) {
-      console.error("Galleri upload fejl:", uploadError.message);
-      setUploading(false);
-      return;
-    }
-
-    setSuccessMessage("Billedet er uploadet!");
+    setSuccessMessage("Billederne er uploadet!");
     setUploading(false);
     refetchGallery();
   };
@@ -100,12 +100,13 @@ export default function GallerySection({ galleryUrls, refetchGallery }: Props) {
             className="px-4 py-2 bg-pink-500 text-white text-sm font-semibold rounded hover:bg-pink-600 transition"
             disabled={uploading}
           >
-            {uploading ? "Uploader..." : "Upload billede"}
+            {uploading ? "Uploader..." : "Upload billeder"}
           </button>
         )}
         <input
           type="file"
           accept="image/*"
+          multiple
           onChange={handleUpload}
           className="hidden"
           ref={fileInputRef}

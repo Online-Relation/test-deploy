@@ -27,7 +27,7 @@ const NeverBoringStatement = () => {
   const [widgetClosed, setWidgetClosed] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
 
- useEffect(() => {
+  useEffect(() => {
     const now = new Date();
     const currentHour = now.getHours();
 
@@ -48,18 +48,37 @@ const NeverBoringStatement = () => {
 
       if (!error && data && data.length > 0) {
         setShowVision(true);
+        fetchTodayMood();
       } else if (currentHour >= 19 && currentHour <= 23) {
         setShowQuestion(true);
       } else if (currentHour >= 3 && currentHour < 19) {
         fetchYesterdaySummary();
         setShowVision(true);
+        fetchTodayMood();
       } else {
         setShowVision(true);
+        fetchTodayMood();
       }
     };
 
     checkIfUserAlreadyCheckedInToday();
   }, [user]);
+
+  const fetchTodayMood = async () => {
+    const today = getTodayDateStr();
+    if (!user?.id) return;
+
+    const { data, error } = await supabase
+      .from("daily_checkin")
+      .select("everyday_feeling")
+      .eq("user_id", user.id)
+      .eq("checkin_date", today)
+      .maybeSingle();
+
+    if (!error && data?.everyday_feeling) {
+      setRelationshipMood(data.everyday_feeling);
+    }
+  };
 
   const fetchYesterdaySummary = async () => {
     const yesterday = new Date();
@@ -160,7 +179,19 @@ const NeverBoringStatement = () => {
     setTimeout(() => setWidgetClosed(true), 400);
   };
 
-  const fadeClass = fadeOut ? "opacity-0 scale-95 transition-all duration-300" : "opacity-100 scale-100 transition-all duration-300";
+  const moodBorderClass = relationshipMood === 1
+    ? "border-blue-400 bg-blue-50"
+    : relationshipMood === 2
+    ? "border-cyan-400 bg-cyan-50"
+    : relationshipMood === 3
+    ? "border-gray-400 bg-gray-50"
+    : relationshipMood === 4
+    ? "border-orange-400 bg-orange-50"
+    : relationshipMood === 5
+    ? "border-rose-400 bg-rose-50"
+    : "border-purple-400 bg-purple-50";
+
+  const fadeClass = `${fadeOut ? "opacity-0 scale-95" : "opacity-100 scale-100"} transition-all duration-300`;
 
   const renderStepTitle = () => {
     if (!moodSelected) return "Hvordan har jeres hverdag været i dag?";
@@ -172,7 +203,7 @@ const NeverBoringStatement = () => {
 
   if (showQuestion) {
     return (
-      <div className={`border-2 border-dashed border-purple-400 bg-purple-50 rounded-2xl shadow-xl p-6 flex flex-col items-center text-center gap-4 ${fadeClass}`}>
+      <div className={`border-2 border-dashed rounded-2xl shadow-xl p-6 flex flex-col items-center text-center gap-4 ${fadeClass} ${moodBorderClass}`}>
         <h2 className="text-xl md:text-2xl font-extrabold text-purple-700">
           {renderStepTitle()}
         </h2>
@@ -185,14 +216,13 @@ const NeverBoringStatement = () => {
               <Glasses className="w-5 h-5 inline mr-1" /> Hverdagsagtigt
             </button>
             <button onClick={() => handleMoodClick(3)} className="px-4 py-3 bg-purple-100 border border-purple-300 rounded-xl text-sm font-medium text-purple-700 hover:bg-purple-200 active:scale-95 w-[140px]">
-              <PartyPopper className="w-5 h-5 inline mr-1" /> Spændende
+              <PartyPopper className="w-5 h-5 inline mr-1" /> Hyggeligt
             </button>
             <button onClick={() => handleMoodClick(4)} className="px-4 py-3 bg-purple-100 border border-purple-300 rounded-xl text-sm font-medium text-purple-700 hover:bg-purple-200 active:scale-95 w-[140px]">
               <Sparkles className="w-5 h-5 inline mr-1" /> Sjovt
             </button>
           </div>
         )}
-
         {moodSelected && relationshipMood === null && (
           <>
             <p className="mt-4 text-purple-700 text-base font-medium">
@@ -207,10 +237,8 @@ const NeverBoringStatement = () => {
             </div>
           </>
         )}
-
         {showMemoryInput && !memorySubmitted && (
           <form onSubmit={handleMemorySubmit} className="w-full mt-6 flex flex-col gap-3">
-            
             <p className="text-gray-500 text-center">
               Hvad var <span className="font-semibold text-indigo-700">det bedste i dag?</span>
             </p>
@@ -233,23 +261,18 @@ const NeverBoringStatement = () => {
             </div>
           </form>
         )}
-
         {memorySubmitted && (
           <div className="mt-4 text-purple-700 font-semibold text-sm text-center">
             {memoryText.trim() ? (
-              <>
-                <p>
-                  Godt gået, {displayName}!<br />
-                  Når du gemmer det bedste fra i dag, gør du hverdagen lidt mere magisk – og meget mindre kedelig. Jeg er tilbage i morgen kl. 19.00 - 23.59
-                </p>
-              </>
+              <p>
+                Godt gået, {displayName}!<br />
+                Når du gemmer det bedste fra i dag, gør du hverdagen lidt mere magisk – og meget mindre kedelig. Jeg er tilbage i morgen kl. 19.00 - 23.59
+              </p>
             ) : (
-              <>
-                <p>
-                  Du valgte ikke at gemme et minde i dag – og det er helt okay.<br />
-                  Nogle dage er bare… dage. Men du tjekkede ind – og det gør en forskel!
-                </p>
-              </>
+              <p>
+                Du valgte ikke at gemme et minde i dag – og det er helt okay.<br />
+                Nogle dage er bare… dage. Men du tjekkede ind – og det gør en forskel!
+              </p>
             )}
             <button className="btn btn-primary mt-3" onClick={handleClose}>
               Luk
@@ -262,7 +285,7 @@ const NeverBoringStatement = () => {
 
   if (showVision) {
     return (
-      <div className={`border-2 border-dashed border-purple-400 bg-purple-50 rounded-2xl shadow-xl p-6 flex flex-col items-center text-center gap-4 ${fadeClass}`}>
+      <div className={`border-2 border-dashed rounded-2xl shadow-xl p-6 flex flex-col items-center text-center gap-4 ${fadeClass} ${moodBorderClass}`}>
         <div className="text-purple-500">
           <Sparkles className="w-10 h-10 animate-pulse" />
         </div>

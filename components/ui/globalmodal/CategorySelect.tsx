@@ -1,16 +1,17 @@
 // /components/ui/globalmodal/CategorySelect.tsx
-"use client";
 
+"use client";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Badge from "@/components/ui/globalmodal/CategoryBadge";
 import { Category } from "./types";
 
-type CategorySelectProps = {
+interface CategorySelectProps {
   value: Category[];
-  onChange: (newCategories: Category[]) => void;
+  onChange: (categories: Category[]) => void;
   categoryType?: string;
-};
+  hidden?: boolean;
+}
 
 const CATEGORY_COLORS: Category["color"][] = [
   "orange",
@@ -24,6 +25,7 @@ export default function CategorySelect({
   value,
   onChange,
   categoryType = "global",
+  hidden = false,
 }: CategorySelectProps) {
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [query, setQuery] = useState("");
@@ -31,19 +33,19 @@ export default function CategorySelect({
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    console.log("Henter kategorier for type:", categoryType);
     setIsLoading(true);
     supabase
       .from("modal_categories")
       .select("*")
       .eq("type", categoryType)
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        console.log("Supabase response:", { data, error });
         if (data) {
           setAllCategories(
             (data as any[]).map((cat) => ({
               ...cat,
-              color: CATEGORY_COLORS.includes(cat.color)
-                ? cat.color
-                : "gray",
+              color: CATEGORY_COLORS.includes(cat.color) ? cat.color : "gray",
             }))
           );
         }
@@ -52,16 +54,19 @@ export default function CategorySelect({
   }, [categoryType]);
 
   useEffect(() => {
+    console.log("Opdaterer filtrerede kategorier med query:", query);
     const lower = query.toLowerCase();
     const filteredResult = allCategories.filter(
       (cat) =>
         cat.label.toLowerCase().includes(lower) &&
         !value.find((v) => v.id === cat.id)
     );
+    console.log("Filtrerede kategorier:", filteredResult);
     setFiltered(filteredResult);
   }, [query, allCategories, value]);
 
   function handleSelect(cat: Category) {
+    console.log("Vælger kategori:", cat);
     onChange([...value, cat]);
     setQuery("");
     setFiltered([]);
@@ -69,6 +74,7 @@ export default function CategorySelect({
 
   async function handleAddNew() {
     const label = query.trim();
+    console.log("Tilføjer ny kategori med label:", label);
     if (!label) return;
     if (
       allCategories.find(
@@ -76,15 +82,20 @@ export default function CategorySelect({
           cat.label.toLowerCase() === label.toLowerCase() &&
           cat.type === categoryType
       )
-    )
+    ) {
+      console.log("Kategori findes allerede");
       return;
+    }
 
     const color: Category["color"] = "purple";
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("modal_categories")
       .insert([{ label, color, type: categoryType }])
       .select()
       .single();
+
+    console.log("Resultat af insert:", { data, error });
+
     if (data) {
       const cat: Category = {
         id: data.id,
@@ -100,11 +111,18 @@ export default function CategorySelect({
   }
 
   function handleRemove(cat: Category) {
+    console.log("Fjerner kategori:", cat);
     onChange(value.filter((c) => c.id !== cat.id));
   }
 
+  if (hidden) return null;
+
   return (
-    <div>
+    <div className="w-full">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Vælg eller tilføj en kategori:
+      </label>
+
       <div className="flex flex-wrap gap-2 mb-2">
         {value.map((cat) => (
           <Badge color={cat.color} key={cat.id}>
@@ -125,15 +143,15 @@ export default function CategorySelect({
         <input
           type="text"
           value={query}
-          onChange={e => setQuery(e.target.value)}
+          onChange={(e) => setQuery(e.target.value)}
           placeholder="Søg eller tilføj kategori"
           className="border rounded px-3 py-2 flex-grow"
-          onKeyDown={e => {
+          onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
               if (
                 !allCategories.find(
-                  cat =>
+                  (cat) =>
                     cat.label.toLowerCase() === query.trim().toLowerCase() &&
                     cat.type === categoryType
                 )
@@ -152,7 +170,7 @@ export default function CategorySelect({
           disabled={
             !query.trim() ||
             !!allCategories.find(
-              cat =>
+              (cat) =>
                 cat.label.toLowerCase() === query.trim().toLowerCase() &&
                 cat.type === categoryType
             )
@@ -164,7 +182,7 @@ export default function CategorySelect({
 
       {query && filtered.length > 0 && (
         <div className="mt-1 border bg-white rounded shadow-sm max-h-40 overflow-auto z-20">
-          {filtered.map(cat => (
+          {filtered.map((cat) => (
             <div
               key={cat.id}
               onClick={() => handleSelect(cat)}
@@ -176,7 +194,25 @@ export default function CategorySelect({
         </div>
       )}
 
-      {isLoading && <div className="text-xs text-gray-500 mt-2">Henter kategorier…</div>}
+      {!query && filtered.length === 0 && allCategories.length > 0 && (
+        <div className="mt-2 border bg-white rounded shadow-sm max-h-40 overflow-auto z-20">
+          {allCategories
+            .filter((cat) => !value.find((v) => v.id === cat.id))
+            .map((cat) => (
+              <div
+                key={cat.id}
+                onClick={() => handleSelect(cat)}
+                className="px-3 py-2 cursor-pointer hover:bg-gray-100"
+              >
+                {cat.label}
+              </div>
+            ))}
+        </div>
+      )}
+
+      {isLoading && (
+        <div className="text-xs text-gray-500 mt-2">Henter kategorier…</div>
+      )}
     </div>
   );
 }

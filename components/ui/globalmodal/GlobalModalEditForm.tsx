@@ -250,11 +250,14 @@ export default function GlobalModalEditForm({
 
       <div>
         <span className="font-semibold mb-1 block">Kategorier</span>
-        <CategorySelect
-          value={categories}
-          onChange={setCategories}
-          categoryType={type?.id || "global"}
-        />
+        {type?.id && (
+  <CategorySelect
+    value={categories}
+    onChange={setCategories}
+    categoryType={type.id}
+  />
+)}
+
       </div>
 
       <div className="flex justify-between gap-4 pt-4 border-t">

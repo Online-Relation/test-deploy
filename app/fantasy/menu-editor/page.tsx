@@ -1,4 +1,4 @@
-// app/fantasy/menu-editor/naughty-profile/page.tsx
+// app//fantasy/menu-editor/page.tsx
 
 "use client";
 
@@ -7,8 +7,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useUserContext } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
-import { Pencil } from "lucide-react";
-import { SortableItem } from "@/components/SortableItem";
+import { Pencil, Check, X } from "lucide-react";
 
 const DndKitWrapper = dynamic(() => import("@/components/naughty/DndKitWrapper"), {
   ssr: false,
@@ -37,7 +36,7 @@ export default function MenuSelectPage() {
   const [notes, setNotes] = useState("");
   const [newOption, setNewOption] = useState("");
   const [newAddon, setNewAddon] = useState("");
-  const [editMode, setEditMode] = useState(true);
+  const [editMode, setEditMode] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [noGoText, setNoGoText] = useState("");
@@ -49,21 +48,15 @@ export default function MenuSelectPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: optionsData, error: optionsError } = await supabase
+      const { data: optionsData } = await supabase
         .from("fantasy_menu_options")
         .select("id, text, created_by, is_addon")
         .eq("is_addon", false);
 
-      if (optionsError) console.error("❌ optionsError", optionsError);
-      console.log("✅ optionsData", optionsData);
-
-      const { data: addonData, error: addonError } = await supabase
+      const { data: addonData } = await supabase
         .from("fantasy_menu_options")
         .select("id, text, created_by, is_addon")
         .eq("is_addon", true);
-
-      if (addonError) console.error("❌ addonError", addonError);
-      console.log("✅ addonData", addonData);
 
       const { data: items } = await supabase
         .from("fantasy_menu_items")
@@ -110,76 +103,52 @@ export default function MenuSelectPage() {
   }, []);
 
   const handleSave = async () => {
-  console.log("📦 selections", selections);
-  console.log("📦 options", options);
-  console.log("📦 addons", addons);
+    await supabase
+      .from("fantasy_menu_meta")
+      .upsert(
+        { user_id: STINE_ID, price, addon_price: addonPrice, notes },
+        { onConflict: "user_id" }
+      );
 
-  // Gem meta
-  await supabase
-    .from("fantasy_menu_meta")
-    .upsert(
-      { user_id: STINE_ID, price, addon_price: addonPrice, notes },
-      { onConflict: "user_id" }
-    );
+    await supabase
+      .from("fantasy_menu_nogos")
+      .upsert({ user_id: STINE_ID, text: noGoText }, { onConflict: "user_id" });
 
-  // Gem NO-GO tekst
-  await supabase
-    .from("fantasy_menu_nogos")
-    .upsert({ user_id: STINE_ID, text: noGoText }, { onConflict: "user_id" });
+    const allOptions = [...options, ...addons];
 
-  // Kombinér alle ydelser
-  const allOptions = [...options, ...addons];
+    const toInsert = Object.entries(selections)
+      .filter(([_, choice]) => choice !== null)
+      .map(([id, choice]) => {
+        const match = allOptions.find((opt) => opt.id === id);
+        if (!match) return null;
+        return {
+          user_id: STINE_ID,
+          text: match.text,
+          choice,
+          extra_price: match.is_addon ? addonPrice : null,
+          is_selected: choice === "yes",
+        };
+      })
+      .filter(Boolean);
 
-  // Byg listen til insert
-  const toInsert = Object.entries(selections)
-    .filter(([_, choice]) => choice !== null)
-    .map(([id, choice]) => {
-      const match = allOptions.find((opt) => opt.id === id);
-      if (!match) {
-        console.warn("⚠️ Mangler match for ID:", id);
-        return null;
-      }
-
-      return {
-        user_id: STINE_ID,
-        text: match.text,
-        choice,
-        extra_price: match.is_addon ? addonPrice : null,
-        is_selected: choice === "yes",
-      };
-    })
-    .filter(Boolean);
-
-  // Fjern dubletter baseret på user_id + text
- // Fjern dubletter baseret på user_id + text
-const seen = new Set();
-const filteredToInsert = toInsert.filter((item): item is NonNullable<typeof item> => {
-  if (!item) return false;
-  const key = `${item.user_id}-${item.text}`;
-  if (seen.has(key)) return false;
-  seen.add(key);
-  return true;
-});
-
-
-  console.log("🧾 Klar til at sende til Supabase (uden dubletter):");
-  console.table(filteredToInsert);
-
-  // Gem til Supabase
-  const { error } = await supabase
-    .from("fantasy_menu_items")
-    .upsert(filteredToInsert, { onConflict: "user_id,text" });
-
-  if (error) {
-    console.error("❌ Supabase upsert-fejl", error);
-    return;
+    const seen = new Set();
+    const filteredToInsert = toInsert.filter(
+  (item): item is Exclude<typeof item, null> => {
+    if (!item) return false;
+    const key = `${item.user_id}-${item.text}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   }
-
-  // Gå videre
-  router.push("/fantasy/menu-editor/naughty-profile");
-};
+);
 
 
+    const { error } = await supabase
+      .from("fantasy_menu_items")
+      .upsert(filteredToInsert, { onConflict: "user_id,text" });
+
+    if (!error) router.push("/fantasy/menu-editor/naughty-profile");
+  };
 
   const handleAddOption = async () => {
     if (!newOption || !user) return;
@@ -207,13 +176,27 @@ const filteredToInsert = toInsert.filter((item): item is NonNullable<typeof item
     }
   };
 
+  const handleEditOption = async () => {
+    if (!editingId || !editText.trim()) return;
+    const { error } = await supabase
+      .from("fantasy_menu_options")
+      .update({ text: editText })
+      .eq("id", editingId);
+    if (!error) {
+      setOptions((prev) => prev.map((opt) => (opt.id === editingId ? { ...opt, text: editText } : opt)));
+      setAddons((prev) => prev.map((opt) => (opt.id === editingId ? { ...opt, text: editText } : opt)));
+      setEditingId(null);
+      setEditText("");
+    }
+  };
+
   if (loading || !user) return null;
 
   return (
     <div className="max-w-md mx-auto p-4 space-y-6 bg-pink-50 border border-pink-200 rounded-2xl shadow-lg">
       <h1 className="text-3xl font-bold text-center text-pink-700 flex justify-center items-center gap-2">
         Stines valg
-        {isEditor && (
+        {isEditor && !editingId && (
           <button
             className="ml-2 p-1 text-gray-500 hover:text-black"
             onClick={() => setEditMode(!editMode)}
@@ -222,6 +205,91 @@ const filteredToInsert = toInsert.filter((item): item is NonNullable<typeof item
           </button>
         )}
       </h1>
+
+      {editingId && (
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            className="flex-1 border border-pink-300 rounded px-3 py-2"
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+          />
+          <button onClick={handleEditOption} className="text-green-600 hover:text-green-800">
+            <Check />
+          </button>
+          <button
+            onClick={() => {
+              setEditingId(null);
+              setEditText("");
+            }}
+            className="text-red-500 hover:text-red-700"
+          >
+            <X />
+          </button>
+        </div>
+      )}
+
+{editMode && (
+  <div className="space-y-4">
+    {[...options, ...addons].map((item) => {
+      console.log("🔍 Rendering item:", item);
+      return (
+        <div
+          key={item.id}
+          className="border border-pink-200 bg-white rounded px-3 py-2"
+        >
+          {editingId === item.id ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                className="flex-1 border border-pink-300 rounded px-3 py-2"
+                value={editText || item.text}
+                onChange={(e) => {
+                  console.log("✏️ Input ændret:", e.target.value);
+                  setEditText(e.target.value);
+                }}
+              />
+              <button
+                onClick={() => {
+                  console.log("✅ Gem ændring for:", editingId, "tekst:", editText);
+                  handleEditOption();
+                }}
+                className="text-green-600 hover:text-green-800"
+              >
+                <Check />
+              </button>
+              <button
+                onClick={() => {
+                  console.log("❌ Annuller redigering for:", editingId);
+                  setEditingId(null);
+                  setEditText("");
+                }}
+                className="text-red-500 hover:text-red-700"
+              >
+                <X />
+              </button>
+            </div>
+          ) : (
+            <div className="flex justify-between items-center">
+              <span>{item.text}</span>
+              <button
+                onClick={() => {
+                  console.log("🖊️ Starter redigering for:", item.id, item.text);
+                  setEditingId(item.id);
+                  setEditText(item.text);
+                }}
+                className="text-pink-500 hover:text-pink-700"
+              >
+                <Pencil size={18} />
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    })}
+  </div>
+)}
+
 
       <div className="space-y-4">
         <div>

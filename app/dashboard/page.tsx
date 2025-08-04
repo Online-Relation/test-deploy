@@ -11,7 +11,6 @@ import ChallengeCardWidget from '@/components/widgets/ChallengeCardWidget';
 import { logUserActivity } from '@/lib/logUserActivity';
 import ActiveBetWidget from "@/components/widgets/ActiveBetWidget";
 
-
 interface Widget {
   widget_key: string;
   layout: 'small' | 'medium' | 'large';
@@ -24,7 +23,6 @@ export default function DashboardPage() {
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [challengeCardRefresh, setChallengeCardRefresh] = useState(0);
 
-  // --- Log login-event kun én gang pr. session ---
   useEffect(() => {
     if (user?.id === "5687c342-1a13-441c-86ca-f7e87e1edbd5") {
       if (!sessionStorage.getItem("login_logged")) {
@@ -57,7 +55,6 @@ export default function DashboardPage() {
     'manifestation_reminder',
     'followup_thoughts',
     'flowers',
-    
     'active_bet',
     'daily_memory',
     'date_mission',
@@ -106,14 +103,17 @@ export default function DashboardPage() {
     return null;
   }
 
-  // HOVED-log: her ser du det endelige widgets-array
   console.log('DashboardPage: widgets array', widgets);
 
   return (
     <BucketProvider>
       <div className="w-full sm:max-w-6xl sm:mx-auto px-2 sm:px-4 py-6 grid grid-cols-12 gap-4 sm:gap-6">
-        {widgets
-          .sort((a, b) => a.order - b.order)
+        {[...widgets]
+          .sort((a, b) => {
+            if (a.widget_key === 'profile_header') return -1;
+            if (b.widget_key === 'profile_header') return 1;
+            return a.order - b.order;
+          })
           .map(widget => {
             console.log('DashboardPage: renderer widget', widget.widget_key, widget);
             return (
@@ -134,10 +134,6 @@ export default function DashboardPage() {
             );
           })}
       </div>
-      {/* 
-      // Test: Sæt denne direkte ind for at sikre, at widgetten altid vises – kun til fejlsøgning!
-      // <FollowUpReminderWidget />
-      */}
     </BucketProvider>
   );
 }
