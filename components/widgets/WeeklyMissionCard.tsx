@@ -73,22 +73,29 @@ export default function WeeklyMissionCard() {
 
   useEffect(() => {
     const fetchWeeklyMission = async () => {
-      const today = new Date();
-      const lastMonday = new Date(today);
-      lastMonday.setDate(today.getDate() - today.getDay() + 1);
-      lastMonday.setHours(4, 0, 0, 0);
+  const today = new Date();
+  const lastMonday = new Date(today);
+  lastMonday.setDate(today.getDate() - today.getDay() + 1);
+  lastMonday.setUTCHours(4, 0, 0, 0); // <-- vigtig ændring
 
-      const { data, error } = await supabase
-        .from("day_missions")
-        .select("text")
-        .gte("created_at", lastMonday.toISOString())
-        .order("created_at", { ascending: true })
-        .limit(1);
+  console.log("🔍 Fetch mission - sidste mandag UTC:", lastMonday.toISOString());
 
-      if (!error && data.length > 0) {
-        setWeeklyMission(data[0].text);
-      }
-    };
+  const { data, error } = await supabase
+    .from("day_missions")
+    .select("text")
+    .gte("created_at", lastMonday.toISOString())
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  console.log("📦 Data modtaget:", data);
+  console.log("❌ Fejl:", error);
+
+  if (!error && data.length > 0) {
+    setWeeklyMission(data[0].text);
+  }
+};
+
+
 
     const fetchDisplayName = async () => {
       const idToUse = partnerId || user?.id;
