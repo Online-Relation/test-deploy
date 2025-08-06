@@ -10,6 +10,8 @@ import { BucketProvider } from '@/context/BucketContext';
 import ChallengeCardWidget from '@/components/widgets/ChallengeCardWidget';
 import { logUserActivity } from '@/lib/logUserActivity';
 import ActiveBetWidget from "@/components/widgets/ActiveBetWidget";
+import WeeklyMissionCard from "@/components/widgets/WeeklyMissionCard";
+
 
 interface Widget {
   widget_key: string;

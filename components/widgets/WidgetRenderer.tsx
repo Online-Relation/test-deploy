@@ -23,8 +23,6 @@ import NeverBoringStatement from "@/components/widgets/NeverBoringStatement";
 import SexlifeSpotlightWidget from "@/components/widgets/SexlifeSpotlightWidget";
 import WeeklyMissionCard from "@/components/widgets/WeeklyMissionCard";
 
-
-
 import { useUserContext } from '@/context/UserContext';
 
 interface Widget {
@@ -85,15 +83,13 @@ export default function WidgetRenderer({ widget }: { widget: Widget }) {
       return <ActiveBetWidget />;
     case 'daily_memory':
       return <DailyMemoryWidget />;
-    case "weekly_mission":
+    case 'weekly_mission':
       return <WeeklyMissionCard />;
-    case "sexlife_spotlight":
+    case 'sexlife_spotlight':
       return <SexlifeSpotlightWidget />;
-    
     case 'date_mission':
       if (!user?.id) return null;
-    
-    
+
       // RENDER OG UNMOUNT KORREKT:
       const widgetElement = <DateMissionWidget userId={user.id} displayName={user.display_name || ""} />;
       if (!widgetElement) {
@@ -101,6 +97,7 @@ export default function WidgetRenderer({ widget }: { widget: Widget }) {
         return null;
       }
       return widgetElement;
+
     default:
       return null;
   }
