@@ -1,4 +1,3 @@
-// /types/profile.ts
 export type Sizes = {
   bh: string;
   trusser: string;
@@ -50,6 +49,5 @@ export type Sizes = {
   relationship_value_4: string;
   relationship_value_5: string;
   relationship_role: string;
-  relationship_roles_order: string[]; // ← tilføj denne linje
-  
+  relationship_roles_order: string[];
 };

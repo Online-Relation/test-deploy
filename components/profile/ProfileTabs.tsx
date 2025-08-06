@@ -8,10 +8,8 @@ type TabKey =
   | 'wishes'
   | 'preferences'
   | 'energy'
-  | 'meals'
   | 'personality'
-  | 'relationship'
-  | 'future';
+  | 'relationship';
 
 interface Props {
   activeTab: TabKey;
@@ -24,10 +22,8 @@ export function ProfileTabs({ activeTab, setActiveTab }: Props) {
     { key: 'wishes', label: 'Ønskeliste' },
     { key: 'preferences', label: 'Præferencer' },
     { key: 'energy', label: 'Energi & Dopamin' },
-    { key: 'meals', label: 'Mad' },
     { key: 'personality', label: 'Personlighed' },
     { key: 'relationship', label: 'Parforhold' },
-    { key: 'future', label: 'Fremtid' },
   ];
 
   return (

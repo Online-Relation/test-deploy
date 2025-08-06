@@ -6,16 +6,14 @@ import { supabase } from '@/lib/supabaseClient';
 import { useUserContext } from '@/context/UserContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sizes } from '@/types/profile';
-import { DopaminList } from '@/components/DopaminList';
+import { TabKey } from '@/types/profileTabs';
 import { ProfileTabs } from '@/components/profile/ProfileTabs';
 import { WishSection } from '@/components/profile/WishSection';
 import { SizeSection } from '@/components/profile/SizeSection';
 import { PersonalitySection } from '@/components/profile/PersonalitySection';
 import { PreferencesSection } from '@/components/profile/PreferencesSection';
 import { EnergySection } from '@/components/profile/EnergySection';
-import { MealsSection } from '@/components/profile/MealsSection';
 import { RelationshipValuesSection } from '@/components/profile/RelationshipValuesSection';
-import { FutureSection } from '@/components/profile/FutureSection';
 
 interface Wish {
   id?: string;
@@ -26,19 +24,11 @@ export default function ProfilePage() {
   const { user } = useUserContext();
   const [uploading, setUploading] = useState(false);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
-  type TabKey = 'sizes' | 'wishes' | 'preferences' | 'energy' | 'meals' | 'personality' | 'relationship' | 'future';
   const [activeTab, setActiveTab] = useState<TabKey>('sizes');
-
   const [colorOrder, setColorOrder] = useState(['red', 'yellow', 'green', 'blue']);
   const [dopaminList, setDopaminList] = useState<string[]>([]);
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [savingWishes, setSavingWishes] = useState(false);
-
-  const [isViewingPartner, setIsViewingPartner] = useState(false);
-  const [partnerSizes, setPartnerSizes] = useState<Sizes | null>(null);
-  const [partnerDopaminList, setPartnerDopaminList] = useState<string[]>([]);
-  const [partnerId, setPartnerId] = useState<string>('');
-
   const [sizes, setSizes] = useState<Sizes>({
     bh: '', trusser: '', sko: '', jeans: '', kjoler: '', nederdele: '', tshirts: '', toppe: '', buksedragt: '',
     love_language_1: '', love_language_2: '', love_language_3: '', love_language_4: '', love_language_5: '',
@@ -56,23 +46,19 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (user?.avatar_url) setFileUrl(user.avatar_url);
-
     const fetchProfile = async () => {
       if (!user) return;
-
       const { data: prof } = await supabase
         .from('profiles')
         .select(`*, dopamine_triggers`)
         .eq('id', user.id)
         .maybeSingle();
-
       if (prof) {
         setSizes(prev => ({
           ...prev,
           ...prof,
           relationship_roles_order: prof.relationship_roles_order || [],
         }));
-
         const order = Object.entries({
           red: prof.red,
           yellow: prof.yellow,
@@ -81,46 +67,19 @@ export default function ProfilePage() {
         })
           .sort((a, b) => Number(a[1]) - Number(b[1]))
           .map(([color]) => color);
-
         if (order.length === 4) setColorOrder(order);
-
         const parsedList = prof.dopamine_triggers ? JSON.parse(prof.dopamine_triggers) : [];
         setDopaminList(parsedList);
       }
-
       const { data: ws } = await supabase
         .from('wishes')
         .select('id, description')
         .eq('user_id', user.id);
-
       if (ws) {
         setWishes(ws.map(w => ({ id: w.id, description: w.description })));
       }
     };
-
     fetchProfile();
-  }, [user]);
-
-  useEffect(() => {
-    const fetchPartner = async () => {
-      if (!user) return;
-      const partnerRole = user.role === 'mads' ? 'stine' : 'mads';
-
-      const { data: partner } = await supabase
-        .from('profiles')
-        .select(`*, dopamine_triggers`)
-        .eq('role', partnerRole)
-        .maybeSingle();
-
-      if (partner) {
-        const parsed = partner.dopamine_triggers ? JSON.parse(partner.dopamine_triggers) : [];
-        setPartnerSizes(partner);
-        setPartnerDopaminList(parsed);
-        setPartnerId(partner.id);
-      }
-    };
-
-    fetchPartner();
   }, [user]);
 
   const handleUpload = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -205,9 +164,6 @@ export default function ProfilePage() {
     setColorOrder(newOrder);
   };
 
-  const currentSizes = isViewingPartner ? partnerSizes : sizes;
-  const currentDopamin = isViewingPartner ? partnerDopaminList : dopaminList;
-
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
       <div className="flex flex-col items-center text-center space-y-3">
@@ -218,17 +174,11 @@ export default function ProfilePage() {
         )}
         <input type="file" accept="image/*" onChange={handleUpload} disabled={uploading} className="text-sm" />
         <div className="flex items-center gap-4 mt-2">
-          <h1 className="text-3xl font-bold">{isViewingPartner ? 'Partner Profil' : 'Min Profil'}</h1>
-          <button
-            onClick={() => setIsViewingPartner(!isViewingPartner)}
-            className="text-sm px-3 py-1 bg-gray-100 border rounded hover:bg-gray-200"
-          >
-            {isViewingPartner ? 'Skift til min profil' : 'Se partner profil'}
-          </button>
+          <h1 className="text-3xl font-bold">Min Profil</h1>
         </div>
       </div>
 
-      {!isViewingPartner && <ProfileTabs activeTab={activeTab} setActiveTab={setActiveTab} />}
+      <ProfileTabs activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -241,49 +191,42 @@ export default function ProfilePage() {
         >
           {activeTab === 'personality' && (
             <PersonalitySection
-              sizes={currentSizes || {} as Sizes}
-              setSizes={isViewingPartner ? () => {} : setSizes}
+              sizes={sizes}
+              setSizes={setSizes}
               colorOrder={colorOrder}
               moveColor={moveColor}
               handleSaveSizes={handleSaveSizes}
             />
           )}
-          {activeTab === 'meals' && (
-            <MealsSection
-              sizes={currentSizes || {} as Sizes}
-              setSizes={isViewingPartner ? () => {} : setSizes}
-              handleSaveSizes={handleSaveSizes}
-            />
-          )}
           {activeTab === 'energy' && (
             <EnergySection
-              dopaminList={currentDopamin}
-              setDopaminList={isViewingPartner ? () => {} : setDopaminList}
+              dopaminList={dopaminList}
+              setDopaminList={setDopaminList}
               handleSaveSizes={handleSaveSizes}
             />
           )}
           {activeTab === 'preferences' && (
             <PreferencesSection
-              sizes={currentSizes || {} as Sizes}
-              setSizes={isViewingPartner ? () => {} : setSizes}
+              sizes={sizes}
+              setSizes={setSizes}
               handleSaveSizes={handleSaveSizes}
             />
           )}
           {activeTab === 'relationship' && (
             <RelationshipValuesSection
-              sizes={currentSizes || {} as Sizes}
-              setSizes={isViewingPartner ? () => {} : setSizes}
+              sizes={sizes}
+              setSizes={setSizes}
               handleSaveSizes={handleSaveSizes}
             />
           )}
-          {activeTab === 'sizes' && user?.role === 'stine' && !isViewingPartner && (
+          {activeTab === 'sizes' && user?.role === 'stine' && (
             <SizeSection
               sizes={sizes}
               setSizes={setSizes}
               handleSaveSizes={handleSaveSizes}
             />
           )}
-          {activeTab === 'wishes' && user?.role === 'stine' && !isViewingPartner && (
+          {activeTab === 'wishes' && user?.role === 'stine' && (
             <WishSection
               wishes={wishes}
               savingWishes={savingWishes}
@@ -291,13 +234,6 @@ export default function ProfilePage() {
               updateWish={updateWish}
               removeWish={removeWish}
               handleSaveWishes={handleSaveWishes}
-            />
-          )}
-          {activeTab === 'future' && (
-            <FutureSection
-              isViewingPartner={isViewingPartner}
-              userId={user?.id || ''}
-              partnerId={partnerId}
             />
           )}
         </motion.div>

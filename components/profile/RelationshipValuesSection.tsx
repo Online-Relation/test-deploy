@@ -74,7 +74,6 @@ export function RelationshipValuesSection({ sizes, setSizes, handleSaveSizes }: 
 
       setAllRoles(data || []);
 
-      // hvis der ikke er en rækkefølge gemt i state, sæt standardrækkefølge
       if (!sizes.relationship_roles_order || sizes.relationship_roles_order.length === 0) {
         setSizes((prev) => ({
           ...prev,
@@ -98,25 +97,6 @@ export function RelationshipValuesSection({ sizes, setSizes, handleSaveSizes }: 
 
   return (
     <>
-      <h2 className="text-xl font-semibold">Parforholdets Værdier</h2>
-      <p className="text-sm text-gray-500 mb-4">Hvad er vigtigst for dig i et sundt og godt parforhold?</p>
-
-      {Array.from({ length: 5 }).map((_, i) => (
-        <input
-          key={`relationship_value_${i + 1}`}
-          type="text"
-          value={(sizes as any)[`relationship_value_${i + 1}`] || ''}
-          onChange={(e) =>
-            setSizes((prev) => ({
-              ...prev,
-              [`relationship_value_${i + 1}`]: e.target.value,
-            }))
-          }
-          className="w-full border rounded px-3 py-2 mt-1 mb-3"
-          placeholder={`Værdi ${i + 1} (f.eks. tillid, nærhed)`}
-        />
-      ))}
-
       <h3 className="text-lg font-semibold mt-8">Roller i parforholdet</h3>
       <p className="text-sm text-gray-500 mb-4">Træk og slip rollerne i den rækkefølge, du genkender dig mest i</p>
 
@@ -143,7 +123,7 @@ export function RelationshipValuesSection({ sizes, setSizes, handleSaveSizes }: 
         onClick={handleSaveSizes}
         className="w-full bg-pink-600 text-white py-2 rounded hover:bg-pink-700 mt-6"
       >
-        Gem parforholdsværdier
+        Gem roller
       </button>
     </>
   );

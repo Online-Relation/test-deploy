@@ -88,7 +88,7 @@ export default function AnbefalingerOverview() {
         Her kan du se jeres gennemførte quizzer med svar, statistik og personlige anbefalinger. Brug det som et udgangspunkt for samtaler og refleksion.
       </p>
 
-      {/* 🔶 Overordnet anbefaling */}
+      {/* 🔶 Overordnet anbefaling 
       <Card className="p-4 space-y-2">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
           <div className="font-semibold text-lg">🧠 Overordnet anbefaling</div>
@@ -115,7 +115,7 @@ export default function AnbefalingerOverview() {
           </p>
         )}
       </Card>
-
+        */}
       {/* 📅 Ugentlig anbefaling */}
       <Card className="p-4 space-y-2">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
@@ -134,6 +134,18 @@ export default function AnbefalingerOverview() {
         {weeklyMessage && (
           <p className="text-xs text-muted-foreground">{weeklyMessage}</p>
         )}
+      </Card>
+      <Card className="p-4 space-y-2">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
+          <div className="font-semibold text-lg">🧩 Jeres forskelligheder
+          </div>
+          <Link href="/fantasy/anbefalinger/jeres-forskelligheder">
+            <Button variant="secondary">Gå til anbefaling</Button>
+          </Link>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Se en oversigt over jeres forskelligheder og hvordan I kan bruge dem som styrke.
+        </p>
       </Card>
 
       {/* 🔷 Quiz-specifikke anbefalinger */}

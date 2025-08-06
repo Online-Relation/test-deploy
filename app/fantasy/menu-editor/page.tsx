@@ -310,7 +310,7 @@ export default function MenuSelectPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-normal text-pink-600">Pris for hele pakken</label>
+          <label className="block text-sm font-normal text-pink-600">Pris pr. ydelse</label>
           <input
             type="number"
             value={price}
