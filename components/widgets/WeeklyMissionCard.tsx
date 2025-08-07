@@ -1,17 +1,12 @@
-// components/widgets/WeeklyMissionCard.tsx
-
 "use client";
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from '@/lib/supabaseClient';
 import { useUserContext } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
 
 export default function WeeklyMissionCard() {
-  console.log("🧩 Widget mountet");
-  console.log("📍 Localhost check:", typeof window !== "undefined" ? window.location.hostname : "SSR");
-
   const [revealed, setRevealed] = useState(true);
   const [timeLeft, setTimeLeft] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,18 +61,14 @@ export default function WeeklyMissionCard() {
 
   useEffect(() => {
     const fetchWeeklyMission = async () => {
-      const today = new Date();
-      const lastMonday = new Date(today);
-      lastMonday.setDate(today.getDate() - today.getDay() + 1); // Mandag denne uge
-      lastMonday.setUTCHours(4, 0, 0, 0); // 04:00 UTC
-
-      console.log("🔍 Fetch mission - sidste mandag UTC:", lastMonday.toISOString());
+      const now = new Date().toISOString();
 
       const { data, error } = await supabase
         .from("day_missions")
         .select("text")
-        .gte("active_from", lastMonday.toISOString())
-        .order("active_from", { ascending: true })
+        .lte("active_from", now)
+        .eq("is_active", true)
+        .order("active_from", { ascending: false })
         .limit(1);
 
       console.log("📦 Data modtaget:", data);
@@ -85,7 +76,6 @@ export default function WeeklyMissionCard() {
 
       if (!error && data.length > 0) {
         setWeeklyMission(data[0].text);
-        console.log("✅ Mission hentet og sat:", data[0].text);
       }
     };
 
@@ -142,7 +132,7 @@ export default function WeeklyMissionCard() {
       completed_at: new Date().toISOString(),
     });
 
-    setSuccessMessage(`Godt gået, ${displayName || "du"}! Du gør en indsats for at holde jeres forhold levende og legende.`);
+    setSuccessMessage(`Godt gået, ${user.display_name}! Du gør en indsats for at holde jeres forhold levende og legende.`);
     setIsSubmitting(false);
     setIsCompleted(true);
     localStorage.setItem("missionCompletedAt", new Date().toISOString());
@@ -177,11 +167,7 @@ export default function WeeklyMissionCard() {
             <div className="mt-4 text-sm fade-in">
               <p>{successMessage}</p>
               {recentImageUrl ? (
-                <img
-                  src={recentImageUrl}
-                  alt="Minde"
-                  className="mt-4 rounded-xl shadow max-h-48 mx-auto"
-                />
+                <img src={recentImageUrl} alt="Minde" className="mt-4 rounded-xl shadow max-h-48 mx-auto" />
               ) : (
                 <p className="mt-3 text-pink-300 italic">{imageFallbackText}</p>
               )}
