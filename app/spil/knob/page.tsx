@@ -28,114 +28,190 @@ export default function KnobGamePage() {
     return data?.value || 10;
   };
 
-  const fetchNextQuestion = async () => {
-    setStatus('');
-    setHasAnswered(false);
-    if (!user) return;
-    console.log('🔄 fetchNextQuestion kaldes af', user.id);
+const fetchNextQuestion = async () => {
+  setStatus('');
+  setHasAnswered(false);
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('partner_id')
-      .eq('id', user.id)
-      .maybeSingle();
+  console.log('⏳ fetchNextQuestion kaldt...');
+  console.log('📌 Bruger:', user);
 
-    const partnerId = profile?.partner_id;
-    if (!partnerId) return;
+  if (!user) {
+    console.warn('🚫 Ingen bruger fundet – afbryder');
+    return;
+  }
 
-    const createSession = async (q: any) => {
-      console.log('🧪 createSession: ', q);
-      const payload = {
-        responder_id: user.id,
-        guesser_id: partnerId,
-        question_id: q?.id,
-      };
-      const { data, error } = await supabase.rpc('create_knob_session', payload);
-      if (error) {
-        console.error('❌ RPC fejl:', error.message || error);
-        return false;
-      }
-      return true;
+  console.log('✅ Bruger-ID:', user.id);
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('partner_id')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (profileError) {
+    console.error('❌ Fejl ved hentning af profil:', profileError.message);
+    return;
+  }
+
+  const partnerId = profile?.partner_id;
+  console.log('👥 Partner-ID:', partnerId);
+
+  if (!partnerId) {
+    console.warn('🚫 Ingen partner-ID fundet – afbryder');
+    return;
+  }
+
+  const createSession = async (q: any) => {
+    console.log('🧪 createSession: ', q);
+    const payload = {
+      responder_id: user.id,
+      guesser_id: partnerId,
+      question_id: q?.id,
     };
+    const { data, error } = await supabase.rpc('create_knob_session', payload);
+    if (error) {
+      console.error('❌ Fejl i create_knob_session:', error.message);
+      return false;
+    }
+    console.log('✅ Session oprettet:', data);
+    return true;
+  };
 
-    const { data: session } = await supabase
-      .from('knob_game_sessions')
+  const { data: sessions, error: sessionsError } = await supabase
+    .from('knob_game_sessions')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (sessionsError) {
+    console.error('❌ Fejl ved hentning af sessions:', sessionsError.message);
+    return;
+  }
+
+  const session = sessions?.find(
+    (s) => s.responder_id === user.id || s.guesser_id === user.id
+  );
+
+  console.log('📦 Nuværende session:', session);
+
+  let mode: 'answer' | 'guess' = 'answer';
+
+  if (session?.question_id) {
+    const { data: answers } = await supabase
+      .from('knob_game_answers')
       .select('*')
-      .or(`user_id.eq.${user.id},user_id.eq.${partnerId}`)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .eq('question_id', session.question_id);
 
-    console.log('📦 Nuværende session:', session);
+    console.log('📊 Fundne svar:', answers);
 
-    if (session?.question_id) {
-      const { data: answers } = await supabase
-        .from('knob_game_answers')
-        .select('*')
-        .eq('question_id', session.question_id);
+    const answeredByUser = answers?.some((a) => a.user_id === user.id);
+    const answeredByPartner = answers?.some((a) => a.user_id === partnerId);
 
-      console.log('📊 Fundne svar:', answers);
+    if (answeredByUser && !answeredByPartner) {
+      console.log('🧠 Partner mangler at gætte');
+      return; // Vi afventer partneren
+    }
 
-      if (answers && answers.length >= 2) {
-        const { data: nextQArr, error } = await supabase.rpc('get_next_knob_question', { user_id: user.id });
-        const nextQ = nextQArr?.[0];
-        console.log('🧪 get_next_knob_question result:', nextQ);
-        if (!nextQ) return;
-        const success = await createSession(nextQ);
-        if (!success) return;
-        setQuestion(nextQ);
-        setSessionRole('responder');
-        setPhase('respond');
-      } else {
-        const { data: q } = await supabase
-          .from('knob_game_questions')
-          .select('*')
-          .eq('id', session.question_id)
-          .maybeSingle();
+    if (!answeredByUser) {
+      console.log('🟩 Mode: answer');
+      mode = 'answer';
+    } else if (!answeredByPartner) {
+      console.log('🟨 Mode: guess');
+      mode = 'guess';
+    }
 
-        setQuestion(q);
-        if (session.user_id === user.id) {
-          setSessionRole('responder');
-          setPhase('respond');
-        } else {
-          setSessionRole('guesser');
-          setPhase('guess');
-        }
+    if (answers && answers.length >= 2) {
+      console.log('➡️ Tid til nyt spørgsmål – henter fra get_next_knob_question...');
+      const { data: nextQArr, error: rpcError } = await supabase.rpc('get_next_knob_question', {
+        user_id: user.id,
+        mode: mode,
+      });
+
+      if (rpcError) {
+        console.error('❌ Fejl i get_next_knob_question:', rpcError.message);
+        return;
       }
-    } else {
-      const { data: nextQArr } = await supabase.rpc('get_next_knob_question', { user_id: user.id });
+
+      console.log('📬 get_next_knob_question data:', nextQArr);
+
       const nextQ = nextQArr?.[0];
-      if (!nextQ) return;
+      if (!nextQ) {
+        console.warn('⚠️ Ingen flere spørgsmål tilbage!');
+        return;
+      }
+
       const success = await createSession(nextQ);
       if (!success) return;
+
       setQuestion(nextQ);
       setSessionRole('responder');
       setPhase('respond');
+    } else {
+      const { data: q } = await supabase
+        .from('knob_game_questions')
+        .select('*')
+        .eq('id', session.question_id)
+        .maybeSingle();
+
+      console.log('📌 Genbruger eksisterende spørgsmål:', q);
+
+      setQuestion(q);
+      if (session.responder_id === user.id) {
+        setSessionRole('responder');
+        setPhase('respond');
+      } else {
+        setSessionRole('guesser');
+        setPhase('guess');
+      }
     }
-  };
+  } else {
+    console.log('➕ Ny session – henter spørgsmål via RPC');
+    const { data: nextQArr, error: rpcError } = await supabase.rpc('get_next_knob_question', {
+      user_id: user.id,
+      mode: 'answer',
+    });
 
- const checkGuessStatus = async () => {
-  if (!user || !question) return;
+    if (rpcError) {
+      console.error('❌ Fejl i get_next_knob_question:', rpcError.message);
+      return;
+    }
 
-  const { data: answers } = await supabase
-    .from('knob_game_answers')
-    .select('*')
-    .eq('question_id', question.id)
-    .order('created_at', { ascending: false })
-    .limit(2);
+    console.log('📬 get_next_knob_question data:', nextQArr);
 
-  console.log('🟡 checkGuessStatus svar:', answers);
+    const nextQ = nextQArr?.[0];
+    if (!nextQ) {
+      console.warn('⚠️ Ingen spørgsmål tilbage!');
+      return;
+    }
 
-  const responder = answers?.find((a) => a.role === 'responder');
-  const guesser = answers?.find((a) => a.role === 'guesser');
+    const success = await createSession(nextQ);
+    if (!success) return;
 
-  if (responder && !guesser) {
-    setResponderHasAnswered(true);
+    setQuestion(nextQ);
+    setSessionRole('responder');
+    setPhase('respond');
   }
+};
 
-// /app/games/knob/page.tsx
 
-// (din eksisterende kode for imports og komponent starter her...)
+
+  const checkGuessStatus = async () => {
+    if (!user || !question) return;
+
+    const { data: answers } = await supabase
+      .from('knob_game_answers')
+      .select('*')
+      .eq('question_id', question.id)
+      .order('created_at', { ascending: false })
+      .limit(2);
+
+    console.log('🟡 checkGuessStatus svar:', answers);
+
+    const responder = answers?.find((a) => a.role === 'responder');
+    const guesser = answers?.find((a) => a.role === 'guesser');
+
+    if (responder && !guesser) {
+      setResponderHasAnswered(true);
+    }
 
     if (responder && guesser) {
       console.log('🟢 Begge svar fundet, checker match...');
@@ -156,23 +232,11 @@ export default function KnobGamePage() {
       setTimeout(() => {
         setAnswerSaved(false);
         setQuestion(null);
-        setSessionRole(null); // ❗ vigtigt for næste useEffect
-        setPhase('wait');     // ❗ nu styres næste fetch via ny useEffect
+        setSessionRole(null);
+        setPhase('wait');
       }, 2500);
     }
   };
-
-// 🔁 NYT USEEFFECT – henter næste spørgsmål når guesser er færdig
-  useEffect(() => {
-    if (phase === 'wait' && sessionRole === null) {
-      console.log('⏩ phase === wait && sessionRole === null – forsøger at hente spørgsmål');
-      fetchNextQuestion();
-    }
-  }, [phase, sessionRole]);
-
-// (resten af din kode er uændret...)
-
-
 
   const checkForNewSession = async () => {
     if (!user) return;
@@ -186,15 +250,16 @@ export default function KnobGamePage() {
     const partnerId = profile?.partner_id;
     if (!partnerId) return;
 
-    const { data: session } = await supabase
+    const { data: sessions } = await supabase
       .from('knob_game_sessions')
       .select('*')
-      .or(`user_id.eq.${user.id},user_id.eq.${partnerId}`)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .order('created_at', { ascending: false });
 
-    if (session?.guesser_id === user.id && (!question || question.id !== session.question_id)) {
+    const session = sessions?.find(
+      (s) => s.guesser_id === user.id
+    );
+
+    if (session && (!question || question.id !== session.question_id)) {
       console.log('🔁 Guesser har opdaget ny session – henter spørgsmål...');
       fetchNextQuestion();
     }
@@ -222,31 +287,31 @@ export default function KnobGamePage() {
   };
 
   useEffect(() => {
+    if (user) fetchNextQuestion();
+  }, [user]);
+
+  useEffect(() => {
+    if (phase === 'wait') {
+      const interval = setInterval(() => {
+        checkForNewSession();
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [phase, question]);
+
+  useEffect(() => {
     if (phase === 'guess') {
       const interval = setInterval(() => checkGuessStatus(), 3000);
       return () => clearInterval(interval);
     }
   }, [phase, question]);
 
- useEffect(() => {
-  if (phase === 'wait') {
-    const interval = setInterval(() => {
-      checkForNewSession();
-    }, 3000);
-    return () => clearInterval(interval);
-  }
-}, [phase, question]);
-
   useEffect(() => {
-    if (user) fetchNextQuestion();
-  }, [user]);
-  useEffect(() => {
-  if (phase === 'wait' && sessionRole === null) {
-    console.log('⏩ phase === wait && sessionRole === null – forsøger at hente spørgsmål');
-    fetchNextQuestion();
-  }
-}, [phase, sessionRole]);
-
+    if (phase === 'wait' && sessionRole === null) {
+      console.log('⏩ phase === wait && sessionRole === null – forsøger at hente spørgsmål');
+      fetchNextQuestion();
+    }
+  }, [phase, sessionRole]);
 
   return (
     <div className="max-w-xl mx-auto py-10 px-4 space-y-6">

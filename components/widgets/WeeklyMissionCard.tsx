@@ -9,7 +9,10 @@ import { useUserContext } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
 
 export default function WeeklyMissionCard() {
-  const [revealed, setRevealed] = useState(false);
+  console.log("🧩 Widget mountet");
+  console.log("📍 Localhost check:", typeof window !== "undefined" ? window.location.hostname : "SSR");
+
+  const [revealed, setRevealed] = useState(true); // Midlertidigt sat til true
   const [timeLeft, setTimeLeft] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [weeklyMission, setWeeklyMission] = useState<string | null>(null);
@@ -17,7 +20,6 @@ export default function WeeklyMissionCard() {
   const { user, partnerId } = useUserContext();
   const [isCompleted, setIsCompleted] = useState(false);
   const [hideCard, setHideCard] = useState(false);
-  const [countdown, setCountdown] = useState(180);
   const [recentImageUrl, setRecentImageUrl] = useState<string | null>(null);
   const [imageFallbackText, setImageFallbackText] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string>("");
@@ -30,18 +32,9 @@ export default function WeeklyMissionCard() {
     nextMonday.setHours(4, 0, 0, 0);
 
     const storedCompletion = localStorage.getItem("missionCompletedAt");
-    console.log("Tjekker mission visning...");
-    console.log("Nu:", now.toISOString());
-    console.log("Næste mandag kl 04:", nextMonday.toISOString());
-    console.log("LocalStorage missionCompletedAt:", storedCompletion);
-    console.log("Skjules?", storedCompletion && now < nextMonday);
-
-    if (storedCompletion) {
-      const completedAt = new Date(storedCompletion);
-      if (now < nextMonday) {
-        setHideCard(true);
-        return;
-      }
+    if (storedCompletion && now < nextMonday) {
+      setHideCard(true);
+      return;
     }
 
     const today = new Date();
@@ -73,29 +66,28 @@ export default function WeeklyMissionCard() {
 
   useEffect(() => {
     const fetchWeeklyMission = async () => {
-  const today = new Date();
-  const lastMonday = new Date(today);
-  lastMonday.setDate(today.getDate() - today.getDay() + 1);
-  lastMonday.setUTCHours(4, 0, 0, 0); // <-- vigtig ændring
+      const today = new Date();
+      const lastMonday = new Date(today);
+      lastMonday.setDate(today.getDate() - today.getDay() + 1);
+      lastMonday.setUTCHours(4, 0, 0, 0);
 
-  console.log("🔍 Fetch mission - sidste mandag UTC:", lastMonday.toISOString());
+      console.log("🔍 Fetch mission - sidste mandag UTC:", lastMonday.toISOString());
 
-  const { data, error } = await supabase
-    .from("day_missions")
-    .select("text")
-    .gte("created_at", lastMonday.toISOString())
-    .order("created_at", { ascending: true })
-    .limit(1);
+      const { data, error } = await supabase
+        .from("day_missions")
+        .select("text")
+        .gte("created_at", lastMonday.toISOString())
+        .order("created_at", { ascending: true })
+        .limit(1);
 
-  console.log("📦 Data modtaget:", data);
-  console.log("❌ Fejl:", error);
+      console.log("📦 Data modtaget:", data);
+      console.log("❌ Fejl:", error);
 
-  if (!error && data.length > 0) {
-    setWeeklyMission(data[0].text);
-  }
-};
-
-
+      if (!error && data.length > 0) {
+        setWeeklyMission(data[0].text);
+        console.log("✅ Mission hentet og sat:", data[0].text);
+      }
+    };
 
     const fetchDisplayName = async () => {
       const idToUse = partnerId || user?.id;
@@ -144,44 +136,16 @@ export default function WeeklyMissionCard() {
     if (!user) return;
     setIsSubmitting(true);
 
-    const { error: logError } = await supabase.from("day_mission_logs").insert({
+    await supabase.from("day_mission_logs").insert({
       user_id: user.id,
       mission_text: weeklyMission || "Ukendt mission",
       completed_at: new Date().toISOString(),
     });
 
-    const { data, error } = await supabase.rpc("get_random_success_message");
-
     setSuccessMessage(`Godt gået, ${user.display_name}! Du gør en indsats for at holde jeres forhold levende og legende.`);
-
     setIsSubmitting(false);
     setIsCompleted(true);
     localStorage.setItem("missionCompletedAt", new Date().toISOString());
-  };
-
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!user || !event.target.files || event.target.files.length === 0) return;
-
-    const file = event.target.files[0];
-    const fileExt = file.name.split(".").pop() || "jpg";
-    const filePath = `original_${user.id}_dashboard_${Date.now()}.${fileExt}`;
-
-    const { error: uploadError } = await supabase.storage.from("dashboard").upload(filePath, file);
-    if (uploadError) return;
-
-    const { data: publicUrlData } = supabase.storage.from("dashboard").getPublicUrl(filePath);
-    if (!publicUrlData || !publicUrlData.publicUrl) return;
-
-    const imageUrl = publicUrlData.publicUrl;
-
-    const { error: insertError } = await supabase.from("dashboard_images").insert({
-      user_id: user.id,
-      image_url: imageUrl,
-    });
-    if (insertError) return;
-
-    setRecentImageUrl(imageUrl);
-    setImageFallbackText(null);
   };
 
   const handleRedirect = () => {
@@ -190,90 +154,48 @@ export default function WeeklyMissionCard() {
 
   if (hideCard) return null;
 
+  console.log("♻️ Render - weeklyMission:", weeklyMission);
+
   return (
-    <>
-      <style>
-        {`
-          @keyframes blurPulse {
-            0%, 100% {
-              filter: blur(4px);
-            }
-            50% {
-              filter: blur(6px);
-            }
-          }
+    <div className="relative w-full max-w-xl mx-auto">
+      <div className="bg-black text-white rounded-3xl p-6 shadow-xl border border-purple-800 backdrop-blur">
+        <div className="text-sm uppercase text-purple-400 mb-4">🎯 Din skjulte mission</div>
 
-          .blur-text {
-            animation: blurPulse 4s ease-in-out infinite;
-          }
+        <div className="border border-purple-800 rounded-xl p-6 text-center bg-black/50 backdrop-blur-sm">
+          <h2 className="text-lg text-purple-100 mb-2">Din mission denne uge:</h2>
+          <p className={revealed ? "text-pink-400 fade-in" : "text-pink-400 blur-text"}>
+            {weeklyMission ? `“${weeklyMission}”` : "Indlæser..."}
+          </p>
 
-          @keyframes fadeIn {
-            from {
-              opacity: 0;
-            }
-            to {
-              opacity: 1;
-            }
-          }
-
-          .fade-in {
-            animation: fadeIn 0.4s ease-in-out;
-          }
-        `}
-      </style>
-
-      <div className="relative w-full max-w-xl mx-auto rounded-3xl overflow-hidden border border-purple-800 shadow-2xl" style={{ backgroundImage: "url('https://media.wired.com/photos/6374919bafd174dfb5859666/3:2/w_2560%2Cc_limit/Artemis-1-SLS-Launch-Science.jpg')", backgroundSize: "cover", backgroundPosition: "center", filter: "brightness(0.8) contrast(1.1)" }}>
-        <div className="relative z-10 rounded-3xl bg-[#06010C]/70 p-6 backdrop-blur-sm">
-          <div className="text-sm uppercase tracking-widest text-purple-400 mb-4">🎯 Din skjulte mission</div>
-
-          <div className="relative border border-purple-800 rounded-xl p-6 text-center bg-black/50 backdrop-blur-sm overflow-hidden">
-            <div>
-              <h2 className="text-lg font-normal text-purple-100 mb-2 z-10 relative">Din mission denne uge:</h2>
-              <p className={revealed ? "text-1xl italic text-pink-400 z-10 relative fade-in" : "text-1xl italic text-pink-400 z-10 relative blur-text"}>{weeklyMission ? `“${weeklyMission}”` : "Indlæser..."}</p>
-
-              {revealed && !isCompleted && (
-                <div className="mt-5">
-                  <Button onClick={handleCompleteMission} disabled={isSubmitting} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-full border border-emerald-800">Fuldfør mission</Button>
-                </div>
-              )}
-
-              {successMessage && (
-                <div className="mt-3 text-white text-sm font-medium fade-in">
-                  <p>{successMessage}</p>
-                  <p className="mt-5 text-white font-medium">Dette var jeres sidste oplevelse som skabte et minde for jeres parforhold. Er der sket noget nyt siden, så sæt pris på jeres oplevelser og dokumentér det nu.</p>
-                  {recentImageUrl ? (
-                    <img src={recentImageUrl} alt="Seneste minde" className="mt-3 mx-auto rounded-xl shadow-lg max-h-48 object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                  ) : (
-                    <p className="mt-3 text-pink-300 italic">{imageFallbackText}</p>
-                  )}
-                  <input type="file" id="upload-input" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                  <div className="mt-4 flex gap-4 justify-center">
-                    <Button onClick={() => document.getElementById("upload-input")?.click()} className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-1 rounded-full text-sm">Upload</Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-6 text-center">
-            {isCompleted && (
-              <p className="text-white text-sm mb-2 text-right pr-1">Har du ikke et godt billede? så fuldfør missionen nu.</p>
-            )}
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-purple-300">
-                {!isCompleted && (
-                  <>
-                    ⏳ <span className="text-white font-normal">{timeLeft}</span>
-                  </>
-                )}
-              </div>
-              <Button onClick={isCompleted ? handleRedirect : () => setRevealed(!revealed)} className="bg-gradient-to-r from-purple-800 to-purple-600 hover:from-purple-700 hover:to-purple-500 text-white px-5 py-2 rounded-full border border-purple-700 shadow-md">
-                {isCompleted ? "Mission fuldført" : revealed ? "🔒 Skjul mission" : "🔓 Vis mission"}
+          {revealed && !isCompleted && (
+            <div className="mt-5">
+              <Button onClick={handleCompleteMission} disabled={isSubmitting}>
+                Fuldfør mission
               </Button>
             </div>
+          )}
+
+          {successMessage && (
+            <div className="mt-4 text-sm fade-in">
+              <p>{successMessage}</p>
+              {recentImageUrl ? (
+                <img src={recentImageUrl} alt="Minde" className="mt-4 rounded-xl shadow max-h-48 mx-auto" />
+              ) : (
+                <p className="mt-3 text-pink-300 italic">{imageFallbackText}</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 text-center flex justify-between items-center">
+          <div className="text-sm text-purple-300">
+            {!isCompleted && <>⏳ <span className="text-white">{timeLeft}</span></>}
           </div>
+          <Button onClick={isCompleted ? handleRedirect : () => setRevealed(!revealed)}>
+            {isCompleted ? "Mission fuldført" : revealed ? "🔒 Skjul mission" : "🔓 Vis mission"}
+          </Button>
         </div>
       </div>
-    </>
+    </div>
   );
 }
