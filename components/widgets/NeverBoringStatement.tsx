@@ -1,5 +1,4 @@
-// components/widgets/NeverBoringStatement.tsx
-
+// /components/widgets/NeverBoringStatement.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -28,9 +27,6 @@ const NeverBoringStatement = () => {
   const [fadeOut, setFadeOut] = useState(false);
 
   useEffect(() => {
-    const now = new Date();
-    const currentHour = now.getHours();
-
     if (!user?.id) return;
 
     const checkIfUserAlreadyCheckedInToday = async () => {
@@ -46,18 +42,17 @@ const NeverBoringStatement = () => {
         .eq("checkin_date", checkin_date)
         .limit(1);
 
+      console.log("[NeverBoring] today status", { hasCheckin: !!(data && data.length), error });
+
       if (!error && data && data.length > 0) {
+        // Allerede svaret i dag ⇒ vis vision
         setShowVision(true);
         fetchTodayMood();
-      } else if (currentHour >= 19 && currentHour <= 23) {
-        setShowQuestion(true);
-      } else if (currentHour >= 3 && currentHour < 19) {
-        fetchYesterdaySummary();
-        setShowVision(true);
-        fetchTodayMood();
+        // Valgfrit: hvis du vil bruge gårsdagens resume et sted i vision
+        // fetchYesterdaySummary();
       } else {
-        setShowVision(true);
-        fetchTodayMood();
+        // FRA 00:01 HELE DAGEN indtil svaret ⇒ vis spørgsmål
+        setShowQuestion(true);
       }
     };
 
@@ -167,6 +162,9 @@ const NeverBoringStatement = () => {
 
     if (!error) {
       setMemorySubmitted(true);
+      // EFTER spørgsmål ⇒ vis vision resten af dagen
+      setShowQuestion(false);
+      setShowVision(true);
     } else {
       alert("Kunne ikke gemme minde: " + error.message);
     }
@@ -255,7 +253,7 @@ const NeverBoringStatement = () => {
               <button className="btn btn-primary" type="submit">
                 Gem mit minde
               </button>
-              <button className="btn btn-secondary" type="button" onClick={() => setMemorySubmitted(true)}>
+              <button className="btn btn-secondary" type="button" onClick={() => { setMemorySubmitted(true); setShowQuestion(false); setShowVision(true); }}>
                 Nej tak
               </button>
             </div>
@@ -266,7 +264,7 @@ const NeverBoringStatement = () => {
             {memoryText.trim() ? (
               <p>
                 Godt gået, {displayName}!<br />
-                Når du gemmer det bedste fra i dag, gør du hverdagen lidt mere magisk – og meget mindre kedelig. Jeg er tilbage i morgen kl. 19.00 - 23.59
+                Når du gemmer det bedste fra i dag, gør du hverdagen lidt mere magisk – og meget mindre kedelig. Jeg er tilbage i morgen.
               </p>
             ) : (
               <p>
@@ -274,7 +272,7 @@ const NeverBoringStatement = () => {
                 Nogle dage er bare… dage. Men du tjekkede ind – og det gør en forskel!
               </p>
             )}
-            <button className="btn btn-primary mt-3" onClick={handleClose}>
+            <button className="btn btn-primary mt-3" onClick={() => { setFadeOut(true); setTimeout(() => setWidgetClosed(true), 400); }}>
               Luk
             </button>
           </div>
@@ -299,6 +297,12 @@ const NeverBoringStatement = () => {
           <p className="mt-4 text-xs uppercase tracking-wider text-purple-500 font-semibold">
             Vores vision
           </p>
+          {/* Ekstra (valgfrit): vis gårsdagens opsummering, hvis den findes */}
+          {yesterdaySummary && (
+            <div className="mt-4 text-xs text-purple-600 bg-purple-50 border border-purple-200 rounded-lg p-3">
+              {yesterdaySummary}
+            </div>
+          )}
         </div>
       </div>
     );

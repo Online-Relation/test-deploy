@@ -11,7 +11,7 @@ import { useUserContext } from '@/context/UserContext';
 import { supabase } from '@/lib/supabaseClient';
 import { DatabaseZap } from 'lucide-react';
 import {
-  LayoutDashboard, ListTodo, Sparkles, Backpack, HeartHandshake, Briefcase, Settings, ChevronDown, ChevronRight, Menu, X, BrainCircuit, Globe, UserCircle, Heart,CalendarDays,ClipboardCheck,MessageSquareQuote,User,Image
+  LayoutDashboard, ListTodo, Sparkles, Backpack, HeartHandshake, Briefcase, Settings, ChevronDown, ChevronRight, Menu, X, BrainCircuit, Globe, UserCircle, Heart, CalendarDays, ClipboardCheck, MessageSquareQuote, User, Image
 } from 'lucide-react';
 
 import { accessHierarchy } from '@/lib/accessHierarchy'; // <-- brug denne!
@@ -37,7 +37,6 @@ const iconMap: Record<string, ReactNode> = {
   intim: <Heart size={20} />,
   memories: <Image size={20} />,
   kalender: <CalendarDays size={20} />,
-
 };
 
 export default function Sidebar() {
@@ -51,10 +50,16 @@ export default function Sidebar() {
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   const [openState, setOpenState] = useState<Record<string, boolean>>({});
+
+  // DEBUG
+  useEffect(() => {
+    console.log('[Sidebar] pathname', pathname);
+  }, [pathname]);
+
   useEffect(() => {
     const newOpenState: Record<string, boolean> = {};
     accessHierarchy.forEach(entry => {
-      if (entry.href && pathname.startsWith(entry.href)) {
+      if (entry?.href && pathname.startsWith(entry.href)) {
         newOpenState[entry.key] = true;
       }
     });
@@ -85,76 +90,91 @@ export default function Sidebar() {
     </Link>
   );
 
- // Indsæt i Sidebar.tsx
-const renderNav = (entries: any[], level = 0) => entries.map(entry => {
-  if (!hasAccessTo(entry.key)) return null;
-  const isOpen = openState[entry.key] || false;
-  const isSubMenu = level > 0;
+  // Robust navigation-renderer (tåler manglende children)
+  type Entry = {
+    key: string;
+    label: string;
+    href?: string;
+    children?: Entry[];
+  };
 
-  if (entry.children.length) {
-    return (
-      <div key={entry.key}>
-        <div
+  const renderNav = (entries: Entry[], level = 0): React.ReactNode[] =>
+    entries.map((entry) => {
+      if (!entry) return null;
+      if (!hasAccessTo(entry.key)) return null;
+
+      const children = Array.isArray(entry.children) ? entry.children : [];
+      const isOpen = !!openState[entry.key];
+      const isSubMenu = level > 0;
+
+      // DEBUG
+      console.log('[Sidebar] render entry', { key: entry.key, href: entry.href, children: children.length });
+
+      if (children.length) {
+        return (
+          <div key={entry.key}>
+            <div
+              className={
+                `w-full flex items-center justify-between px-4 py-2 rounded hover:bg-gray-800 transition group relative cursor-pointer` +
+                (isSubMenu ? ' sidebar-submenu' : '')
+              }
+              onClick={() => setOpenState(os => ({ ...os, [entry.key]: !isOpen }))}
+            >
+              <div className="flex items-center gap-2 flex-1 min-w-0 select-none">
+                {iconMap[entry.key]}
+                {entry.label}
+              </div>
+              <button
+                type="button"
+                onClick={e => {
+                  e.stopPropagation();
+                  setOpenState(os => ({ ...os, [entry.key]: !isOpen }));
+                }}
+                className="flex items-center px-2 py-1 ml-2 rounded hover:bg-gray-700 transition"
+                aria-label={isOpen ? 'Luk' : 'Åbn'}
+                tabIndex={0}
+              >
+                {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+            </div>
+            {isOpen && (
+              <div className="ml-6 mt-1 space-y-1">
+                {renderNav(children, level + 1)}
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // Ingen children: normalt link
+      const href = entry.href || '#';
+      const isActive = !!entry.href && pathname === entry.href;
+      return (
+        <Link
+          key={entry.key}
+          href={href}
+          onClick={() => setMobileOpen(false)}
           className={
-            `w-full flex items-center justify-between px-4 py-2 rounded hover:bg-gray-800 transition group relative cursor-pointer` +
+            `flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition` +
+            (isActive ? ' bg-gray-700 font-semibold' : '') +
             (isSubMenu ? ' sidebar-submenu' : '')
           }
-          onClick={() => setOpenState(os => ({ ...os, [entry.key]: !isOpen }))}
         >
-          <div className="flex items-center gap-2 flex-1 min-w-0 select-none">
-            {iconMap[entry.key]}
-            {entry.label}
-          </div>
-          <button
-            type="button"
-            onClick={e => {
-              e.stopPropagation();
-              setOpenState(os => ({ ...os, [entry.key]: !isOpen }));
-            }}
-            className="flex items-center px-2 py-1 ml-2 rounded hover:bg-gray-700 transition"
-            aria-label={isOpen ? 'Luk' : 'Åbn'}
-            tabIndex={0}
-          >
-            {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-          </button>
-        </div>
-        {isOpen && (
-          <div className="ml-6 mt-1 space-y-1">
-            {renderNav(entry.children, level + 1)}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Ingen children: normalt link
-  return (
-    <Link
-      key={entry.key}
-      href={entry.href || '#'}
-      onClick={() => setMobileOpen(false)}
-      className={
-        `flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition` +
-        (entry.href && pathname === entry.href ? ' bg-gray-700 font-semibold' : '') +
-        (isSubMenu ? ' sidebar-submenu' : '')
-      }
-    >
-      {iconMap[entry.key]}
-      {entry.label}
-    </Link>
-  );
-});
-
-
+          {iconMap[entry.key]}
+          {entry.label}
+        </Link>
+      );
+    });
 
   return (
     <>
       {/* Mobilmenu */}
       <div
-  className="md:hidden flex items-center justify-between bg-gray-900 text-white px-4 py-3 fixed left-0 right-0 z-50"
+  className="md:hidden flex items-center justify-between bg-gray-900 text-white px-4 fixed left-0 right-0 z-[9999] pointer-events-auto"
   style={{
     top: 'env(safe-area-inset-top)',
-    paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)', // 0.75rem er din py-3 padding
+    paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)',
+    paddingBottom: '0.75rem',
   }}
 >
         <button onClick={() => setMobileOpen(prev => !prev)}>
@@ -164,71 +184,73 @@ const renderNav = (entries: any[], level = 0) => entries.map(entry => {
           ✨ ConnectUs
         </Link>
       </div>
+{/* Spacer to avoid content overlay under fixed header on mobile */}
+<div className="md:hidden" style={{ height: 'calc(env(safe-area-inset-top) + 56px)' }} />
 
-     {mobileOpen && (
-  <div
-    ref={menuRef}
-    className="md:hidden fixed inset-0 bg-gray-900 text-white overflow-y-auto p-4 space-y-2 z-40"
-  >
-    {dashboardLink}
-    {renderNav(accessHierarchy)}
+{mobileOpen && (
+        <div
+          ref={menuRef}
+          className="md:hidden fixed inset-0 bg-gray-900 text-white overflow-y-auto p-4 space-y-2 z-40"
+        >
+          {dashboardLink}
+          {renderNav(accessHierarchy as Entry[])}
 
-    {/* --- Brugerboks og log ud på mobil --- */}
-    <div className="flex flex-col items-center gap-2 mt-8">
-      <Link href="/profile" className="flex flex-col items-center gap-2 cursor-pointer">
-        {user.avatar_url ? (
-          <img src={user.avatar_url} className="w-14 h-14 rounded-full" alt="avatar" />
-        ) : (
-          <div className="w-14 h-14 rounded-full bg-gray-700 text-white flex items-center justify-center font-semibold">
-            {user.display_name?.[0] || '👤'}
+          {/* --- Brugerboks og log ud på mobil --- */}
+          <div className="flex flex-col items-center gap-2 mt-8">
+            <Link href="/profile" className="flex flex-col items-center gap-2 cursor-pointer">
+              {user.avatar_url ? (
+                <img src={user.avatar_url} className="w-14 h-14 rounded-full" alt="avatar" />
+              ) : (
+                <div className="w-14 h-14 rounded-full bg-gray-700 text-white flex items-center justify-center font-semibold">
+                  {user.display_name?.[0] || '👤'}
+                </div>
+              )}
+              <div className="text-sm font-medium text-white">{user.display_name}</div>
+            </Link>
+            <button
+              onClick={async () => { await supabase.auth.signOut(); router.push('/login'); }}
+              className="text-xs text-gray-300 hover:text-white"
+            >
+              Log ud
+            </button>
+            <div className="text-center bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-semibold mt-2">
+              🎯 XP: {xp}
+            </div>
           </div>
-        )}
-        <div className="text-sm font-medium text-white">{user.display_name}</div>
-      </Link>
-      <button
-        onClick={async () => { await supabase.auth.signOut(); router.push('/login'); }}
-        className="text-xs text-gray-300 hover:text-white"
-      >
-        Log ud
-      </button>
-      <div className="text-center bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-semibold mt-2">
-        🎯 XP: {xp}
-      </div>
-    </div>
-    {/* --- Slut brugerblok --- */}
-  </div>
-)}
-
-{/* Desktopmenu */}
-<div className="hidden md:flex min-h-screen w-64 bg-gray-900 text-white flex-col justify-between pt-6">
-  <div>
-    <div className="p-6 text-xl font-bold">
-      <Link href="/dashboard" className="hover:underline">✨ ConnectUs</Link>
-    </div>
-    <nav className="flex flex-col space-y-1 px-4 mt-4">{renderNav(accessHierarchy)}</nav>
-  </div>
-  <div className="mb-6 flex flex-col items-center gap-2 px-4">
-    <Link href="/profile" className="flex flex-col items-center gap-2 cursor-pointer mt-6">
-      {user.avatar_url ? (
-        <img src={user.avatar_url} className="w-14 h-14 rounded-full" alt="avatar" />
-      ) : (
-        <div className="w-14 h-14 rounded-full bg-gray-700 text-white flex items-center justify-center font-semibold">
-          {user.display_name?.[0] || '👤'}
+          {/* --- Slut brugerblok --- */}
         </div>
       )}
-      <div className="text-sm font-medium text-white">{user.display_name}</div>
-    </Link>
-    <button
-      onClick={async () => { await supabase.auth.signOut(); router.push('/login'); }}
-      className="text-xs text-gray-300 hover:text-white"
-    >
-      Log ud
-    </button>
-    <div className="text-center bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
-      🎯 XP: {xp}
-    </div>
-  </div>
-</div>
+
+      {/* Desktopmenu */}
+      <div className="hidden md:flex min-h-screen w-64 bg-gray-900 text-white flex-col justify-between pt-6">
+        <div>
+          <div className="p-6 text-xl font-bold">
+            <Link href="/dashboard" className="hover:underline">✨ ConnectUs</Link>
+          </div>
+          <nav className="flex flex-col space-y-1 px-4 mt-4">{renderNav(accessHierarchy as Entry[])}</nav>
+        </div>
+        <div className="mb-6 flex flex-col items-center gap-2 px-4">
+          <Link href="/profile" className="flex flex-col items-center gap-2 cursor-pointer mt-6">
+            {user.avatar_url ? (
+              <img src={user.avatar_url} className="w-14 h-14 rounded-full" alt="avatar" />
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-gray-700 text-white flex items-center justify-center font-semibold">
+                {user.display_name?.[0] || '👤'}
+              </div>
+            )}
+            <div className="text-sm font-medium text-white">{user.display_name}</div>
+          </Link>
+          <button
+            onClick={async () => { await supabase.auth.signOut(); router.push('/login'); }}
+            className="text-xs text-gray-300 hover:text-white"
+          >
+            Log ud
+          </button>
+          <div className="text-center bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
+            🎯 XP: {xp}
+          </div>
+        </div>
+      </div>
 
     </>
   );
