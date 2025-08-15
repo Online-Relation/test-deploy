@@ -1,5 +1,4 @@
 // /app/quiz/[quizKey]/page.tsx
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -11,12 +10,7 @@ import { useUserContext } from '@/context/UserContext';
 import { v4 as uuidv4 } from 'uuid';
 import { awardQuizXpToUser } from '@/lib/xpAwardQuiz';
 
-type Question = {
-  id: string;
-  question: string;
-  type: string;
-};
-
+type Question = { id: string; question: string; type: string };
 const QUESTIONS_PER_PAGE = 10;
 
 export default function QuizPage() {
@@ -41,7 +35,6 @@ export default function QuizPage() {
         .select('id, question, type')
         .eq('quiz_key', decodedKey)
         .order('created_at', { ascending: true });
-
       if (data) setQuestions(data);
     };
 
@@ -80,7 +73,7 @@ export default function QuizPage() {
 
       setSessionId(storedSessionId);
 
-      // Hent svar (hvis nogen) for denne session
+      // Hent evt. gemte svar i denne session
       const { data } = await supabase
         .from('quiz_responses')
         .select('question_id, answer, session_id')
@@ -91,9 +84,7 @@ export default function QuizPage() {
 
       if (data && data.length > 0) {
         const saved: Record<string, string> = {};
-        data.forEach((entry) => {
-          saved[entry.question_id] = entry.answer;
-        });
+        data.forEach((entry) => { saved[entry.question_id] = entry.answer; });
         setAnswers(saved);
       }
     };
@@ -104,15 +95,11 @@ export default function QuizPage() {
         .select('description')
         .eq('quiz_key', decodedKey)
         .single();
-
       if (data?.description) setQuizDescription(data.description);
     };
 
-    Promise.all([
-      fetchQuestions(),
-      fetchSavedAnswers(),
-      fetchQuizMeta()
-    ]).then(() => setIsLoading(false));
+    Promise.all([fetchQuestions(), fetchSavedAnswers(), fetchQuizMeta()])
+      .then(() => setIsLoading(false));
   }, [quiz_key, user]);
 
   const handleChange = async (questionId: string, value: string) => {
@@ -130,57 +117,80 @@ export default function QuizPage() {
       status: 'in_progress',
     };
 
-    await supabase.from('quiz_responses').upsert(
-      [payload],
-      { onConflict: 'quiz_key,question_id,user_id' }
-    );
+    await supabase.from('quiz_responses').upsert([payload], { onConflict: 'quiz_key,question_id,user_id' });
   };
 
   const startIndex = (page - 1) * QUESTIONS_PER_PAGE;
   const pageQuestions = questions.slice(startIndex, startIndex + QUESTIONS_PER_PAGE);
 
   const handleNext = () => {
-    router.push(`/quiz/${quiz_key}?page=${page + 1}`);
+    // Næste side
+    const key = encodeURIComponent(quiz_key as string);
+    router.push(`/quiz/${key}?page=${page + 1}`);
   };
 
   const handleBack = () => {
+    // FIX: fjern mellemrum/typo og gå korrekt tilbage
     if (page > 1) {
-      router.push(`/quiz/parquiz ${quiz_key}?page=${page - 1}`);
+      const key = encodeURIComponent(quiz_key as string);
+      router.push(`/quiz/${key}?page=${page - 1}`);
     } else {
       router.push('/quiz/parquiz');
     }
   };
 
-  // XP-fordeling bruger nu brugerens rolle!
-const handleSubmit = async () => {
-  if (!sessionId || !user) return;
+  // XP-fordeling + routing til spin KUN når 2 har submitted i sessionen
+  const handleSubmit = async () => {
+    if (!sessionId || !user) return;
 
-  await supabase
-    .from('quiz_responses')
-    .update({ status: 'submitted' })
-    .eq('session_id', sessionId)
-    .eq('user_id', user.id);
+    const decodedKey = decodeURIComponent(quiz_key as string);
 
-  // Hent effort + rolle fra quiz_meta + profile
-  const [{ data: quizMeta }, { data: profile }] = await Promise.all([
-    supabase.from('quiz_meta').select('effort').eq('quiz_key', decodeURIComponent(quiz_key as string)).maybeSingle(),
-    supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
-  ]);
-  const quizEffort = quizMeta?.effort || 'medium';
-  const role = profile?.role || '';
+    // Markér mine svar submitted
+    await supabase
+      .from('quiz_responses')
+      .update({ status: 'submitted' })
+      .eq('session_id', sessionId)
+      .eq('user_id', user.id)
+      .eq('quiz_key', decodedKey);
 
-  // XP TILDELING - Brugerens ROLLE (mads/stine) bruges!
-  await awardQuizXpToUser({
-    userId: user.id,
-    quizKey: decodeURIComponent(quiz_key as string),
-    effort: quizEffort,
-    role: role,
-  });
+    // Hent effort + rolle
+    const [{ data: quizMeta }, { data: profile }] = await Promise.all([
+      supabase.from('quiz_meta').select('effort').eq('quiz_key', decodedKey).maybeSingle(),
+      supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+    ]);
 
-  // Redirect til spin hjulet med quizKey og sessionId som query-parametre
-  router.push(`/quiz/spin?quizKey=${encodeURIComponent(quiz_key as string)}&session=${encodeURIComponent(sessionId)}`);
-};
+    const quizEffort = quizMeta?.effort || 'medium';
+    const role = profile?.role || '';
 
+    // Tildel XP for min submission (som før)
+    await awardQuizXpToUser({ userId: user.id, quizKey: decodedKey, effort: quizEffort, role });
+
+    // Tjek hvor mange der har submitted i denne session
+    const { data: submittedRows, error: countErr } = await supabase
+      .from('quiz_responses')
+      .select('user_id', { count: 'exact', head: false })
+      .eq('quiz_key', decodedKey)
+      .eq('session_id', sessionId)
+      .eq('status', 'submitted');
+
+    const uniqueUserCount = new Set((submittedRows || []).map(r => r.user_id)).size;
+    console.log('🧮 Submitted i session', sessionId, '=>', uniqueUserCount);
+
+    if (countErr) {
+      console.warn('⚠️ Kunne ikke tælle submitted, sender til oversigt');
+      router.push('/quiz/parquiz?waiting=1');
+      return;
+    }
+
+    if (uniqueUserCount < 2) {
+      // Partner mangler – send til oversigt/vent
+      router.push('/quiz/parquiz?waiting=1');
+      return;
+    }
+
+    // Begge er klar – send til spin med session
+    router.push(`/quiz/spin?quizKey=${encodeURIComponent(decodedKey)}&session=${encodeURIComponent(sessionId)}`);
+  };
 
   if (isLoading || !sessionId || !user) {
     return (
@@ -192,13 +202,9 @@ const handleSubmit = async () => {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <h1 className="text-2xl font-bold">
-        Parquiz – {decodeURIComponent(quiz_key as string)}
-      </h1>
+      <h1 className="text-2xl font-bold">Parquiz – {decodeURIComponent(quiz_key as string)}</h1>
       {quizDescription && (
-        <p className="text-sm text-muted-foreground whitespace-pre-line">
-          {quizDescription}
-        </p>
+        <p className="text-sm text-muted-foreground whitespace-pre-line">{quizDescription}</p>
       )}
 
       <div className="space-y-2">
@@ -221,27 +227,13 @@ const handleSubmit = async () => {
           <p className="mb-2 font-medium">{startIndex + index + 1}. {q.question}</p>
           {q.type === 'boolean' ? (
             <div className="flex gap-4">
-              <Button
-                variant={answers[q.id] === 'Ja' ? 'primary' : 'ghost'}
-                onClick={() => handleChange(q.id, 'Ja')}
-              >
-                Ja
-              </Button>
-              <Button
-                variant={answers[q.id] === 'Nej' ? 'primary' : 'ghost'}
-                onClick={() => handleChange(q.id, 'Nej')}
-              >
-                Nej
-              </Button>
+              <Button variant={answers[q.id] === 'Ja' ? 'primary' : 'ghost'} onClick={() => handleChange(q.id, 'Ja')}>Ja</Button>
+              <Button variant={answers[q.id] === 'Nej' ? 'primary' : 'ghost'} onClick={() => handleChange(q.id, 'Nej')}>Nej</Button>
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
               {['Meget vigtigt', 'Vigtigt', 'Mindre vigtigt', 'Ikke vigtigt'].map((option) => (
-                <Button
-                  key={option}
-                  variant={answers[q.id] === option ? 'primary' : 'ghost'}
-                  onClick={() => handleChange(q.id, option)}
-                >
+                <Button key={option} variant={answers[q.id] === option ? 'primary' : 'ghost'} onClick={() => handleChange(q.id, option)}>
                   {option}
                 </Button>
               ))}
@@ -255,7 +247,7 @@ const handleSubmit = async () => {
         {startIndex + QUESTIONS_PER_PAGE < questions.length ? (
           <Button onClick={handleNext}>Næste</Button>
         ) : (
-          <Button onClick={handleSubmit}>Send og vis resultat</Button>
+          <Button onClick={handleSubmit}>Send</Button>
         )}
       </div>
     </div>
