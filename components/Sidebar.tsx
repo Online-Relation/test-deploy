@@ -11,10 +11,10 @@ import { useUserContext } from '@/context/UserContext';
 import { supabase } from '@/lib/supabaseClient';
 import { DatabaseZap } from 'lucide-react';
 import {
-  LayoutDashboard, ListTodo, Sparkles, Backpack, HeartHandshake, Briefcase, Settings, ChevronDown, ChevronRight, Menu, X, BrainCircuit, Globe, UserCircle, Heart, CalendarDays, ClipboardCheck, MessageSquareQuote, User, Image
+  LayoutDashboard, ListTodo, Sparkles, Backpack, HeartHandshake, Briefcase, Settings, ChevronDown, ChevronRight, Menu, X, BrainCircuit, Globe, UserCircle, Heart, CalendarDays, ClipboardCheck, User, Image
 } from 'lucide-react';
 
-import { accessHierarchy } from '@/lib/accessHierarchy'; // <-- brug denne!
+import { accessHierarchy } from '@/lib/accessHierarchy';
 
 const iconMap: Record<string, ReactNode> = {
   dashboard: <LayoutDashboard size={20} />,
@@ -51,7 +51,6 @@ export default function Sidebar() {
 
   const [openState, setOpenState] = useState<Record<string, boolean>>({});
 
-  // DEBUG
   useEffect(() => {
     console.log('[Sidebar] pathname', pathname);
   }, [pathname]);
@@ -90,7 +89,6 @@ export default function Sidebar() {
     </Link>
   );
 
-  // Robust navigation-renderer (tåler manglende children)
   type Entry = {
     key: string;
     label: string;
@@ -107,17 +105,11 @@ export default function Sidebar() {
       const isOpen = !!openState[entry.key];
       const isSubMenu = level > 0;
 
-      // DEBUG
-      console.log('[Sidebar] render entry', { key: entry.key, href: entry.href, children: children.length });
-
       if (children.length) {
         return (
           <div key={entry.key}>
             <div
-              className={
-                `w-full flex items-center justify-between px-4 py-2 rounded hover:bg-gray-800 transition group relative cursor-pointer` +
-                (isSubMenu ? ' sidebar-submenu' : '')
-              }
+              className={`w-full flex items-center justify-between px-4 py-2 rounded hover:bg-gray-800 transition group relative cursor-pointer${isSubMenu ? ' sidebar-submenu' : ''}`}
               onClick={() => setOpenState(os => ({ ...os, [entry.key]: !isOpen }))}
             >
               <div className="flex items-center gap-2 flex-1 min-w-0 select-none">
@@ -146,7 +138,6 @@ export default function Sidebar() {
         );
       }
 
-      // Ingen children: normalt link
       const href = entry.href || '#';
       const isActive = !!entry.href && pathname === entry.href;
       return (
@@ -154,11 +145,7 @@ export default function Sidebar() {
           key={entry.key}
           href={href}
           onClick={() => setMobileOpen(false)}
-          className={
-            `flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition` +
-            (isActive ? ' bg-gray-700 font-semibold' : '') +
-            (isSubMenu ? ' sidebar-submenu' : '')
-          }
+          className={`flex items-center gap-2 px-4 py-2 rounded hover:bg-gray-800 transition${isActive ? ' bg-gray-700 font-semibold' : ''}${isSubMenu ? ' sidebar-submenu' : ''}`}
         >
           {iconMap[entry.key]}
           {entry.label}
@@ -168,34 +155,42 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobilmenu */}
+      {/* Mobile header (fixed) */}
       <div
-  className="md:hidden flex items-center justify-between bg-gray-900 text-white px-4 fixed left-0 right-0 z-[9999] pointer-events-auto"
-  style={{
-    top: 'env(safe-area-inset-top)',
-    paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)',
-    paddingBottom: '0.75rem',
-  }}
->
-        <button onClick={() => setMobileOpen(prev => !prev)}>
+        className="md:hidden flex items-center justify-between bg-gray-900 text-white px-4 fixed left-0 right-0 pointer-events-auto"
+        style={{
+          top: 'env(safe-area-inset-top)',
+          paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)',
+          paddingBottom: '0.75rem',
+          zIndex: 2147483647, // MAX to out-rank any accidental overlays
+        }}
+        onClick={() => console.log('✅ Header click-through OK')}
+      >
+        <button
+          className="relative"
+          style={{ zIndex: 2147483647 }}
+          onClick={() => setMobileOpen(prev => !prev)}
+        >
           {mobileOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
-        <Link href="/dashboard" className="text-lg font-bold hover:underline">
+        <Link href="/dashboard" className="text-lg font-bold hover:underline relative" style={{ zIndex: 2147483647 }}>
           ✨ ConnectUs
         </Link>
       </div>
-{/* Spacer to avoid content overlay under fixed header on mobile */}
-<div className="md:hidden" style={{ height: 'calc(env(safe-area-inset-top) + 56px)' }} />
 
-{mobileOpen && (
+      {/* Spacer to avoid content overlay under fixed header on mobile */}
+      <div className="md:hidden" style={{ height: 'calc(env(safe-area-inset-top) + 56px)' }} />
+
+      {mobileOpen && (
         <div
           ref={menuRef}
-          className="md:hidden fixed inset-0 bg-gray-900 text-white overflow-y-auto p-4 space-y-2 z-40"
+          className="md:hidden fixed inset-0 bg-gray-900 text-white overflow-y-auto p-4 space-y-2"
+          style={{ zIndex: 2147483646 }}
         >
           {dashboardLink}
           {renderNav(accessHierarchy as Entry[])}
 
-          {/* --- Brugerboks og log ud på mobil --- */}
+          {/* User block */}
           <div className="flex flex-col items-center gap-2 mt-8">
             <Link href="/profile" className="flex flex-col items-center gap-2 cursor-pointer">
               {user.avatar_url ? (
@@ -217,11 +212,10 @@ export default function Sidebar() {
               🎯 XP: {xp}
             </div>
           </div>
-          {/* --- Slut brugerblok --- */}
         </div>
       )}
 
-      {/* Desktopmenu */}
+      {/* Desktop sidebar */}
       <div className="hidden md:flex min-h-screen w-64 bg-gray-900 text-white flex-col justify-between pt-6">
         <div>
           <div className="p-6 text-xl font-bold">
@@ -251,7 +245,6 @@ export default function Sidebar() {
           </div>
         </div>
       </div>
-
     </>
   );
 }

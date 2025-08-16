@@ -10,7 +10,6 @@ import * as exifr from "exifr";
 import { Category } from "@/components/ui/globalmodal/types";
 import CategorySelect from "@/components/ui/globalmodal/CategorySelect";
 
-
 const DashboardBanner = () => {
   const { user } = useUserContext();
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
@@ -25,7 +24,7 @@ const DashboardBanner = () => {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingMeta, setPendingMeta] = useState<{ taken_at?: Date; latitude?: number; longitude?: number }>({});
   const [originalImageUrl, setOriginalImageUrl] = useState<string | undefined>(undefined);
- const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
 
   const fetchLatestBanner = async () => {
     const { data, error } = await supabase
@@ -76,7 +75,7 @@ const DashboardBanner = () => {
 
     let meta: any = {};
     try {
-      meta = (await exifr.parse(file)) || {};
+      meta = (await (exifr as any).parse(file)) || {};
     } catch (err) {
       meta = {};
     }
@@ -108,7 +107,7 @@ const DashboardBanner = () => {
         });
         const realBlob = Array.isArray(convertedBlob)
           ? convertedBlob[0]
-          : convertedBlob;
+          : convertedBlob as Blob;
         file = new File([realBlob], file.name.replace(/\.heic$/i, ".jpg"), {
           type: "image/jpeg",
         });
@@ -202,7 +201,8 @@ const DashboardBanner = () => {
         />
 
         {(uploading || !imageLoaded) && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100 bg-opacity-80">
+          // Gør overlay klik-gennemsigtigt så CTA'er kan trykkes på mobil
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100 bg-opacity-80 pointer-events-none">
             <span className="text-sm text-gray-600 animate-pulse">
               {uploading ? "Uploader billede…" : "Indlæser billede…"}
             </span>
@@ -238,7 +238,7 @@ const DashboardBanner = () => {
 
         {imageUrl && !uploading && (
           <button
-            className="absolute top-2 right-2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 shadow"
+            className="absolute top-2 right-2 z-20 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 shadow"
             onClick={handleUploadClick}
           >
             <svg
@@ -269,8 +269,7 @@ const DashboardBanner = () => {
             aspect={3 / 1.5}
           />
           <div className="w-full mt-4">
-           <CategorySelect value={selectedCategories} onChange={setSelectedCategories} categoryType="memory" />
-
+            <CategorySelect value={selectedCategories} onChange={setSelectedCategories} categoryType="memory" />
           </div>
         </>
       )}
