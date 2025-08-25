@@ -9,7 +9,7 @@ import { useXp } from '@/context/XpContext';
 import { useHasMounted } from '@/hooks/useHasMounted';
 import { useUserContext } from '@/context/UserContext';
 import { supabase } from '@/lib/supabaseClient';
-import { DatabaseZap } from 'lucide-react';
+import { DatabaseZap, Home } from 'lucide-react';
 import {
   LayoutDashboard, ListTodo, Sparkles, Backpack, HeartHandshake, Briefcase, Settings, ChevronDown, ChevronRight, Menu, X, BrainCircuit, Globe, UserCircle, Heart, CalendarDays, ClipboardCheck, User, Image
 } from 'lucide-react';
@@ -37,6 +37,8 @@ const iconMap: Record<string, ReactNode> = {
   intim: <Heart size={20} />,
   memories: <Image size={20} />,
   kalender: <CalendarDays size={20} />,
+  // NEW: Langeland menu icon
+  langeland: <Home size={20} />,
 };
 
 export default function Sidebar() {
@@ -57,7 +59,7 @@ export default function Sidebar() {
 
   useEffect(() => {
     const newOpenState: Record<string, boolean> = {};
-    accessHierarchy.forEach(entry => {
+    (accessHierarchy as Entry[]).forEach(entry => {
       if (entry?.href && pathname.startsWith(entry.href)) {
         newOpenState[entry.key] = true;
       }
@@ -65,13 +67,25 @@ export default function Sidebar() {
     setOpenState(os => ({ ...os, ...newOpenState }));
   }, [pathname]);
 
+  // ⬇️ Type + static ekstra menupunkt (ingen hooks her)
+  type Entry = {
+    key: string;
+    label: string;
+    href?: string;
+    children?: Entry[];
+  };
+  const extraNav: Entry[] = [
+    { key: 'langeland', label: 'Langeland', href: '/langeland' },
+  ];
+
   if (!hasMounted || loading || !user) return null;
 
   const isAdmin = user?.email === 'mads@onlinerelation.dk';
   const userAccess: Record<string, boolean> = user?.access || {};
 
+  // Allow access by default to dashboard and Langeland
   const hasAccessTo = (key: string) => {
-    if (key === 'dashboard') return true;
+    if (key === 'dashboard' || key === 'langeland') return true;
     if (isAdmin) return true;
     if (userAccess[key]) return true;
     return Object.keys(userAccess).some(k => k.startsWith(`${key}/`) && userAccess[k]);
@@ -88,13 +102,6 @@ export default function Sidebar() {
       Dashboard
     </Link>
   );
-
-  type Entry = {
-    key: string;
-    label: string;
-    href?: string;
-    children?: Entry[];
-  };
 
   const renderNav = (entries: Entry[], level = 0): React.ReactNode[] =>
     entries.map((entry) => {
@@ -162,7 +169,7 @@ export default function Sidebar() {
           top: 'env(safe-area-inset-top)',
           paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)',
           paddingBottom: '0.75rem',
-          zIndex: 2147483647, // MAX to out-rank any accidental overlays
+          zIndex: 2147483647,
         }}
         onClick={() => console.log('✅ Header click-through OK')}
       >
@@ -188,12 +195,13 @@ export default function Sidebar() {
           style={{ zIndex: 2147483646 }}
         >
           {dashboardLink}
-          {renderNav(accessHierarchy as Entry[])}
+          {renderNav([...(accessHierarchy as Entry[]), ...extraNav])}
 
           {/* User block */}
           <div className="flex flex-col items-center gap-2 mt-8">
             <Link href="/profile" className="flex flex-col items-center gap-2 cursor-pointer">
               {user.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={user.avatar_url} className="w-14 h-14 rounded-full" alt="avatar" />
               ) : (
                 <div className="w-14 h-14 rounded-full bg-gray-700 text-white flex items-center justify-center font-semibold">
@@ -221,11 +229,12 @@ export default function Sidebar() {
           <div className="p-6 text-xl font-bold">
             <Link href="/dashboard" className="hover:underline">✨ ConnectUs</Link>
           </div>
-          <nav className="flex flex-col space-y-1 px-4 mt-4">{renderNav(accessHierarchy as Entry[])}</nav>
+          <nav className="flex flex-col space-y-1 px-4 mt-4">{renderNav([...(accessHierarchy as Entry[]), ...extraNav])}</nav>
         </div>
         <div className="mb-6 flex flex-col items-center gap-2 px-4">
           <Link href="/profile" className="flex flex-col items-center gap-2 cursor-pointer mt-6">
             {user.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img src={user.avatar_url} className="w-14 h-14 rounded-full" alt="avatar" />
             ) : (
               <div className="w-14 h-14 rounded-full bg-gray-700 text-white flex items-center justify-center font-semibold">

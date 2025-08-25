@@ -1,7 +1,7 @@
 // /app/settings/access/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { accessHierarchy, AccessEntry } from '@/lib/accessHierarchy';
 
@@ -14,6 +14,15 @@ export default function AccessPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [accessList, setAccessList] = useState<Record<string, boolean>>({});
+
+  // ➕ Langeland tilføjes lokalt til det importerede hierarchy
+  const augmentedAccess: AccessEntry[] = useMemo(
+    () => [
+      ...((accessHierarchy as AccessEntry[]) || []),
+      { key: 'langeland', label: 'Langeland', href: '/langeland', children: [] },
+    ],
+    []
+  );
 
   // Hent alle profiler til dropdown
   useEffect(() => {
@@ -38,16 +47,16 @@ export default function AccessPage() {
       if (error) return;
 
       const map: Record<string, boolean> = {};
-      accessHierarchy.forEach((entry) => {
+      augmentedAccess.forEach((entry) => {
         map[entry.key] = !!data?.find((r) => r.menu_key === entry.key)?.allowed;
-        entry.children.forEach((child) => {
+        (entry.children || []).forEach((child) => {
           map[child.key] = !!data?.find((r) => r.menu_key === child.key)?.allowed;
         });
       });
       setAccessList(map);
     };
     fetchAccess();
-  }, [selectedUser]);
+  }, [selectedUser, augmentedAccess]);
 
   const toggleAccess = (key: string) => {
     setAccessList((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -56,19 +65,11 @@ export default function AccessPage() {
   const saveAccess = async () => {
     if (!selectedUser) return;
     try {
-      const updates = [];
-      for (const entry of accessHierarchy) {
-        updates.push({
-          user_id: selectedUser,
-          menu_key: entry.key,
-          allowed: !!accessList[entry.key],
-        });
-        for (const child of entry.children) {
-          updates.push({
-            user_id: selectedUser,
-            menu_key: child.key,
-            allowed: !!accessList[child.key],
-          });
+      const updates: { user_id: string; menu_key: string; allowed: boolean }[] = [];
+      for (const entry of augmentedAccess) {
+        updates.push({ user_id: selectedUser, menu_key: entry.key, allowed: !!accessList[entry.key] });
+        for (const child of entry.children || []) {
+          updates.push({ user_id: selectedUser, menu_key: child.key, allowed: !!accessList[child.key] });
         }
       }
       const { error } = await supabase
@@ -102,7 +103,7 @@ export default function AccessPage() {
       </label>
       {selectedUser && (
         <div className="space-y-4">
-          {accessHierarchy.map((entry) => (
+          {augmentedAccess.map((entry) => (
             <div key={entry.key} className="space-y-1">
               <label className="flex items-center gap-2">
                 <input
@@ -113,7 +114,7 @@ export default function AccessPage() {
                 />
                 <span className="text-base font-medium">{entry.label}</span>
               </label>
-              {entry.children.length > 0 && (
+              {(entry.children && entry.children.length > 0) && (
                 <div className="ml-6 space-y-1">
                   {entry.children.map((child) => (
                     <label key={child.key} className="flex items-center gap-2">
