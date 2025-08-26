@@ -257,7 +257,7 @@ export default function TasksCard() {
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="space-y-1">
           <h2 className="text-xl font-semibold flex items-center gap-2">📋 Huskeliste</h2>
-          <p className="text-sm text-muted-foreground">Praktiske opgaver vi vil huske, når vi er i huset.</p>
+         
         </div>
         <Button onClick={openCreate} variant="primary" className="gap-2 rounded-full">
           <Plus className="h-4 w-4" /> Ny opgave

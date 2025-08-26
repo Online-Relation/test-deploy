@@ -11,18 +11,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Trash2, Plus, PencilLine } from "lucide-react";
+import { Trash2, Plus, PencilLine, CheckCircle2, Circle } from "lucide-react";
 // ⚠️ heic2any må IKKE importeres på top-level (SSR). Vi lazy-loader i browser.
 
 interface Idea {
   id: string;
   title: string;
-  type: string; // bevidst bred, DB er tekst
+  type: string; // DB: text
   description: string | null;
   proposed_by: string | null; // matcher DB
   created_at: string;
   updated_at: string;
   image_url: string | null;
+  done: boolean; // ✅ kan afkrydses
 }
 
 type FormState = { title: string; type: string; description: string };
@@ -48,7 +49,9 @@ export default function IdeasCard() {
     console.log("⏳ [IdeasCard] fetchIdeas()");
     setLoading(true);
     const { data, error } = await supabase
-      .from("langeland_ideas").select("id, title, type, description, proposed_by, created_at, updated_at, image_url")
+      .from("langeland_ideas")
+      .select("id, title, type, description, proposed_by, created_at, updated_at, image_url, done")
+      .order("done", { ascending: true })
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -68,7 +71,13 @@ export default function IdeasCard() {
     setLoading(false);
   };
 
-  const list = useMemo(() => [...items], [items]);
+  const list = useMemo(() => {
+    const arr = [...items].sort((a, b) => {
+      if (a.done !== b.done) return a.done ? 1 : -1; // ikke-udført først
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+    return arr;
+  }, [items]);
 
   const openCreate = () => {
     console.log("🆕 [IdeasCard] openCreate");
@@ -135,7 +144,6 @@ export default function IdeasCard() {
       upsert: true,
       contentType: file.type || (ext === "jpg" ? "image/jpeg" : undefined),
     });
-
     if (error) {
       console.error("❌ [IdeasCard] upload error", {
         message: (error as any)?.message,
@@ -183,6 +191,7 @@ export default function IdeasCard() {
         type: form.type,
         description: form.description.trim() || null,
         image_url: imageUrl,
+        done: false,
       };
       console.log("➕ [IdeasCard] insert payload", payload);
       const { error } = await supabase.from("langeland_ideas").insert(payload);
@@ -202,6 +211,16 @@ export default function IdeasCard() {
     setFile(null);
     setPreview(null);
     fetchIdeas();
+  };
+
+  const toggleDone = async (idea: Idea) => {
+    console.log("🔁 [IdeasCard] toggleDone", idea.id, !idea.done);
+    const { error } = await supabase
+      .from("langeland_ideas")
+      .update({ done: !idea.done })
+      .eq("id", idea.id);
+    if (error) return console.error("❌ [IdeasCard] toggleDone error", error);
+    setItems(prev => prev.map(i => (i.id === idea.id ? { ...i, done: !i.done } : i)));
   };
 
   const typeBadge = (t: string) => {
@@ -238,43 +257,53 @@ export default function IdeasCard() {
       <ul className="space-y-2">
         {!loading && list.map((i) => (
           <li key={i.id} className="group rounded-xl border bg-background/50 hover:bg-muted/50 transition-colors">
-            <div className="p-3 md:p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-medium">{i.title}</p>
-                    {typeBadge(i.type)}
+            <div className="p-3 md:p-4 flex items-start gap-3">
+              {/* ✅ Done toggle */}
+              <button
+                onClick={() => toggleDone(i)}
+                className="mt-0.5 shrink-0 rounded-full border w-5 h-5 grid place-items-center"
+                aria-label={i.done ? "Markér som ikke udført" : "Markér som udført"}
+              >
+                {i.done ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <Circle className="h-3.5 w-3.5 text-slate-400" />}
+              </button>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-3">
+                  <p className={`font-medium ${i.done ? "line-through text-slate-400" : ""}`}>{i.title}</p>
+                  {typeBadge(i.type)}
+                </div>
+                {i.description && (
+                  <p className={`text-sm mt-0.5 whitespace-pre-wrap ${i.done ? "line-through text-slate-400" : "text-muted-foreground"}`}>
+                    {i.description}
+                  </p>
+                )}
+                {i.image_url && (
+                  <div className="mt-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={i.image_url} alt="Vedhæftet billede" className="rounded-lg border max-h-48 object-cover" />
                   </div>
-                  {i.description && (
-                    <p className="text-sm text-muted-foreground mt-0.5 whitespace-pre-wrap">{i.description}</p>
-                  )}
-                  {i.image_url && (
-                    <div className="mt-2">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={i.image_url} alt="Vedhæftet billede" className="rounded-lg border max-h-48 object-cover" />
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">Opdateret: {new Date(i.updated_at).toLocaleString()}</p>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(i)} aria-label="Rediger" className="hover:bg-muted">
-                    <PencilLine className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={async () => {
-                      console.log("🗑️ [IdeasCard] delete", i.id);
-                      const { error } = await supabase.from("langeland_ideas").delete().eq("id", i.id);
-                      if (error) return console.error("❌ [IdeasCard] delete error", error);
-                      setItems((prev) => prev.filter((x) => x.id !== i.id));
-                    }}
-                    aria-label="Slet"
-                    className="hover:bg-muted"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">Opdateret: {new Date(i.updated_at).toLocaleString()}</p>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <Button variant="ghost" size="icon" onClick={() => openEdit(i)} aria-label="Rediger" className="hover:bg-muted">
+                  <PencilLine className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={async () => {
+                    console.log("🗑️ [IdeasCard] delete", i.id);
+                    const { error } = await supabase.from("langeland_ideas").delete().eq("id", i.id);
+                    if (error) return console.error("❌ [IdeasCard] delete error", error);
+                    setItems((prev) => prev.filter((x) => x.id !== i.id));
+                  }}
+                  aria-label="Slet"
+                  className="hover:bg-muted"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           </li>

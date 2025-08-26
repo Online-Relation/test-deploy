@@ -217,7 +217,7 @@ export default function ShoppingCard() {
       <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
         <div className="space-y-1">
           <h2 className="text-xl font-semibold flex items-center gap-2">🛒 Indkøbsliste</h2>
-          <p className="text-sm text-muted-foreground">Ting der skal købes til huset.</p>
+          
         </div>
 
         <div className="flex items-center gap-2 ml-auto">
