@@ -257,7 +257,6 @@ export default function TasksCard() {
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="space-y-1">
           <h2 className="text-xl font-semibold flex items-center gap-2">📋 Huskeliste</h2>
-         
         </div>
         <Button onClick={openCreate} variant="primary" className="gap-2 rounded-full">
           <Plus className="h-4 w-4" /> Ny opgave
@@ -274,6 +273,7 @@ export default function TasksCard() {
         {!loading && sortedTasks.map((t) => (
           <li key={t.id} className="group rounded-xl border bg-background/50 hover:bg-muted/50 transition-colors">
             <div className="p-3 md:p-4 flex items-start gap-3">
+              {/* Done-toggle */}
               <button
                 onClick={() => toggleDone(t)}
                 className="mt-0.5 shrink-0 rounded-full border w-5 h-5 grid place-items-center"
@@ -282,28 +282,39 @@ export default function TasksCard() {
                 {t.done ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <Circle className="h-3.5 w-3.5 text-slate-400" />}
               </button>
 
+              {/* Indhold */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-3">
+                {/* Toplinje: titel + badge i højre side */}
+                <div className="flex items-start justify-between gap-3">
                   <p className={`font-medium ${t.done ? "line-through text-slate-400" : ""}`}>{t.title}</p>
-                  {priorityBadge(t.priority)}
+                  <div className="shrink-0">{priorityBadge(t.priority)}</div>
                 </div>
-                {t.note && <p className="text-sm text-muted-foreground mt-0.5 whitespace-pre-wrap">{t.note}</p>}
+
+                {t.note && (
+                  <p className={`text-sm mt-1 whitespace-pre-wrap ${t.done ? "line-through text-slate-400" : "text-muted-foreground"}`}>
+                    {t.note}
+                  </p>
+                )}
+
                 {t.image_url && (
                   <div className="mt-2">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={t.image_url} alt="Vedhæftet billede" className="rounded-lg border max-h-48 object-cover" />
                   </div>
                 )}
-                <p className="text-xs text-muted-foreground mt-1">Opdateret: {new Date(t.updated_at).toLocaleString()}</p>
-              </div>
 
-              <div className="flex items-center gap-1.5">
-                <Button variant="ghost" size="icon" onClick={() => openEdit(t)} aria-label="Rediger" className="hover:bg-muted">
-                  <PencilLine className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => handleDelete(t.id)} aria-label="Slet" className="hover:bg-muted">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {/* Bundlinje: venstre = opdateret, højre = actions */}
+                <div className="mt-3 flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">Opdateret: {new Date(t.updated_at).toLocaleString()}</p>
+                  <div className="flex items-center gap-1.5">
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(t)} aria-label="Rediger" className="hover:bg-muted">
+                      <PencilLine className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleDelete(t.id)} aria-label="Slet" className="hover:bg-muted">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
           </li>

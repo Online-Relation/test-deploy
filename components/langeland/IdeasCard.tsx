@@ -241,10 +241,10 @@ export default function IdeasCard() {
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="space-y-1">
           <h2 className="text-xl font-semibold flex items-center gap-2">🧠 Idéer & noter</h2>
-          <p className="text-sm text-muted-foreground">Gem tanker og forbedringer til huset.</p>
+         
         </div>
         <Button onClick={openCreate} variant="primary" className="gap-2 rounded-full">
-          <Plus className="h-4 w-4" /> Ny idé/note
+          <Plus className="h-4 w-4" /> Ny idé
         </Button>
       </div>
 

@@ -40,7 +40,7 @@ export default function LangelandPage() {
               <Chip id="all" label="Alle" />
               <Chip id="tasks" label="Huskeliste" />
               <Chip id="shopping" label="Indkøbsliste" />
-              <Chip id="ideas" label="Idéer & noter" />
+              <Chip id="ideas" label="Idéer" />
             </div>
           </div>
         </div>
