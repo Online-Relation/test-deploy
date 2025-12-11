@@ -25,6 +25,7 @@ const NeverBoringStatement = () => {
   const [memorySubmitted, setMemorySubmitted] = useState(false);
   const [widgetClosed, setWidgetClosed] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
+  const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -42,17 +43,19 @@ const NeverBoringStatement = () => {
         .eq("checkin_date", checkin_date)
         .limit(1);
 
-      console.log("[NeverBoring] today status", { hasCheckin: !!(data && data.length), error });
+      console.log("[NeverBoring] today status", {
+        hasCheckin: !!(data && data.length),
+        error,
+      });
 
       if (!error && data && data.length > 0) {
-        // Allerede svaret i dag ⇒ vis vision
+        setHasCheckedInToday(true);
         setShowVision(true);
         fetchTodayMood();
-        // Valgfrit: hvis du vil bruge gårsdagens resume et sted i vision
-        // fetchYesterdaySummary();
+        // fetchYesterdaySummary(); // valgfrit
       } else {
-        // FRA 00:01 HELE DAGEN indtil svaret ⇒ vis spørgsmål
-        setShowQuestion(true);
+        setHasCheckedInToday(false);
+        setShowVision(true);
       }
     };
 
@@ -87,15 +90,21 @@ const NeverBoringStatement = () => {
 
     if (error || !data || data.length === 0) return;
 
-    const stine = data.find((d: any) => d?.profiles?.display_name?.toLowerCase().includes("stine"));
-    const mads = data.find((d: any) => d?.profiles?.display_name?.toLowerCase().includes("mads"));
+    const stine = data.find((d: any) =>
+      d?.profiles?.display_name?.toLowerCase().includes("stine")
+    );
+    const mads = data.find((d: any) =>
+      d?.profiles?.display_name?.toLowerCase().includes("mads")
+    );
 
     if (!stine || !mads) return;
 
     const { data: messages } = await supabase
       .from("checkin_messages")
       .select("message")
-      .or(`and(weekday_stine.eq.${stine.everyday_feeling},weekday_mads.eq.${mads.everyday_feeling}),and(mood_stine.eq.${stine.mood},mood_mads.eq.${mads.mood})`)
+      .or(
+        `and(weekday_stine.eq.${stine.everyday_feeling},weekday_mads.eq.${mads.everyday_feeling}),and(mood_stine.eq.${stine.mood},mood_mads.eq.${mads.mood})`
+      )
       .limit(1);
 
     if (messages && messages.length > 0) {
@@ -105,6 +114,16 @@ const NeverBoringStatement = () => {
 
   const handleMoodClick = (mood: number) => {
     setMoodSelected(mood);
+  };
+
+  const handleStartFlow = () => {
+    setMoodSelected(null);
+    setRelationshipMood(null);
+    setShowMemoryInput(false);
+    setMemoryText("");
+    setMemorySubmitted(false);
+    setShowQuestion(true);
+    setShowVision(false);
   };
 
   const handleRelationshipMoodClick = async (mood: number) => {
@@ -145,6 +164,7 @@ const NeverBoringStatement = () => {
         setDisplayName(profileData?.display_name ?? null);
         setXpGiven(true);
         setShowMemoryInput(true);
+        setHasCheckedInToday(true);
       }
     }
   };
@@ -162,9 +182,9 @@ const NeverBoringStatement = () => {
 
     if (!error) {
       setMemorySubmitted(true);
-      // EFTER spørgsmål ⇒ vis vision resten af dagen
       setShowQuestion(false);
       setShowVision(true);
+      setHasCheckedInToday(true);
     } else {
       alert("Kunne ikke gemme minde: " + error.message);
     }
@@ -177,46 +197,65 @@ const NeverBoringStatement = () => {
     setTimeout(() => setWidgetClosed(true), 400);
   };
 
-  const moodBorderClass = relationshipMood === 1
-    ? "border-blue-400 bg-blue-50"
-    : relationshipMood === 2
-    ? "border-cyan-400 bg-cyan-50"
-    : relationshipMood === 3
-    ? "border-gray-400 bg-gray-50"
-    : relationshipMood === 4
-    ? "border-orange-400 bg-orange-50"
-    : relationshipMood === 5
-    ? "border-rose-400 bg-rose-50"
-    : "border-purple-400 bg-purple-50";
+  const moodBorderClass =
+    relationshipMood === 1
+      ? "border-blue-400 bg-blue-50"
+      : relationshipMood === 2
+      ? "border-cyan-400 bg-cyan-50"
+      : relationshipMood === 3
+      ? "border-gray-400 bg-gray-50"
+      : relationshipMood === 4
+      ? "border-orange-400 bg-orange-50"
+      : relationshipMood === 5
+      ? "border-rose-400 bg-rose-50"
+      : "border-purple-400 bg-purple-50";
 
-  const fadeClass = `${fadeOut ? "opacity-0 scale-95" : "opacity-100 scale-100"} transition-all duration-300`;
+  const fadeClass = `${
+    fadeOut ? "opacity-0 scale-95" : "opacity-100 scale-100"
+  } transition-all duration-300`;
 
   const renderStepTitle = () => {
     if (!moodSelected) return "Hvordan har jeres hverdag været i dag?";
-    if (moodSelected && relationshipMood === null) return "Hvordan er stemningen mellem jer lige nu?";
+    if (moodSelected && relationshipMood === null)
+      return "Hvordan er stemningen mellem jer lige nu?";
     if (showMemoryInput && !memorySubmitted) return "Del et lille minde fra i dag";
-    if (memorySubmitted) return "Tak for i dag – du har gjort noget godt for jeres forhold 💜";
+    if (memorySubmitted)
+      return "Tak for i dag – du har gjort noget godt for jeres forhold 💜";
     return "";
   };
 
   if (showQuestion) {
     return (
-      <div className={`border-2 border-dashed rounded-2xl shadow-xl p-6 flex flex-col items-center text-center gap-4 ${fadeClass} ${moodBorderClass}`}>
+      <div
+        className={`border-2 border-dashed rounded-2xl shadow-xl p-6 flex flex-col items-center text-center gap-4 ${fadeClass} ${moodBorderClass}`}
+      >
         <h2 className="text-xl md:text-2xl font-extrabold text-purple-700">
           {renderStepTitle()}
         </h2>
         {!moodSelected && (
           <div className="flex flex-wrap justify-center gap-3 mt-4 w-full">
-            <button onClick={() => handleMoodClick(1)} className="px-4 py-3 bg-purple-100 border border-purple-300 rounded-xl text-sm font-medium text-purple-700 hover:bg-purple-200 active:scale-95 w-[140px]">
+            <button
+              onClick={() => handleMoodClick(1)}
+              className="px-4 py-3 bg-purple-100 border border-purple-300 rounded-xl text-sm font-medium text-purple-700 hover:bg-purple-200 active:scale-95 w-[140px]"
+            >
               <Frown className="w-5 h-5 inline mr-1" /> Kedeligt
             </button>
-            <button onClick={() => handleMoodClick(2)} className="px-4 py-3 bg-purple-100 border border-purple-300 rounded-xl text-sm font-medium text-purple-700 hover:bg-purple-200 active:scale-95 w-[140px]">
+            <button
+              onClick={() => handleMoodClick(2)}
+              className="px-4 py-3 bg-purple-100 border border-purple-300 rounded-xl text-sm font-medium text-purple-700 hover:bg-purple-200 active:scale-95 w-[140px]"
+            >
               <Glasses className="w-5 h-5 inline mr-1" /> Hverdagsagtigt
             </button>
-            <button onClick={() => handleMoodClick(3)} className="px-4 py-3 bg-purple-100 border border-purple-300 rounded-xl text-sm font-medium text-purple-700 hover:bg-purple-200 active:scale-95 w-[140px]">
+            <button
+              onClick={() => handleMoodClick(3)}
+              className="px-4 py-3 bg-purple-100 border border-purple-300 rounded-xl text-sm font-medium text-purple-700 hover:bg-purple-200 active:scale-95 w-[140px]"
+            >
               <PartyPopper className="w-5 h-5 inline mr-1" /> Hyggeligt
             </button>
-            <button onClick={() => handleMoodClick(4)} className="px-4 py-3 bg-purple-100 border border-purple-300 rounded-xl text-sm font-medium text-purple-700 hover:bg-purple-200 active:scale-95 w-[140px]">
+            <button
+              onClick={() => handleMoodClick(4)}
+              className="px-4 py-3 bg-purple-100 border border-purple-300 rounded-xl text-sm font-medium text-purple-700 hover:bg-purple-200 active:scale-95 w-[140px]"
+            >
               <Sparkles className="w-5 h-5 inline mr-1" /> Sjovt
             </button>
           </div>
@@ -224,11 +263,48 @@ const NeverBoringStatement = () => {
         {moodSelected && relationshipMood === null && (
           <>
             <p className="mt-4 text-purple-700 text-base font-medium">
-              Vælg den mulighed der bedst matcher stemningen i dag – svar ærligt, det handler bare om, hvordan temperaturen er i jeres relation er lige nu.
+              Vælg den mulighed der bedst matcher stemningen i dag – svar ærligt,
+              det handler bare om, hvordan temperaturen er i jeres relation er
+              lige nu.
             </p>
             <div className="flex gap-3 flex-wrap justify-center mt-2">
-              {[{ label: "Frost", value: 1, color: "border-blue-400 bg-blue-100 text-blue-800" }, { label: "Kølig", value: 2, color: "border-cyan-400 bg-cyan-100 text-cyan-800" }, { label: "Neutral", value: 3, color: "border-gray-400 bg-gray-100 text-gray-800" }, { label: "Lun", value: 4, color: "border-orange-400 bg-orange-100 text-orange-800" }, { label: "Hed", value: 5, color: "border-rose-400 bg-rose-100 text-rose-800" }].map(({ label, value, color }) => (
-                <button key={value} onClick={() => handleRelationshipMoodClick(value)} className={`w-20 h-20 rounded-full border font-semibold ${color} hover:scale-105 transition-all`}>
+              {[
+                {
+                  label: "Frost",
+                  value: 1,
+                  color:
+                    "border-blue-400 bg-blue-100 text-blue-800",
+                },
+                {
+                  label: "Kølig",
+                  value: 2,
+                  color:
+                    "border-cyan-400 bg-cyan-100 text-cyan-800",
+                },
+                {
+                  label: "Neutral",
+                  value: 3,
+                  color:
+                    "border-gray-400 bg-gray-100 text-gray-800",
+                },
+                {
+                  label: "Lun",
+                  value: 4,
+                  color:
+                    "border-orange-400 bg-orange-100 text-orange-800",
+                },
+                {
+                  label: "Hed",
+                  value: 5,
+                  color:
+                    "border-rose-400 bg-rose-100 text-rose-800",
+                },
+              ].map(({ label, value, color }) => (
+                <button
+                  key={value}
+                  onClick={() => handleRelationshipMoodClick(value)}
+                  className={`w-20 h-20 rounded-full border font-semibold ${color} hover:scale-105 transition-all`}
+                >
                   {label}
                 </button>
               ))}
@@ -236,9 +312,15 @@ const NeverBoringStatement = () => {
           </>
         )}
         {showMemoryInput && !memorySubmitted && (
-          <form onSubmit={handleMemorySubmit} className="w-full mt-6 flex flex-col gap-3">
+          <form
+            onSubmit={handleMemorySubmit}
+            className="w-full mt-6 flex flex-col gap-3"
+          >
             <p className="text-gray-500 text-center">
-              Hvad var <span className="font-semibold text-indigo-700">det bedste i dag?</span>
+              Hvad var{" "}
+              <span className="font-semibold text-indigo-700">
+                det bedste i dag?
+              </span>
             </p>
             <textarea
               className="rounded-xl border border-indigo-200 focus:border-indigo-500 transition p-3 w-full resize-none text-sm"
@@ -253,7 +335,16 @@ const NeverBoringStatement = () => {
               <button className="btn btn-primary" type="submit">
                 Gem mit minde
               </button>
-              <button className="btn btn-secondary" type="button" onClick={() => { setMemorySubmitted(true); setShowQuestion(false); setShowVision(true); }}>
+              <button
+                className="btn btn-secondary"
+                type="button"
+                onClick={() => {
+                  setMemorySubmitted(true);
+                  setShowQuestion(false);
+                  setShowVision(true);
+                  setHasCheckedInToday(true);
+                }}
+              >
                 Nej tak
               </button>
             </div>
@@ -264,16 +355,26 @@ const NeverBoringStatement = () => {
             {memoryText.trim() ? (
               <p>
                 Godt gået, {displayName}!<br />
-                Når du gemmer det bedste fra i dag, gør du hverdagen lidt mere magisk – og meget mindre kedelig. Jeg er tilbage i morgen.
+                Når du gemmer det bedste fra i dag, gør du hverdagen lidt mere
+                magisk – og meget mindre kedelig. Jeg er tilbage i morgen.
               </p>
             ) : (
               <p>
-                Du valgte ikke at gemme et minde i dag – og det er helt okay.<br />
-                Nogle dage er bare… dage. Men du tjekkede ind – og det gør en forskel!
+                Du valgte ikke at gemme et minde i dag – og det er helt okay.
+                <br />
+                Nogle dage er bare… dage. Men du tjekkede ind – og det gør en
+                forskel!
               </p>
             )}
-            <button className="btn btn-primary mt-3" onClick={() => { setFadeOut(true); setTimeout(() => setWidgetClosed(true), 400); }}>
-              Luk
+            <button
+              className="btn btn-primary mt-3"
+              onClick={() => {
+                setMemorySubmitted(false);
+                setShowQuestion(false);
+                setShowVision(true);
+              }}
+            >
+              Tilbage til visionen
             </button>
           </div>
         )}
@@ -283,7 +384,9 @@ const NeverBoringStatement = () => {
 
   if (showVision) {
     return (
-      <div className={`border-2 border-dashed rounded-2xl shadow-xl p-6 flex flex-col items-center text-center gap-4 ${fadeClass} ${moodBorderClass}`}>
+      <div
+        className={`border-2 border-dashed rounded-2xl shadow-xl p-6 flex flex-col items-center text-center gap-4 ${fadeClass} ${moodBorderClass}`}
+      >
         <div className="text-purple-500">
           <Sparkles className="w-10 h-10 animate-pulse" />
         </div>
@@ -292,12 +395,28 @@ const NeverBoringStatement = () => {
             Hos os må hverdagen aldrig blive for kedelig 💥
           </h2>
           <p className="mt-1 text-sm md:text-base text-purple-600">
-            Et kærligt spark bagi til at finde på noget skørt, frækt eller nyt – hver dag.
+            Et kærligt spark bagi til at finde på noget skørt, frækt eller nyt –
+            hver dag.
           </p>
           <p className="mt-4 text-xs uppercase tracking-wider text-purple-500 font-semibold">
             Vores vision
           </p>
-          {/* Ekstra (valgfrit): vis gårsdagens opsummering, hvis den findes */}
+
+          {!hasCheckedInToday && (
+            <div className="mt-5">
+              <button
+                onClick={handleStartFlow}
+                className="px-6 py-2 rounded-full bg-purple-600 text-white font-semibold shadow hover:bg-purple-700 active:scale-95 transition-all"
+              >
+                Din stemning
+              </button>
+              <p className="mt-2 text-xs text-purple-500">
+                Tryk én gang om dagen – jeg er klar til at høre, hvordan jeres
+                dag har været.
+              </p>
+            </div>
+          )}
+
           {yesterdaySummary && (
             <div className="mt-4 text-xs text-purple-600 bg-purple-50 border border-purple-200 rounded-lg p-3">
               {yesterdaySummary}
