@@ -117,24 +117,36 @@ export default function ShoppingCard() {
     return arr;
   }, [items]);
 
-  const totalPrice = useMemo(() => {
-    const sum = items.reduce((acc, item) => {
+  // 🔢 Totaler: ikke købt / købt
+  const { notPurchasedTotal, purchasedTotal } = useMemo(() => {
+    let notPurchased = 0;
+    let purchased = 0;
+
+    for (const item of items) {
       if (item.price != null && !Number.isNaN(item.price)) {
-        return acc + Number(item.price);
+        const val = Number(item.price);
+        if (item.purchased) {
+          purchased += val;
+        } else {
+          notPurchased += val;
+        }
       }
-      return acc;
-    }, 0);
-    return sum;
+    }
+
+    return { notPurchasedTotal: notPurchased, purchasedTotal: purchased };
   }, [items]);
 
-  const formattedTotalPrice =
-    totalPrice > 0
-      ? new Intl.NumberFormat("da-DK", {
-          style: "currency",
-          currency: "DKK",
-          minimumFractionDigits: 2,
-        }).format(totalPrice)
-      : null;
+  const formattedNotPurchasedTotal = new Intl.NumberFormat("da-DK", {
+    style: "currency",
+    currency: "DKK",
+    minimumFractionDigits: 2,
+  }).format(notPurchasedTotal);
+
+  const formattedPurchasedTotal = new Intl.NumberFormat("da-DK", {
+    style: "currency",
+    currency: "DKK",
+    minimumFractionDigits: 2,
+  }).format(purchasedTotal);
 
   const openCreate = () => {
     console.log("🆕 [ShoppingCard] openCreate");
@@ -383,7 +395,7 @@ export default function ShoppingCard() {
   return (
     <Card className="rounded-3xl border border-slate-100 bg-gradient-to-br from-sky-50/40 via-white to-emerald-50/40 shadow-sm">
       <div className="flex flex-col gap-3 p-4 md:p-5">
-        <div className="flex items-start gap-3">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
           <div className="flex-1">
             <h2 className="text-lg md:text-xl font-semibold text-slate-900">
               Indkøbsliste
@@ -393,24 +405,42 @@ export default function ShoppingCard() {
               hyggelige.
             </p>
 
-            {formattedTotalPrice && (
-              <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-slate-800 border border-emerald-100 shadow-inner">
+            {/* Nye total-chips */}
+            <div className="mt-2 flex flex-wrap gap-2">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-slate-800 border border-emerald-100 shadow-inner">
                 <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
                 Samlet beløb:{" "}
-                <span className="ml-1 font-bold">{formattedTotalPrice}</span>
+                <span className="ml-1 font-bold">
+                  {formattedNotPurchasedTotal}
+                </span>
+                <span className="text-[10px] text-slate-500 ml-1">
+                  (ikke markeret som købt)
+                </span>
               </div>
-            )}
+
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-slate-800 border border-sky-100 shadow-inner">
+                <span className="inline-block h-2 w-2 rounded-full bg-sky-400" />
+                I alt købt for:{" "}
+                <span className="ml-1 font-bold">
+                  {formattedPurchasedTotal}
+                </span>
+                <span className="text-[10px] text-slate-500 ml-1">
+                  (markeret som købt)
+                </span>
+              </div>
+            </div>
           </div>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="md:ml-auto">
             <Button
               onClick={openCreate}
               variant="primary"
-              className="gap-2 rounded-full"
+              className="gap-2 rounded-full w-full md:w-auto"
             >
               <Plus className="h-4 w-4" /> Ny vare
             </Button>
           </div>
+
         </div>
 
         {loading && (
